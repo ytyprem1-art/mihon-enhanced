@@ -1,5 +1,6 @@
 package eu.kanade.tachiyomi.ui.mod.bookmarkimport
 
+import kotlinx.serialization.Serializable
 import java.io.InputStream
 import java.io.InputStreamReader
 import java.nio.charset.StandardCharsets
@@ -7,6 +8,7 @@ import java.util.Locale
 
 object ManganatoCsvParser {
 
+    @Serializable
     data class BookmarkEntry(
         val id: String,
         val title: String,
@@ -21,6 +23,7 @@ object ManganatoCsvParser {
         val resolvedSourceName: String? = null,
     )
 
+    @Serializable
     enum class MatchResult {
         UNCHECKED,
         MATCHED,

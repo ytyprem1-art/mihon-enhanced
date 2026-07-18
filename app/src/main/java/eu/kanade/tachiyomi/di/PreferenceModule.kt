@@ -9,6 +9,7 @@ import eu.kanade.tachiyomi.core.security.PrivacyPreferences
 import eu.kanade.tachiyomi.core.security.SecurityPreferences
 import eu.kanade.tachiyomi.network.NetworkPreferences
 import eu.kanade.tachiyomi.ui.mod.updatewatch.worker.UpdateWatchDiagnosticsPreferences
+import eu.kanade.tachiyomi.ui.mod.bookmarkimport.BookmarkImportPreferences
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
 import eu.kanade.tachiyomi.util.system.isDebugBuildType
 import tachiyomi.core.common.preference.AndroidPreferenceStore
@@ -76,7 +77,10 @@ class PreferenceModule(val app: Application) : InjektModule {
             BasePreferences(app, get())
         }
         addSingletonFactory {
+
             UpdateWatchDiagnosticsPreferences(get())
+            BookmarkImportPreferences(get())
+
         }
     }
 }

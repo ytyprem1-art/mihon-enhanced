@@ -53,27 +53,68 @@ class BookmarkMatchTest {
     }
 
     @Test
-    fun `test unread progress filtering`() {
-        val viewedChapter: Double? = null
-        val chapters = listOf(
-            createChapter(1.0),
-            createChapter(2.0)
+    fun `test resume algorithm skips completed items`() {
+        val entries = listOf(
+            createEntry("1", ManganatoCsvParser.MatchResult.IMPORTED),
+            createEntry("2", ManganatoCsvParser.MatchResult.MATCHED),
+            createEntry("3", ManganatoCsvParser.MatchResult.UNCHECKED)
         )
 
-        @Suppress("SENSELESS_COMPARISON")
-        val toMarkRead = if (viewedChapter != null) {
-            chapters.filter { it.chapterNumber >= 0 && it.chapterNumber <= viewedChapter }
-        } else {
-            emptyList()
+        // Find items that need matching
+        val matchingIndices = entries.indices.filter { i ->
+            val res = entries[i].matchResult
+            res == ManganatoCsvParser.MatchResult.UNCHECKED || res == ManganatoCsvParser.MatchResult.CANCELED
         }
+        assertEquals(listOf(2), matchingIndices)
 
-        assertTrue(toMarkRead.isEmpty())
+        // Find items that need importing
+        val importIndices = entries.indices.filter { i ->
+            entries[i].matchResult == ManganatoCsvParser.MatchResult.MATCHED
+        }
+        assertEquals(listOf(1), importIndices)
+    }
+
+    @Test
+    fun `test retry failed only selects retryable failures`() {
+        val entries = listOf(
+            createEntry("1", ManganatoCsvParser.MatchResult.NETWORK_TIMEOUT),
+            createEntry("2", ManganatoCsvParser.MatchResult.SOURCE_ERROR),
+            createEntry("3", ManganatoCsvParser.MatchResult.NOT_FOUND),
+            createEntry("4", ManganatoCsvParser.MatchResult.IMPORT_FAILED)
+        )
+
+        // Matching retry
+        val retryMatchIndices = entries.indices.filter { i ->
+            val res = entries[i].matchResult
+            res == ManganatoCsvParser.MatchResult.NETWORK_TIMEOUT || res == ManganatoCsvParser.MatchResult.SOURCE_ERROR
+        }
+        assertEquals(listOf(0, 1), retryMatchIndices)
+
+        // Import retry
+        val retryImportIndices = entries.indices.filter { i ->
+            val res = entries[i].matchResult
+            res == ManganatoCsvParser.MatchResult.IMPORT_FAILED || res == ManganatoCsvParser.MatchResult.CHAPTER_SYNC_FAILED
+        }
+        assertEquals(listOf(3), retryImportIndices)
     }
 
     private fun createChapter(number: Double): Chapter {
         return Chapter.create().copy(
             chapterNumber = number,
             read = false
+        )
+    }
+
+    private fun createEntry(id: String, result: ManganatoCsvParser.MatchResult): ManganatoCsvParser.BookmarkEntry {
+        return ManganatoCsvParser.BookmarkEntry(
+            id = id,
+            title = "Manga $id",
+            viewedChapter = null,
+            originalUrl = "http://example.com/$id",
+            domain = "example.com",
+            mangaPath = "/$id",
+            isValid = true,
+            matchResult = result
         )
     }
 }

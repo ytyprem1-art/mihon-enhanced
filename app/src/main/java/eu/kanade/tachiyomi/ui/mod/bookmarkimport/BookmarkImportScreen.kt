@@ -10,8 +10,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.FileOpen
+import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -67,6 +69,10 @@ class BookmarkImportScreen : Screen() {
                         modifier = Modifier.padding(MaterialTheme.padding.medium),
                         verticalArrangement = Arrangement.spacedBy(MaterialTheme.padding.medium),
                     ) {
+                        if (state.hasSession && !state.isMatching && !state.isImporting) {
+                            SessionPrompt(state, screenModel)
+                        }
+
                         Text(
                             text = "Import manga bookmarks from CSV and add matched titles to your Mihon Library.",
                             style = MaterialTheme.typography.bodyLarge,
@@ -129,7 +135,7 @@ class BookmarkImportScreen : Screen() {
                         if (state.isValid) {
                             ValidPreview(state)
 
-                            state.diagnosticResult?.let { diagnostic ->
+                            state.diagnosticResult?.takeIf { !state.isMatching && !state.isImporting }?.let { diagnostic ->
                                 Surface(
                                     color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.3f),
                                     shape = MaterialTheme.shapes.medium,
@@ -154,11 +160,10 @@ class BookmarkImportScreen : Screen() {
                             }
 
                             val mikotoIndex = state.entries.indexOfFirst { it.title.contains("Mikoto and Rei", ignoreCase = true) }
-                            if (mikotoIndex != -1 && state.entries[mikotoIndex].matchResult == ManganatoCsvParser.MatchResult.UNCHECKED) {
+                            if (mikotoIndex != -1 && state.entries[mikotoIndex].matchResult == ManganatoCsvParser.MatchResult.UNCHECKED && !state.isMatching && !state.isImporting) {
                                 OutlinedButton(
                                     onClick = { screenModel.checkMatches(mikotoIndex) },
                                     modifier = Modifier.fillMaxWidth(),
-                                    enabled = !state.isMatching && !state.isImporting
                                 ) {
                                     Text("Debug: Test matching 'Mikoto and Rei'")
                                 }
@@ -187,43 +192,54 @@ class BookmarkImportScreen : Screen() {
                                         Text("Cancel import")
                                     }
                                 } else {
-                                    Button(
-                                        onClick = screenModel::checkMatches,
-                                        modifier = Modifier.weight(1f),
-                                        enabled = state.entries.any { it.isValid && it.matchResult == ManganatoCsvParser.MatchResult.UNCHECKED }
-                                    ) {
-                                        Text("Check matches")
+                                    val hasUnchecked = state.entries.any { it.isValid && (it.matchResult == ManganatoCsvParser.MatchResult.UNCHECKED || it.matchResult == ManganatoCsvParser.MatchResult.CANCELED) }
+                                    val hasRetryableMatches = state.entries.any { it.matchResult == ManganatoCsvParser.MatchResult.NETWORK_TIMEOUT || it.matchResult == ManganatoCsvParser.MatchResult.SOURCE_ERROR }
+
+                                    if (hasUnchecked) {
+                                        Button(
+                                            onClick = { screenModel.checkMatches() },
+                                            modifier = Modifier.weight(1f),
+                                        ) {
+                                            Text("Check matches")
+                                        }
+                                    } else if (hasRetryableMatches) {
+                                        OutlinedButton(
+                                            onClick = { screenModel.checkMatches(retryFailedOnly = true) },
+                                            modifier = Modifier.weight(1f),
+                                        ) {
+                                            Text("Retry failed matches")
+                                        }
                                     }
 
                                     val matchedCount = state.entries.count { it.matchResult == ManganatoCsvParser.MatchResult.MATCHED }
-                                    Button(
-                                        onClick = screenModel::showImportConfirmation,
-                                        modifier = Modifier.weight(1f),
-                                        enabled = matchedCount > 0
-                                    ) {
-                                        Text("Import matched")
+                                    val hasRetryableImports = state.entries.any { it.matchResult == ManganatoCsvParser.MatchResult.IMPORT_FAILED || it.matchResult == ManganatoCsvParser.MatchResult.CHAPTER_SYNC_FAILED }
+
+                                    if (matchedCount > 0) {
+                                        Button(
+                                            onClick = screenModel::showImportConfirmation,
+                                            modifier = Modifier.weight(1f),
+                                        ) {
+                                            Text("Import matched")
+                                        }
+                                    } else if (hasRetryableImports) {
+                                        OutlinedButton(
+                                            onClick = { screenModel.importMatched(retryFailedOnly = true) },
+                                            modifier = Modifier.weight(1f),
+                                        ) {
+                                            Text("Retry failed imports")
+                                        }
                                     }
                                 }
                             }
 
                             if (state.isImporting) {
-                                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    LinearProgressIndicator(
-                                        progress = { state.importCurrent.toFloat() / state.importTotal.toFloat() },
-                                        modifier = Modifier.fillMaxWidth(),
-                                    )
-                                    Text(
-                                        text = "Importing: ${state.importCurrent} / ${state.importTotal}",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        modifier = Modifier.align(Alignment.End)
-                                    )
-                                }
+                                ImportProgress(state)
                             }
                         }
                     }
                 }
 
-                if (state.isValid && state.entries.isNotEmpty()) {
+                if (state.isValid && state.entries.isNotEmpty() && !state.isImporting) {
                     item {
                         Text(
                             text = "Row Preview",
@@ -244,39 +260,105 @@ class BookmarkImportScreen : Screen() {
             }
 
             if (state.showImportConfirmation) {
-                val matchedCount = state.entries.count { it.matchResult == ManganatoCsvParser.MatchResult.MATCHED }
-                val withProgressCount = state.entries.count { it.matchResult == ManganatoCsvParser.MatchResult.MATCHED && it.viewedChapter != null }
-                val unreadCount = matchedCount - withProgressCount
+                ImportConfirmationDialog(state, screenModel)
+            }
+        }
+    }
 
-                AlertDialog(
-                    onDismissRequest = screenModel::hideImportConfirmation,
-                    title = { Text("Import matched manga") },
-                    text = {
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text("Ready to import $matchedCount manga to your library.")
-                            BulletItem("$withProgressCount with reading progress")
-                            BulletItem("$unreadCount as unread")
+    @Composable
+    private fun SessionPrompt(state: BookmarkImportScreenModel.State, screenModel: BookmarkImportScreenModel) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)),
+        ) {
+            Column(modifier = Modifier.padding(MaterialTheme.padding.medium), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(imageVector = Icons.Outlined.PlayArrow, contentDescription = null, tint = MaterialTheme.colorScheme.secondary)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(text = "Unfinished session detected", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                }
+                Text(text = "File: ${state.sessionFileName}", style = MaterialTheme.typography.bodyMedium)
+                Text(text = "Total items: ${state.rowCount}", style = MaterialTheme.typography.bodySmall)
 
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = "Note: Imported manga will be added to your Library. Auto Refresh will remain OFF for these titles.",
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                        }
-                    },
-                    confirmButton = {
-                        TextButton(onClick = screenModel::importMatched) {
-                            Text("Import")
-                        }
-                    },
-                    dismissButton = {
-                        TextButton(onClick = screenModel::hideImportConfirmation) {
-                            Text(stringResource(MR.strings.action_cancel))
-                        }
+                Row(horizontalArrangement = Arrangement.spacedBy(MaterialTheme.padding.small)) {
+                    Button(
+                        onClick = { /* Session is already loaded */ },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Resume")
                     }
+                    OutlinedButton(
+                        onClick = screenModel::discardSession,
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                    ) {
+                        Icon(imageVector = Icons.Outlined.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Discard")
+                    }
+                }
+            }
+        }
+    }
+
+    @Composable
+    private fun ImportProgress(state: BookmarkImportScreenModel.State) {
+        Column(
+            modifier = Modifier.padding(top = MaterialTheme.padding.small),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            val progress = if (state.importTotal > 0) state.importCurrent.toFloat() / state.importTotal.toFloat() else 0f
+            LinearProgressIndicator(
+                progress = { progress },
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(
+                    text = "Importing items...",
+                    style = MaterialTheme.typography.labelSmall
+                )
+                Text(
+                    text = "${state.importCurrent} / ${state.importTotal}",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold
                 )
             }
         }
+    }
+
+    @Composable
+    private fun ImportConfirmationDialog(state: BookmarkImportScreenModel.State, screenModel: BookmarkImportScreenModel) {
+        val matchedCount = state.entries.count { it.matchResult == ManganatoCsvParser.MatchResult.MATCHED }
+        val withProgressCount = state.entries.count { it.matchResult == ManganatoCsvParser.MatchResult.MATCHED && it.viewedChapter != null }
+        val unreadCount = matchedCount - withProgressCount
+
+        AlertDialog(
+            onDismissRequest = screenModel::hideImportConfirmation,
+            title = { Text("Import matched manga") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Ready to import $matchedCount manga to your library.")
+                    BulletItem("$withProgressCount with reading progress")
+                    BulletItem("$unreadCount as unread")
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Note: Imported manga will be added to your Library. Auto Refresh will remain OFF for these titles.",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = screenModel::importMatched) {
+                    Text("Import")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = screenModel::hideImportConfirmation) {
+                    Text(stringResource(MR.strings.action_cancel))
+                }
+            }
+        )
     }
 
     @Composable
@@ -332,7 +414,7 @@ class BookmarkImportScreen : Screen() {
                 DetailRow("Failed", state.failedCount.toString())
             }
 
-            if (state.importTotal > 0) {
+            if (state.importTotal > 0 || state.importImportedCount > 0 || state.importExistedCount > 0 || state.importFailedCount > 0) {
                 HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
                 DetailRow("Imported", state.importImportedCount.toString())
                 DetailRow("Already in Library", state.importExistedCount.toString())

@@ -24,6 +24,10 @@ import tachiyomi.domain.manga.repository.MangaRepository
 import tachiyomi.domain.source.service.SourceManager
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.decodeFromString
+import java.util.UUID
 
 class BookmarkImportScreenModel : StateScreenModel<BookmarkImportScreenModel.State>(State()) {
 
@@ -33,7 +37,9 @@ class BookmarkImportScreenModel : StateScreenModel<BookmarkImportScreenModel.Sta
     private val syncChaptersWithSource: SyncChaptersWithSource = Injekt.get()
     private val getChaptersByMangaId: GetChaptersByMangaId = Injekt.get()
     private val setReadStatus: SetReadStatus = Injekt.get()
+    private val preferences: BookmarkImportPreferences = Injekt.get()
 
+    private val json = Json { ignoreUnknownKeys = true }
     private var matchingJob: Job? = null
     private var importJob: Job? = null
 
@@ -66,6 +72,10 @@ class BookmarkImportScreenModel : StateScreenModel<BookmarkImportScreenModel.Sta
         val importCurrent: Int = 0,
         val importTotal: Int = 0,
         val showImportConfirmation: Boolean = false,
+
+        // Session
+        val hasSession: Boolean = false,
+        val sessionFileName: String? = null,
     )
 
     init {
@@ -75,12 +85,60 @@ class BookmarkImportScreenModel : StateScreenModel<BookmarkImportScreenModel.Sta
         } else {
             mutableState.update { it.copy(resolvedSourceInfo = "Manganato (EN) source not found or disabled") }
         }
+        loadSession()
+    }
+
+    private fun loadSession() {
+        val sessionStr = preferences.importSession.get()
+        if (sessionStr.isNotEmpty()) {
+            try {
+                val session = json.decodeFromString<BookmarkImportSession>(sessionStr)
+                mutableState.update {
+                    it.copy(
+                        hasSession = true,
+                        sessionFileName = session.fileName,
+                        fileName = session.fileName,
+                        entries = session.entries,
+                        isValid = true,
+                        rowCount = session.entries.size,
+                        validCount = session.entries.count { e -> e.isValid },
+                        invalidCount = session.entries.count { e -> !e.isValid },
+                        unreadCount = session.entries.count { e -> e.isValid && e.viewedChapter == null },
+                        progressCount = session.entries.count { e -> e.isValid && e.viewedChapter != null },
+                    )
+                }
+                updateEntriesAndSummary(session.entries)
+                updateImportSummary(session.entries)
+            } catch (e: Exception) {
+                logcat(LogPriority.ERROR, e) { "Failed to load session" }
+                preferences.importSession.delete()
+            }
+        }
+    }
+
+    private fun saveSession() {
+        val currentState = state.value
+        if (currentState.entries.isEmpty()) return
+
+        val session = BookmarkImportSession(
+            sessionId = currentState.fileName ?: "unknown",
+            fileName = currentState.fileName ?: "unknown",
+            entries = currentState.entries
+        )
+        preferences.importSession.set(json.encodeToString(session))
+    }
+
+    fun discardSession() {
+        cancelMatching()
+        cancelImport()
+        preferences.importSession.delete()
+        mutableState.update { State().copy(resolvedSourceInfo = it.resolvedSourceInfo) }
     }
 
     fun processFile(context: Context, uri: Uri) {
         cancelMatching()
         cancelImport()
-        mutableState.update { it.copy(isParsing = true, error = null, fileName = null, rowCount = 0, isValid = false, entries = emptyList(), diagnosticResult = null) }
+        mutableState.update { it.copy(isParsing = true, error = null, fileName = null, rowCount = 0, isValid = false, entries = emptyList(), diagnosticResult = null, hasSession = false) }
 
         screenModelScope.launch {
             try {
@@ -109,6 +167,7 @@ class BookmarkImportScreenModel : StateScreenModel<BookmarkImportScreenModel.Sta
                         isParsing = false,
                     )
                 }
+                saveSession()
             } catch (e: ManganatoCsvParser.InvalidHeaderException) {
                 mutableState.update {
                     it.copy(
@@ -130,7 +189,7 @@ class BookmarkImportScreenModel : StateScreenModel<BookmarkImportScreenModel.Sta
         }
     }
 
-    fun checkMatches(singleRowIndex: Int? = null) {
+    fun checkMatches(singleRowIndex: Int? = null, retryFailedOnly: Boolean = false) {
         if (state.value.isMatching || state.value.isImporting) return
 
         matchingJob = screenModelScope.launch {
@@ -149,11 +208,22 @@ class BookmarkImportScreenModel : StateScreenModel<BookmarkImportScreenModel.Sta
             }
 
             val entries = state.value.entries.toMutableList()
-            val indices = if (singleRowIndex != null) listOf(singleRowIndex) else entries.indices
+            val indices = if (singleRowIndex != null) {
+                listOf(singleRowIndex)
+            } else {
+                entries.indices.filter { i ->
+                    val res = entries[i].matchResult
+                    if (retryFailedOnly) {
+                        res == ManganatoCsvParser.MatchResult.NETWORK_TIMEOUT || res == ManganatoCsvParser.MatchResult.SOURCE_ERROR
+                    } else {
+                        res == ManganatoCsvParser.MatchResult.UNCHECKED || res == ManganatoCsvParser.MatchResult.CANCELED
+                    }
+                }
+            }
 
             for (i in indices) {
                 val entry = entries[i]
-                if (!entry.isValid || entry.matchResult != ManganatoCsvParser.MatchResult.UNCHECKED) continue
+                if (!entry.isValid) continue
 
                 var result = ManganatoCsvParser.MatchResult.UNCHECKED
                 var resolvedManga: tachiyomi.domain.manga.model.Manga? = null
@@ -245,6 +315,7 @@ class BookmarkImportScreenModel : StateScreenModel<BookmarkImportScreenModel.Sta
                 )
 
                 updateEntriesAndSummary(entries.toList())
+                saveSession()
 
                 delay(500L) // Small delay between rows
             }
@@ -262,31 +333,41 @@ class BookmarkImportScreenModel : StateScreenModel<BookmarkImportScreenModel.Sta
         mutableState.update { it.copy(showImportConfirmation = false) }
     }
 
-    fun importMatched() {
+    fun importMatched(retryFailedOnly: Boolean = false) {
         if (state.value.isMatching || state.value.isImporting) return
         hideImportConfirmation()
 
         importJob = screenModelScope.launch {
-            mutableState.update {
-                it.copy(
-                    isImporting = true,
-                    importCurrent = 0,
-                    importTotal = it.entries.count { e -> e.matchResult == ManganatoCsvParser.MatchResult.MATCHED }
-                )
-            }
-
             val manganato = sourceManager.getOnlineSources().find { it.name == "Manganato" && it.lang == "en" }
             if (manganato == null) {
-                mutableState.update { it.copy(isImporting = false) }
                 return@launch
             }
 
             val entries = state.value.entries.toMutableList()
+            val indicesToImport = entries.indices.filter { i ->
+                val res = entries[i].matchResult
+                if (retryFailedOnly) {
+                    res == ManganatoCsvParser.MatchResult.IMPORT_FAILED || res == ManganatoCsvParser.MatchResult.CHAPTER_SYNC_FAILED
+                } else {
+                    res == ManganatoCsvParser.MatchResult.MATCHED
+                }
+            }
+
+            if (indicesToImport.isEmpty()) return@launch
+
+            mutableState.update {
+                it.copy(
+                    isImporting = true,
+                    importCurrent = 0,
+                    importTotal = indicesToImport.size
+                )
+            }
+
             var processedInSession = 0
 
-            for (i in entries.indices) {
+            for (i in indicesToImport) {
                 val entry = entries[i]
-                if (entry.matchResult != ManganatoCsvParser.MatchResult.MATCHED || entry.resolvedManga == null) continue
+                if (entry.resolvedManga == null) continue
 
                 processedInSession++
                 mutableState.update { it.copy(importCurrent = processedInSession) }
@@ -339,6 +420,7 @@ class BookmarkImportScreenModel : StateScreenModel<BookmarkImportScreenModel.Sta
 
                 entries[i] = entry.copy(matchResult = result)
                 updateImportSummary(entries.toList())
+                saveSession()
                 delay(500L)
             }
 
@@ -357,6 +439,7 @@ class BookmarkImportScreenModel : StateScreenModel<BookmarkImportScreenModel.Sta
             }
             updateEntriesAndSummary(updatedEntries)
             mutableState.update { it.copy(isMatching = false) }
+            saveSession()
         }
     }
 
@@ -365,6 +448,7 @@ class BookmarkImportScreenModel : StateScreenModel<BookmarkImportScreenModel.Sta
         importJob = null
         if (state.value.isImporting) {
             mutableState.update { it.copy(isImporting = false) }
+            saveSession()
         }
     }
 
