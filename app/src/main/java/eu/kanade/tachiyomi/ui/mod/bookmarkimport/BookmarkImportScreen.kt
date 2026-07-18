@@ -27,8 +27,10 @@ import cafe.adriel.voyager.navigator.currentOrThrow
 import eu.kanade.presentation.components.AppBar
 import eu.kanade.presentation.components.AppBarTitle
 import eu.kanade.presentation.util.Screen
+import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.components.material.Scaffold
 import tachiyomi.presentation.core.components.material.padding
+import tachiyomi.presentation.core.i18n.stringResource
 
 class BookmarkImportScreen : Screen() {
 
@@ -107,6 +109,7 @@ class BookmarkImportScreen : Screen() {
                         Button(
                             onClick = { pickFileLauncher.launch("text/*") },
                             modifier = Modifier.fillMaxWidth(),
+                            enabled = !state.isMatching && !state.isImporting
                         ) {
                             Icon(imageVector = Icons.Outlined.FileOpen, contentDescription = null)
                             Spacer(modifier = Modifier.width(8.dp))
@@ -155,7 +158,7 @@ class BookmarkImportScreen : Screen() {
                                 OutlinedButton(
                                     onClick = { screenModel.checkMatches(mikotoIndex) },
                                     modifier = Modifier.fillMaxWidth(),
-                                    enabled = !state.isMatching
+                                    enabled = !state.isMatching && !state.isImporting
                                 ) {
                                     Text("Debug: Test matching 'Mikoto and Rei'")
                                 }
@@ -175,6 +178,14 @@ class BookmarkImportScreen : Screen() {
                                     ) {
                                         Text("Cancel matching")
                                     }
+                                } else if (state.isImporting) {
+                                    Button(
+                                        onClick = screenModel::cancelImport,
+                                        modifier = Modifier.weight(1f),
+                                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                                    ) {
+                                        Text("Cancel import")
+                                    }
                                 } else {
                                     Button(
                                         onClick = screenModel::checkMatches,
@@ -183,6 +194,29 @@ class BookmarkImportScreen : Screen() {
                                     ) {
                                         Text("Check matches")
                                     }
+
+                                    val matchedCount = state.entries.count { it.matchResult == ManganatoCsvParser.MatchResult.MATCHED }
+                                    Button(
+                                        onClick = screenModel::showImportConfirmation,
+                                        modifier = Modifier.weight(1f),
+                                        enabled = matchedCount > 0
+                                    ) {
+                                        Text("Import matched")
+                                    }
+                                }
+                            }
+
+                            if (state.isImporting) {
+                                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    LinearProgressIndicator(
+                                        progress = { state.importCurrent.toFloat() / state.importTotal.toFloat() },
+                                        modifier = Modifier.fillMaxWidth(),
+                                    )
+                                    Text(
+                                        text = "Importing: ${state.importCurrent} / ${state.importTotal}",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        modifier = Modifier.align(Alignment.End)
+                                    )
                                 }
                             }
                         }
@@ -207,6 +241,40 @@ class BookmarkImportScreen : Screen() {
                         )
                     }
                 }
+            }
+
+            if (state.showImportConfirmation) {
+                val matchedCount = state.entries.count { it.matchResult == ManganatoCsvParser.MatchResult.MATCHED }
+                val withProgressCount = state.entries.count { it.matchResult == ManganatoCsvParser.MatchResult.MATCHED && it.viewedChapter != null }
+                val unreadCount = matchedCount - withProgressCount
+
+                AlertDialog(
+                    onDismissRequest = screenModel::hideImportConfirmation,
+                    title = { Text("Import matched manga") },
+                    text = {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text("Ready to import $matchedCount manga to your library.")
+                            BulletItem("$withProgressCount with reading progress")
+                            BulletItem("$unreadCount as unread")
+
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Note: Imported manga will be added to your Library. Auto Refresh will remain OFF for these titles.",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                    },
+                    confirmButton = {
+                        TextButton(onClick = screenModel::importMatched) {
+                            Text("Import")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = screenModel::hideImportConfirmation) {
+                            Text(stringResource(MR.strings.action_cancel))
+                        }
+                    }
+                )
             }
         }
     }
@@ -263,6 +331,14 @@ class BookmarkImportScreen : Screen() {
                 DetailRow("Timeout", state.timeoutCount.toString())
                 DetailRow("Failed", state.failedCount.toString())
             }
+
+            if (state.importTotal > 0) {
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                DetailRow("Imported", state.importImportedCount.toString())
+                DetailRow("Already in Library", state.importExistedCount.toString())
+                DetailRow("Progress applied", state.importProgressCount.toString())
+                DetailRow("Import failed", state.importFailedCount.toString())
+            }
         }
     }
 
@@ -291,20 +367,31 @@ class BookmarkImportScreen : Screen() {
                         ManganatoCsvParser.MatchResult.NETWORK_TIMEOUT -> "Network timeout"
                         ManganatoCsvParser.MatchResult.SOURCE_ERROR -> "Source error"
                         ManganatoCsvParser.MatchResult.CANCELED -> "Canceled"
+                        ManganatoCsvParser.MatchResult.IMPORTED -> "Imported"
+                        ManganatoCsvParser.MatchResult.ALREADY_IN_LIBRARY -> "In Library"
+                        ManganatoCsvParser.MatchResult.IMPORTED_WITH_PROGRESS -> "Imported + Progress"
+                        ManganatoCsvParser.MatchResult.CHAPTER_SYNC_FAILED -> "Sync failed"
+                        ManganatoCsvParser.MatchResult.IMPORT_FAILED -> "Import failed"
                         else -> null
                     }
                     if (statusText != null) {
+                        val isSuccess = entry.matchResult in listOf(
+                            ManganatoCsvParser.MatchResult.MATCHED,
+                            ManganatoCsvParser.MatchResult.IMPORTED,
+                            ManganatoCsvParser.MatchResult.ALREADY_IN_LIBRARY,
+                            ManganatoCsvParser.MatchResult.IMPORTED_WITH_PROGRESS
+                        )
                         Icon(
-                            imageVector = if (entry.matchResult == ManganatoCsvParser.MatchResult.MATCHED) Icons.Outlined.CheckCircle else Icons.Outlined.ErrorOutline,
+                            imageVector = if (isSuccess) Icons.Outlined.CheckCircle else Icons.Outlined.ErrorOutline,
                             contentDescription = null,
-                            tint = if (entry.matchResult == ManganatoCsvParser.MatchResult.MATCHED) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                            tint = if (isSuccess) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             text = statusText,
                             style = MaterialTheme.typography.labelSmall,
-                            color = if (entry.matchResult == ManganatoCsvParser.MatchResult.MATCHED) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                            color = if (isSuccess) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
                         )
                     } else if (!entry.isValid) {
                         Icon(

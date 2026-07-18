@@ -28,7 +28,14 @@ object ManganatoCsvParser {
         SOURCE_UNAVAILABLE,
         NETWORK_TIMEOUT,
         SOURCE_ERROR,
-        CANCELED
+        CANCELED,
+
+        // Import results
+        IMPORTED,
+        ALREADY_IN_LIBRARY,
+        IMPORTED_WITH_PROGRESS,
+        CHAPTER_SYNC_FAILED,
+        IMPORT_FAILED
     }
 
     class InvalidHeaderException(message: String) : Exception(message)

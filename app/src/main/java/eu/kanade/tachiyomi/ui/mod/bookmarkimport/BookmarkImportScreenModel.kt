@@ -6,6 +6,9 @@ import android.util.Log
 import androidx.compose.runtime.Immutable
 import cafe.adriel.voyager.core.model.StateScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
+import eu.kanade.domain.chapter.interactor.SetReadStatus
+import eu.kanade.domain.chapter.interactor.SyncChaptersWithSource
+import eu.kanade.domain.manga.interactor.UpdateManga
 import eu.kanade.tachiyomi.source.online.HttpSource
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -16,6 +19,8 @@ import kotlinx.coroutines.withContext
 import logcat.LogPriority
 import mihon.domain.manga.model.toDomainManga
 import tachiyomi.core.common.util.system.logcat
+import tachiyomi.domain.chapter.interactor.GetChaptersByMangaId
+import tachiyomi.domain.manga.repository.MangaRepository
 import tachiyomi.domain.source.service.SourceManager
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
@@ -23,7 +28,14 @@ import uy.kohesive.injekt.api.get
 class BookmarkImportScreenModel : StateScreenModel<BookmarkImportScreenModel.State>(State()) {
 
     private val sourceManager: SourceManager = Injekt.get()
+    private val mangaRepository: MangaRepository = Injekt.get()
+    private val updateManga: UpdateManga = Injekt.get()
+    private val syncChaptersWithSource: SyncChaptersWithSource = Injekt.get()
+    private val getChaptersByMangaId: GetChaptersByMangaId = Injekt.get()
+    private val setReadStatus: SetReadStatus = Injekt.get()
+
     private var matchingJob: Job? = null
+    private var importJob: Job? = null
 
     @Immutable
     data class State(
@@ -38,12 +50,22 @@ class BookmarkImportScreenModel : StateScreenModel<BookmarkImportScreenModel.Sta
         val error: String? = null,
         val isParsing: Boolean = false,
         val isMatching: Boolean = false,
+        val isImporting: Boolean = false,
         val matchedCount: Int = 0,
         val notFoundCount: Int = 0,
         val timeoutCount: Int = 0,
         val failedCount: Int = 0,
         val resolvedSourceInfo: String? = null,
         val diagnosticResult: String? = null,
+
+        // Import summary
+        val importImportedCount: Int = 0,
+        val importExistedCount: Int = 0,
+        val importProgressCount: Int = 0,
+        val importFailedCount: Int = 0,
+        val importCurrent: Int = 0,
+        val importTotal: Int = 0,
+        val showImportConfirmation: Boolean = false,
     )
 
     init {
@@ -57,6 +79,7 @@ class BookmarkImportScreenModel : StateScreenModel<BookmarkImportScreenModel.Sta
 
     fun processFile(context: Context, uri: Uri) {
         cancelMatching()
+        cancelImport()
         mutableState.update { it.copy(isParsing = true, error = null, fileName = null, rowCount = 0, isValid = false, entries = emptyList(), diagnosticResult = null) }
 
         screenModelScope.launch {
@@ -108,7 +131,7 @@ class BookmarkImportScreenModel : StateScreenModel<BookmarkImportScreenModel.Sta
     }
 
     fun checkMatches(singleRowIndex: Int? = null) {
-        if (state.value.isMatching) return
+        if (state.value.isMatching || state.value.isImporting) return
 
         matchingJob = screenModelScope.launch {
             mutableState.update { it.copy(isMatching = true, diagnosticResult = null) }
@@ -230,6 +253,99 @@ class BookmarkImportScreenModel : StateScreenModel<BookmarkImportScreenModel.Sta
         }
     }
 
+    fun showImportConfirmation() {
+        if (state.value.isMatching || state.value.isImporting) return
+        mutableState.update { it.copy(showImportConfirmation = true) }
+    }
+
+    fun hideImportConfirmation() {
+        mutableState.update { it.copy(showImportConfirmation = false) }
+    }
+
+    fun importMatched() {
+        if (state.value.isMatching || state.value.isImporting) return
+        hideImportConfirmation()
+
+        importJob = screenModelScope.launch {
+            mutableState.update {
+                it.copy(
+                    isImporting = true,
+                    importCurrent = 0,
+                    importTotal = it.entries.count { e -> e.matchResult == ManganatoCsvParser.MatchResult.MATCHED }
+                )
+            }
+
+            val manganato = sourceManager.getOnlineSources().find { it.name == "Manganato" && it.lang == "en" }
+            if (manganato == null) {
+                mutableState.update { it.copy(isImporting = false) }
+                return@launch
+            }
+
+            val entries = state.value.entries.toMutableList()
+            var processedInSession = 0
+
+            for (i in entries.indices) {
+                val entry = entries[i]
+                if (entry.matchResult != ManganatoCsvParser.MatchResult.MATCHED || entry.resolvedManga == null) continue
+
+                processedInSession++
+                mutableState.update { it.copy(importCurrent = processedInSession) }
+
+                var result = entry.matchResult
+                try {
+                    // 1. Check for duplicates
+                    var localManga = mangaRepository.getMangaByUrlAndSourceId(entry.mangaPath!!, manganato.id)
+                    val alreadyExisted = localManga != null && localManga.favorite
+
+                    // 2. Persist/Add to Library
+                    if (localManga == null) {
+                        val inserted = mangaRepository.insertNetworkManga(listOf(entry.resolvedManga))
+                        localManga = inserted.firstOrNull() ?: throw Exception("Persistence failed")
+                    }
+
+                    if (!localManga.favorite) {
+                        updateManga.awaitUpdateFavorite(localManga.id, true)
+                        localManga = localManga.copy(favorite = true)
+                    }
+
+                    // 3. Sync Chapters
+                    val sManga = eu.kanade.tachiyomi.source.model.SManga.create().apply {
+                        url = localManga.url
+                        title = localManga.title
+                    }
+
+                    val networkUpdate = withContext(Dispatchers.IO) {
+                        manganato.getMangaUpdate(sManga, emptyList(), fetchDetails = false, fetchChapters = true)
+                    }
+
+                    syncChaptersWithSource.await(networkUpdate.chapters, localManga, manganato, manualFetch = true)
+
+                    // 4. Apply Reading Progress
+                    if (entry.viewedChapter != null) {
+                        val allChapters = getChaptersByMangaId.await(localManga.id)
+                        val chaptersToMark = allChapters.filter { it.chapterNumber >= 0 && it.chapterNumber <= entry.viewedChapter }
+                        if (chaptersToMark.isNotEmpty()) {
+                            setReadStatus.await(read = true, chapters = chaptersToMark.toTypedArray())
+                        }
+                        result = if (alreadyExisted) ManganatoCsvParser.MatchResult.ALREADY_IN_LIBRARY else ManganatoCsvParser.MatchResult.IMPORTED_WITH_PROGRESS
+                    } else {
+                        result = if (alreadyExisted) ManganatoCsvParser.MatchResult.ALREADY_IN_LIBRARY else ManganatoCsvParser.MatchResult.IMPORTED
+                    }
+
+                } catch (e: Exception) {
+                    logcat(LogPriority.ERROR, e) { "Failed to import ${entry.title}" }
+                    result = ManganatoCsvParser.MatchResult.IMPORT_FAILED
+                }
+
+                entries[i] = entry.copy(matchResult = result)
+                updateImportSummary(entries.toList())
+                delay(500L)
+            }
+
+            mutableState.update { it.copy(isImporting = false) }
+        }
+    }
+
     fun cancelMatching() {
         matchingJob?.cancel()
         matchingJob = null
@@ -241,6 +357,14 @@ class BookmarkImportScreenModel : StateScreenModel<BookmarkImportScreenModel.Sta
             }
             updateEntriesAndSummary(updatedEntries)
             mutableState.update { it.copy(isMatching = false) }
+        }
+    }
+
+    fun cancelImport() {
+        importJob?.cancel()
+        importJob = null
+        if (state.value.isImporting) {
+            mutableState.update { it.copy(isImporting = false) }
         }
     }
 
@@ -257,6 +381,23 @@ class BookmarkImportScreenModel : StateScreenModel<BookmarkImportScreenModel.Sta
                 notFoundCount = notFound,
                 timeoutCount = timeout,
                 failedCount = failed,
+            )
+        }
+    }
+
+    private fun updateImportSummary(entries: List<ManganatoCsvParser.BookmarkEntry>) {
+        val imported = entries.count { it.matchResult == ManganatoCsvParser.MatchResult.IMPORTED || it.matchResult == ManganatoCsvParser.MatchResult.IMPORTED_WITH_PROGRESS }
+        val existed = entries.count { it.matchResult == ManganatoCsvParser.MatchResult.ALREADY_IN_LIBRARY }
+        val progress = entries.count { it.matchResult == ManganatoCsvParser.MatchResult.IMPORTED_WITH_PROGRESS }
+        val failed = entries.count { it.matchResult == ManganatoCsvParser.MatchResult.IMPORT_FAILED || it.matchResult == ManganatoCsvParser.MatchResult.CHAPTER_SYNC_FAILED }
+
+        mutableState.update {
+            it.copy(
+                entries = entries,
+                importImportedCount = imported,
+                importExistedCount = existed,
+                importProgressCount = progress,
+                importFailedCount = failed,
             )
         }
     }
