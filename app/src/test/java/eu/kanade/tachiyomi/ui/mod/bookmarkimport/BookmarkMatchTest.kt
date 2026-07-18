@@ -98,6 +98,28 @@ class BookmarkMatchTest {
         assertEquals(listOf(3), retryImportIndices)
     }
 
+    @Test
+    fun `test resume from unfinished session`() {
+        val entries = listOf(
+            createEntry("1", ManganatoCsvParser.MatchResult.IMPORTED),
+            createEntry("2", ManganatoCsvParser.MatchResult.MATCHED),
+            createEntry("3", ManganatoCsvParser.MatchResult.CANCELED),
+            createEntry("4", ManganatoCsvParser.MatchResult.UNCHECKED)
+        )
+
+        // Scenario: Some items matched, some unchecked/canceled.
+        // Resume should first try to match remaining items.
+        val needsMatching = entries.any { it.isValid && (it.matchResult == ManganatoCsvParser.MatchResult.UNCHECKED || it.matchResult == ManganatoCsvParser.MatchResult.CANCELED) }
+        assertTrue(needsMatching)
+
+        val matchingIndices = entries.indices.filter { i ->
+            val res = entries[i].matchResult
+            res == ManganatoCsvParser.MatchResult.UNCHECKED || res == ManganatoCsvParser.MatchResult.CANCELED
+        }
+        assertEquals(listOf(2, 3), matchingIndices)
+        assertEquals("3", entries[matchingIndices[0]].id)
+    }
+
     private fun createChapter(number: Double): Chapter {
         return Chapter.create().copy(
             chapterNumber = number,

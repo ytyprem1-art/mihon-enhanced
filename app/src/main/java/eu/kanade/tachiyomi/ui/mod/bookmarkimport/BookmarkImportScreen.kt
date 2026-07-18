@@ -282,7 +282,7 @@ class BookmarkImportScreen : Screen() {
 
                 Row(horizontalArrangement = Arrangement.spacedBy(MaterialTheme.padding.small)) {
                     Button(
-                        onClick = { /* Session is already loaded */ },
+                        onClick = screenModel::resumeSession,
                         modifier = Modifier.weight(1f)
                     ) {
                         Text("Resume")

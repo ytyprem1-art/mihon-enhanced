@@ -135,6 +135,24 @@ class BookmarkImportScreenModel : StateScreenModel<BookmarkImportScreenModel.Sta
         mutableState.update { State().copy(resolvedSourceInfo = it.resolvedSourceInfo) }
     }
 
+    fun resumeSession() {
+        if (state.value.isMatching || state.value.isImporting) return
+
+        val entries = state.value.entries
+        val hasUnchecked = entries.any { it.isValid && (it.matchResult == ManganatoCsvParser.MatchResult.UNCHECKED || it.matchResult == ManganatoCsvParser.MatchResult.CANCELED) }
+
+        if (hasUnchecked) {
+            checkMatches()
+        } else {
+            val matchedCount = entries.count { it.matchResult == ManganatoCsvParser.MatchResult.MATCHED }
+            if (matchedCount > 0) {
+                showImportConfirmation()
+            }
+        }
+
+        mutableState.update { it.copy(hasSession = false) }
+    }
+
     fun processFile(context: Context, uri: Uri) {
         cancelMatching()
         cancelImport()
