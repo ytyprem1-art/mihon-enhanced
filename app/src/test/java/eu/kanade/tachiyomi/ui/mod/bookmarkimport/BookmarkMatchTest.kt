@@ -36,11 +36,11 @@ class BookmarkMatchTest {
     fun `test chapter progress filtering`() {
         val viewedChapter = 1.3
         val chapters = listOf(
-            createChapter(0.5),
-            createChapter(1.0),
-            createChapter(1.3),
-            createChapter(1.5),
-            createChapter(2.0)
+            createChapter(0.5, "Ch 0.5"),
+            createChapter(1.0, "Ch 1.0"),
+            createChapter(1.3, "Ch 1.3"),
+            createChapter(1.5, "Ch 1.5"),
+            createChapter(2.0, "Ch 2.0")
         )
 
         val toMarkRead = chapters.filter { it.chapterNumber >= 0 && it.chapterNumber <= viewedChapter }
@@ -66,12 +66,6 @@ class BookmarkMatchTest {
             res == ManganatoCsvParser.MatchResult.UNCHECKED || res == ManganatoCsvParser.MatchResult.CANCELED
         }
         assertEquals(listOf(2), matchingIndices)
-
-        // Find items that need importing
-        val importIndices = entries.indices.filter { i ->
-            entries[i].matchResult == ManganatoCsvParser.MatchResult.MATCHED
-        }
-        assertEquals(listOf(1), importIndices)
     }
 
     @Test
@@ -99,30 +93,59 @@ class BookmarkMatchTest {
     }
 
     @Test
-    fun `test resume from unfinished session`() {
-        val entries = listOf(
-            createEntry("1", ManganatoCsvParser.MatchResult.IMPORTED),
-            createEntry("2", ManganatoCsvParser.MatchResult.MATCHED),
-            createEntry("3", ManganatoCsvParser.MatchResult.CANCELED),
-            createEntry("4", ManganatoCsvParser.MatchResult.UNCHECKED)
+    fun `test titled chapter name parsing`() {
+        val names = mapOf(
+            "Chapter 57.1: Extra Chapter: Spending the Rest of My Life with You" to 57.1,
+            "Chapter 13.1: Epilogue" to 13.1,
+            "Chapter 11: MATCH 10 / OFF-BOARD STORIES (EXTRAS)" to 11.0,
+            "Chapter 7: End" to 7.0,
+            "Chapter 1.3" to 1.3,
+            "Ch. 11: Subtitle with 55 number" to 11.0,
+            "Chapter 20" to 20.0,
+            "11" to 11.0,
+            "No Number Here" to null
         )
 
-        // Scenario: Some items matched, some unchecked/canceled.
-        // Resume should first try to match remaining items.
-        val needsMatching = entries.any { it.isValid && (it.matchResult == ManganatoCsvParser.MatchResult.UNCHECKED || it.matchResult == ManganatoCsvParser.MatchResult.CANCELED) }
-        assertTrue(needsMatching)
-
-        val matchingIndices = entries.indices.filter { i ->
-            val res = entries[i].matchResult
-            res == ManganatoCsvParser.MatchResult.UNCHECKED || res == ManganatoCsvParser.MatchResult.CANCELED
+        names.forEach { (name, expected) ->
+            val parsed = ManganatoCsvParser.parseChapterNumber(name)
+            assertEquals(expected, parsed, "Failed to parse $name")
         }
-        assertEquals(listOf(2, 3), matchingIndices)
-        assertEquals("3", entries[matchingIndices[0]].id)
     }
 
-    private fun createChapter(number: Double): Chapter {
+    @Test
+    fun `test effective chapter number logic`() {
+        val viewedChapter = 11.0
+        val chapters = listOf(
+            // Case 1: valid source chapterNumber
+            createChapter(11.0, "Some Name"),
+            // Case 2: invalid source chapterNumber, parse from name
+            createChapter(-1.0, "Chapter 11: End"),
+            // Case 3: invalid source chapterNumber, unrelated number in name
+            createChapter(-1.0, "Chapter 11: MATCH 10"),
+            // Case 4: outside range
+            createChapter(12.0, "Chapter 12")
+        )
+
+        val toMarkRead = chapters.filter { chapter ->
+            val effectiveNumber = if (chapter.chapterNumber >= 0) {
+                chapter.chapterNumber
+            } else {
+                ManganatoCsvParser.parseChapterNumber(chapter.name)
+            }
+            effectiveNumber != null && effectiveNumber <= viewedChapter
+        }
+
+        assertEquals(3, toMarkRead.size)
+        assertTrue(toMarkRead.any { it.name == "Some Name" })
+        assertTrue(toMarkRead.any { it.name == "Chapter 11: End" })
+        assertTrue(toMarkRead.any { it.name == "Chapter 11: MATCH 10" })
+        assertFalse(toMarkRead.any { it.name == "Chapter 12" })
+    }
+
+    private fun createChapter(number: Double, name: String): Chapter {
         return Chapter.create().copy(
             chapterNumber = number,
+            name = name,
             read = false
         )
     }

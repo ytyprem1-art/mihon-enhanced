@@ -25,7 +25,6 @@ import tachiyomi.domain.source.service.SourceManager
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.decodeFromString
 import java.util.UUID
 
@@ -422,9 +421,28 @@ class BookmarkImportScreenModel : StateScreenModel<BookmarkImportScreenModel.Sta
                     // 4. Apply Reading Progress
                     if (entry.viewedChapter != null) {
                         val allChapters = getChaptersByMangaId.await(localManga.id)
-                        val chaptersToMark = allChapters.filter { it.chapterNumber >= 0 && it.chapterNumber <= entry.viewedChapter }
+
+                        Log.d("ExternalBookmarkImport", "Applying progress for ${entry.title}: Viewed Chapter ${entry.viewedChapter}")
+
+                        val chaptersToMark = allChapters.filter { chapter ->
+                            val effectiveNumber = if (chapter.chapterNumber >= 0) {
+                                chapter.chapterNumber
+                            } else {
+                                ManganatoCsvParser.parseChapterNumber(chapter.name)
+                            }
+
+                            val isMatch = effectiveNumber != null && effectiveNumber <= entry.viewedChapter
+
+                            Log.d("ExternalBookmarkImport", "  Chapter: ${chapter.name} | Num: ${chapter.chapterNumber} | Effective: $effectiveNumber | Match: $isMatch")
+
+                            isMatch
+                        }
+
+                        Log.d("ExternalBookmarkImport", "  Total chapters: ${allChapters.size} | Selected: ${chaptersToMark.size}")
+
                         if (chaptersToMark.isNotEmpty()) {
-                            setReadStatus.await(read = true, chapters = chaptersToMark.toTypedArray())
+                            val resultStatus = setReadStatus.await(read = true, chapters = chaptersToMark.toTypedArray())
+                            Log.d("ExternalBookmarkImport", "  SetReadStatus Result: $resultStatus")
                         }
                         result = if (alreadyExisted) ManganatoCsvParser.MatchResult.ALREADY_IN_LIBRARY else ManganatoCsvParser.MatchResult.IMPORTED_WITH_PROGRESS
                     } else {

@@ -53,6 +53,26 @@ object ManganatoCsvParser {
 
     private val MANGA_PATH_REGEX = Regex("/(manga-|manga/)[^/]+")
 
+    /**
+     * Parses a chapter number from a string.
+     * Supports:
+     * - "Chapter 11: End" -> 11.0
+     * - "Ch. 1.3" -> 1.3
+     * - "11" -> 11.0
+     * - "Chapter 57.1: Extra Chapter..." -> 57.1
+     * - "none" -> null
+     *
+     * Only looks at the beginning of the string to avoid unrelated numbers in subtitles.
+     */
+    fun parseChapterNumber(raw: String): Double? {
+        val trimmed = raw.trim()
+        if (trimmed.isBlank() || trimmed.lowercase(Locale.ROOT) == "none") return null
+
+        // Match leading optional prefix (Chapter, Ch., Ch) followed by a number (including decimals)
+        val regex = Regex("^(?:(?:Chapter|Ch)\\.?\\s*)?(\\d+(?:\\.\\d+)?)", RegexOption.IGNORE_CASE)
+        return regex.find(trimmed)?.groupValues?.get(1)?.toDoubleOrNull()
+    }
+
     fun parse(inputStream: InputStream): List<BookmarkEntry> {
         val reader = InputStreamReader(inputStream, StandardCharsets.UTF_8)
         val rawLines = readCsvLines(reader)
@@ -84,7 +104,7 @@ object ManganatoCsvParser {
 
             if (rawTitle.isEmpty() && rawUrl.isEmpty()) continue
 
-            val viewedChapter = parseViewedChapter(rawViewed)
+            val viewedChapter = parseChapterNumber(rawViewed)
             val (domain, path, urlError) = validateAndNormalizeUrl(rawUrl)
 
             entries.add(
@@ -162,14 +182,6 @@ object ManganatoCsvParser {
             }
         }
         return lines
-    }
-
-    private fun parseViewedChapter(raw: String): Double? {
-        if (raw.isBlank() || raw.lowercase(Locale.ROOT) == "none") return null
-
-        // Remove "Chapter ", "Ch. ", etc.
-        val cleaned = raw.replace(Regex("(?i)^(chapter|ch)\\.?\\s*"), "").trim()
-        return cleaned.toDoubleOrNull()
     }
 
     private fun validateAndNormalizeUrl(url: String): Triple<String?, String?, String?> {
