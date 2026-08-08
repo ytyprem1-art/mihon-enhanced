@@ -55,8 +55,8 @@ class BackupRestorer(
         manageUpdateWatch = Injekt.get(),
         manageUpdateWatchInbox = Injekt.get(),
         manageUpdateWatchHistory = Injekt.get(),
-        chapterRepository = Injekt.get(),
         linkedSourceRepository = Injekt.get(),
+        database = database,
     ),
 ) {
 
@@ -140,13 +140,16 @@ class BackupRestorer(
                 ).join()
 
                 logcat(LogPriority.INFO) { "BackupRestorer: Calling modRestorer.restoreGroups" }
+                val mangaUrlToTitleMap = backup.backupManga.associate { (it.source to it.url) to it.title }
                 val skippedCount = modRestorer.restoreGroups(
-                    backup.backupLinkedSourceGroups,
-                    backup.backupManualHistoryGroups,
-                    backup.backupUpdateWatch,
-                    backup.backupUpdateWatchInbox,
-                    backup.backupUpdateWatchHistory,
-                    mangaUrlToIdMap,
+                    backupLinkedSourceGroups = backup.backupLinkedSourceGroups,
+                    backupManualHistoryGroups = backup.backupManualHistoryGroups,
+                    backupUpdateWatch = backup.backupUpdateWatch,
+                    backupUpdateWatchInbox = backup.backupUpdateWatchInbox,
+                    backupUpdateWatchHistory = backup.backupUpdateWatchHistory,
+                    mangaUrlToIdMap = mangaUrlToIdMap,
+                    mangaUrlToTitleMap = mangaUrlToTitleMap,
+                    onSkip = { errors.add(Date() to it) },
                 )
                 if (skippedCount > 0) {
                     errors.add(Date() to "Mod Restoration: Skipped $skippedCount grouped/tracked items (manga not found in backup or device).")

@@ -22,6 +22,8 @@ import uy.kohesive.injekt.api.get
 import kotlinx.coroutines.flow.first
 import logcat.LogPriority
 import tachiyomi.core.common.util.system.logcat
+import app.cash.sqldelight.async.coroutines.awaitAsList
+import tachiyomi.data.Database
 
 class ModRestorer(
     context: Context,
@@ -30,8 +32,8 @@ class ModRestorer(
     private val manageUpdateWatch: ManageUpdateWatch,
     private val manageUpdateWatchInbox: ManageUpdateWatchInbox,
     private val manageUpdateWatchHistory: ManageUpdateWatchHistory,
-    private val chapterRepository: ChapterRepository,
     private val linkedSourceRepository: LinkedSourceRepository,
+    private val database: Database,
 ) {
 
     private val context = context.applicationContext
@@ -43,6 +45,8 @@ class ModRestorer(
         backupUpdateWatchInbox: List<BackupUpdateWatchInboxItem>,
         backupUpdateWatchHistory: List<BackupUpdateWatchHistory>,
         mangaUrlToIdMap: Map<Pair<Long, String>, Long>,
+        mangaUrlToTitleMap: Map<Pair<Long, String>, String>,
+        onSkip: (String) -> Unit,
     ): Int {
         logcat(LogPriority.INFO) { "ModRestorer: Starting restoreGroups" }
         var skippedCount = 0
@@ -62,6 +66,8 @@ class ModRestorer(
                             manageLinkedSourceGroup.joinGroup(groupId, mangaId, member.source)
                         }
                     } else {
+                        val title = mangaUrlToTitleMap[member.source to member.url] ?: "Unknown"
+                        onSkip("Linked Source Group [${backupGroup.name}]: Manga '$title' not found (Source: ${member.source}, URL: ${member.url})")
                         skippedCount++
                     }
                 }
@@ -83,6 +89,8 @@ class ModRestorer(
                             manageHistoryGroups.assignMangaToGroup(mangaId, groupId)
                         }
                     } else {
+                        val title = mangaUrlToTitleMap[member.source to member.url] ?: "Unknown"
+                        onSkip("Manual History Group [${backupGroup.name}]: Manga '$title' not found (Source: ${member.source}, URL: ${member.url})")
                         skippedCount++
                     }
                 }
@@ -109,6 +117,8 @@ class ModRestorer(
                     manageUpdateWatch.updateStaleMilestone(mangaId, watch.lastWarnedMilestone)
                 }
             } else {
+                val title = mangaUrlToTitleMap[watch.member.source to watch.member.url] ?: "Unknown"
+                onSkip("Update Watch: Manga '$title' not found (Source: ${watch.member.source}, URL: ${watch.member.url})")
                 skippedCount++
             }
         }
@@ -117,10 +127,10 @@ class ModRestorer(
         backupUpdateWatchInbox.forEach { backupItem ->
             val mangaId = mangaUrlToIdMap[backupItem.member.source to backupItem.member.url]
             if (mangaId != null) {
-                val latestChapterId = chapterRepository.getChapterByUrlAndMangaId(backupItem.latestChapterUrl, mangaId)?.id
+                val latestChapterId = getChapterIdRobust(mangaId, backupItem.latestChapterUrl, "Update Watch Inbox (latest)")
                 if (latestChapterId != null) {
                     val chapterIds = backupItem.chapterUrls.mapNotNull { url ->
-                        chapterRepository.getChapterByUrlAndMangaId(url, mangaId)?.id
+                        getChapterIdRobust(mangaId, url, "Update Watch Inbox (member)")
                     }
 
                     manageUpdateWatchInbox.insertOrMerge(
@@ -141,7 +151,11 @@ class ModRestorer(
                             milestone = backupItem.milestone,
                         )
                     )
+                } else {
+                    onSkip("Update Watch Inbox [${backupItem.mangaTitle}]: Latest chapter not found (URL: ${backupItem.latestChapterUrl})")
                 }
+            } else {
+                onSkip("Update Watch Inbox [${backupItem.mangaTitle}]: Manga not found (Source: ${backupItem.member.source}, URL: ${backupItem.member.url})")
             }
         }
 
@@ -159,6 +173,10 @@ class ModRestorer(
                         detail = backupHistory.detail,
                     )
                 )
+            } else {
+                val title = mangaUrlToTitleMap[backupHistory.member.source to backupHistory.member.url] ?: "Unknown"
+                onSkip("Update Watch History: Manga '$title' not found (Source: ${backupHistory.member.source}, URL: ${backupHistory.member.url})")
+                skippedCount++
             }
         }
 
@@ -172,5 +190,15 @@ class ModRestorer(
         }
 
         return skippedCount
+    }
+
+    private suspend fun getChapterIdRobust(mangaId: Long, url: String, type: String): Long? {
+        val chapterList = database.chaptersQueries
+            .getChapterByUrlAndMangaId(url, mangaId)
+            .awaitAsList()
+        if (chapterList.size > 1) {
+            logcat(LogPriority.WARN) { "Restore: Duplicate chapter found for $type manga $mangaId chapter $url" }
+        }
+        return chapterList.firstOrNull()?._id
     }
 }

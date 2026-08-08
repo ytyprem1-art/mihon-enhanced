@@ -28,6 +28,8 @@ import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import java.time.ZonedDateTime
 import kotlinx.coroutines.flow.first
+import logcat.LogPriority
+import tachiyomi.core.common.util.system.logcat
 import java.util.Date
 import kotlin.math.max
 
@@ -296,7 +298,7 @@ class MangaRestorer(
         restoreHistoryCategory(manga, historyCategory, backupHistoryCategories)
         restoreChapters(manga, chapters)
         restoreTracking(manga, tracks)
-        restoreHistory(history)
+        restoreHistory(manga.id, history)
         restoreExcludedScanlators(manga, excludedScanlators)
         updateManga.awaitUpdateFetchInterval(manga, now, currentFetchWindow)
         return manga
@@ -361,17 +363,27 @@ class MangaRestorer(
         }
     }
 
-    private suspend fun restoreHistory(backupHistory: List<BackupHistory>) {
+    private suspend fun restoreHistory(mangaId: Long, backupHistory: List<BackupHistory>) {
         val toUpdate = backupHistory.mapNotNull { history ->
-            val dbHistory = database.historyQueries
-                .getHistoryByChapterUrl(history.url)
-                .awaitAsOneOrNull()
+            val dbHistoryList = database.historyQueries
+                .getHistoryByChapterUrlAndMangaId(history.url, mangaId)
+                .awaitAsList()
+            if (dbHistoryList.size > 1) {
+                logcat(LogPriority.WARN) { "Restore: Duplicate history found for manga $mangaId chapter ${history.url}" }
+            }
+            val dbHistory = dbHistoryList.firstOrNull()
+
             val item = history.getHistoryImpl()
 
             if (dbHistory == null) {
-                val chapter = database.chaptersQueries
-                    .getChapterByUrl(history.url)
-                    .awaitAsOneOrNull()
+                val chapterList = database.chaptersQueries
+                    .getChapterByUrlAndMangaId(history.url, mangaId)
+                    .awaitAsList()
+                if (chapterList.size > 1) {
+                    logcat(LogPriority.WARN) { "Restore: Duplicate chapter found for manga $mangaId chapter ${history.url}" }
+                }
+                val chapter = chapterList.firstOrNull()
+
                 return@mapNotNull if (chapter == null) {
                     // Chapter doesn't exist; skip
                     null
