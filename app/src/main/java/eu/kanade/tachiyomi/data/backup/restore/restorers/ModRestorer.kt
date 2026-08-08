@@ -1,5 +1,6 @@
 package eu.kanade.tachiyomi.data.backup.restore.restorers
 
+import android.content.Context
 import eu.kanade.tachiyomi.data.backup.models.BackupLinkedSourceGroup
 import eu.kanade.tachiyomi.data.backup.models.BackupManualHistoryGroup
 import eu.kanade.tachiyomi.data.backup.models.BackupUpdateWatch
@@ -19,16 +20,21 @@ import tachiyomi.domain.source.linked.repository.LinkedSourceRepository
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import kotlinx.coroutines.flow.first
+import logcat.LogPriority
+import tachiyomi.core.common.util.system.logcat
 
 class ModRestorer(
-    private val manageLinkedSourceGroup: ManageLinkedSourceGroup = Injekt.get(),
-    private val manageHistoryGroups: ManageHistoryGroups = Injekt.get(),
-    private val manageUpdateWatch: ManageUpdateWatch = Injekt.get(),
-    private val manageUpdateWatchInbox: ManageUpdateWatchInbox = Injekt.get(),
-    private val manageUpdateWatchHistory: ManageUpdateWatchHistory = Injekt.get(),
-    private val chapterRepository: ChapterRepository = Injekt.get(),
-    private val linkedSourceRepository: LinkedSourceRepository = Injekt.get(),
+    context: Context,
+    private val manageLinkedSourceGroup: ManageLinkedSourceGroup,
+    private val manageHistoryGroups: ManageHistoryGroups,
+    private val manageUpdateWatch: ManageUpdateWatch,
+    private val manageUpdateWatchInbox: ManageUpdateWatchInbox,
+    private val manageUpdateWatchHistory: ManageUpdateWatchHistory,
+    private val chapterRepository: ChapterRepository,
+    private val linkedSourceRepository: LinkedSourceRepository,
 ) {
+
+    private val context = context.applicationContext
 
     suspend fun restoreGroups(
         backupLinkedSourceGroups: List<BackupLinkedSourceGroup>,
@@ -38,6 +44,7 @@ class ModRestorer(
         backupUpdateWatchHistory: List<BackupUpdateWatchHistory>,
         mangaUrlToIdMap: Map<Pair<Long, String>, Long>,
     ): Int {
+        logcat(LogPriority.INFO) { "ModRestorer: Starting restoreGroups" }
         var skippedCount = 0
 
         // 1. Linked Source Groups
@@ -156,7 +163,12 @@ class ModRestorer(
         }
 
         if (backupUpdateWatch.isNotEmpty()) {
-            UpdateWatchRefreshScheduler.setupTask(Injekt.get())
+            logcat(LogPriority.INFO) { "ModRestorer: Setting up Update Watch task with context: $context" }
+            try {
+                UpdateWatchRefreshScheduler.setupTask(context)
+            } catch (e: Exception) {
+                logcat(LogPriority.ERROR, e) { "ModRestorer: Failed to setup Update Watch task" }
+            }
         }
 
         return skippedCount

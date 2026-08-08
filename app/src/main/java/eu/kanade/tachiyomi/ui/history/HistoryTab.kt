@@ -43,8 +43,6 @@ import eu.kanade.tachiyomi.ui.mod.historygroup.HistoryGroupDetailScreen
 import eu.kanade.tachiyomi.ui.main.MainActivity
 import eu.kanade.tachiyomi.ui.manga.MangaScreen
 import eu.kanade.tachiyomi.ui.reader.ReaderActivity
-import eu.kanade.tachiyomi.ui.mod.updatewatch.UpdateWatchScreenModel
-import eu.kanade.tachiyomi.ui.mod.updatewatch.UpdateWatchManagerScreen
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.receiveAsFlow
@@ -60,8 +58,6 @@ import androidx.compose.runtime.setValue
 
 data object HistoryTab : Tab {
 
-    var openInboxOnLoad = false
-
     private val snackbarHostState = SnackbarHostState()
 
     private val resumeLastChapterReadEvent = Channel<Unit>()
@@ -72,7 +68,7 @@ data object HistoryTab : Tab {
             val isSelected = LocalTabNavigator.current.current.key == key
             val image = AnimatedImageVector.animatedVectorResource(R.drawable.anim_history_enter)
             return TabOptions(
-                index = 2u,
+                index = 3u,
                 title = stringResource(MR.strings.label_recent_manga),
                 icon = rememberAnimatedVectorPainter(image, isSelected),
             )
@@ -87,24 +83,10 @@ data object HistoryTab : Tab {
         val navigator = LocalNavigator.currentOrThrow
         val context = LocalContext.current
         val screenModel = rememberScreenModel { HistoryScreenModel() }
-        val updateWatchScreenModel = rememberScreenModel { UpdateWatchScreenModel() }
         val state by screenModel.state.collectAsState()
-        val updateWatchState by updateWatchScreenModel.state.collectAsState()
-
-        LaunchedEffect(Unit) {
-            if (openInboxOnLoad) {
-                openInboxOnLoad = false
-                screenModel.updateSelectedCategory(HistoryScreenModel.State.UPDATE_WATCH_TAB_ID)
-                // We'll need a way to trigger the sheet in HistoryScreen.
-                // I'll add a flag to HistoryScreen Model or just use the static flag again.
-                // Better: add a trigger to updateWatchScreenModel
-                updateWatchScreenModel.triggerInboxSheet()
-            }
-        }
 
         HistoryScreen(
             state = state,
-            updateWatchState = updateWatchState,
             snackbarHostState = snackbarHostState,
             onSearchQueryChange = screenModel::updateSearchQuery,
             onClickCover = { navigator.push(MangaScreen(it)) },
@@ -115,12 +97,6 @@ data object HistoryTab : Tab {
             onClickChangeCategory = screenModel::showChangeHistoryCategoryDialog,
             onClickLinkedSourceGroups = { navigator.push(LinkedSourcesScreen()) },
             onClickGroup = { navigator.push(HistoryGroupDetailScreen(it)) },
-            onPauseTracking = updateWatchScreenModel::pauseTracking,
-            onDismissInboxItem = updateWatchScreenModel::dismissInboxItem,
-            onDisableAutoRefresh = updateWatchScreenModel::disableAutoRefresh,
-            onClearInboxLoadTrigger = updateWatchScreenModel::clearInboxLoadTrigger,
-            onToggleNotifications = updateWatchScreenModel::toggleNotifications,
-            onClickTrackedManga = { navigator.push(UpdateWatchManagerScreen()) },
             screenModel = screenModel,
         )
 

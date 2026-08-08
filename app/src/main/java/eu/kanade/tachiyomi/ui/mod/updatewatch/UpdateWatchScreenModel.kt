@@ -185,7 +185,7 @@ class UpdateWatchScreenModel(
         screenModelScope.launchIO {
             try {
                 manageUpdateWatch.updatePaused(mangaId, true)
-                UpdateWatchRefreshScheduler.setupTask(Injekt.get())
+                UpdateWatchRefreshScheduler.setupTask(Injekt.get<android.app.Application>())
             } catch (e: Exception) {
                 logcat(LogPriority.ERROR, e)
             }
@@ -209,7 +209,7 @@ class UpdateWatchScreenModel(
                         interval = tracking.expectedIntervalDays,
                         profile = tracking.refreshProfile
                     )
-                    UpdateWatchRefreshScheduler.setupTask(Injekt.get())
+                    UpdateWatchRefreshScheduler.setupTask(Injekt.get<android.app.Application>())
                 }
                 manageUpdateWatchInbox.delete(mangaId)
             } catch (e: Exception) {

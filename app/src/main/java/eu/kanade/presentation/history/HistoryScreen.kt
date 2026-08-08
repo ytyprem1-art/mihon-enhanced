@@ -60,10 +60,6 @@ import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.ui.history.HistoryScreenModel
 import eu.kanade.tachiyomi.ui.mod.components.HistoryAppBarActions
 import eu.kanade.tachiyomi.ui.mod.components.HistorySearchExpandedActions
-import eu.kanade.tachiyomi.ui.mod.updatewatch.UpdateWatchContent
-import eu.kanade.tachiyomi.ui.mod.updatewatch.UpdateWatchScreenModel
-import eu.kanade.tachiyomi.ui.mod.updatewatch.components.UpdateWatchInboxSheet
-import tachiyomi.domain.history.model.UpdateWatchInboxItem
 import tachiyomi.domain.history.model.HistoryWithRelations
 import tachiyomi.domain.manga.model.MangaCover
 import tachiyomi.domain.source.service.SourceManager
@@ -91,7 +87,6 @@ import kotlinx.coroutines.launch
 @Composable
 fun HistoryScreen(
     state: HistoryScreenModel.State,
-    updateWatchState: UpdateWatchScreenModel.State,
     snackbarHostState: SnackbarHostState,
     onSearchQueryChange: (String?) -> Unit,
     onClickCover: (mangaId: Long) -> Unit,
@@ -102,12 +97,6 @@ fun HistoryScreen(
     onClickChangeCategory: (mangaId: Long) -> Unit,
     onClickLinkedSourceGroups: () -> Unit,
     onClickGroup: (groupId: Long) -> Unit,
-    onPauseTracking: (Long) -> Unit,
-    onDismissInboxItem: (Long) -> Unit,
-    onDisableAutoRefresh: (Long) -> Unit,
-    onClearInboxLoadTrigger: () -> Unit,
-    onToggleNotifications: (Boolean) -> Unit,
-    onClickTrackedManga: () -> Unit,
     screenModel: HistoryScreenModel,
 ) {
     val scrollStates = rememberSaveable(
@@ -148,16 +137,6 @@ fun HistoryScreen(
             onCancelSelection()
         } else {
             onCancelSearch()
-        }
-    }
-
-    var showInboxSheet by remember { mutableStateOf(false) }
-
-    androidx.compose.runtime.LaunchedEffect(updateWatchState.showInboxOnLoad) {
-        if (updateWatchState.showInboxOnLoad) {
-            showInboxSheet = true
-            screenModel.updateSelectedCategory(HistoryScreenModel.State.UPDATE_WATCH_TAB_ID)
-            onClearInboxLoadTrigger()
         }
     }
 
@@ -280,7 +259,6 @@ fun HistoryScreen(
                         scrollBehavior = scrollBehavior,
                     )
                 } else {
-                    val trackedMangaText = "Tracked manga"
                     val manageCategoryText = androidStringResource(R.string.history_categories_manage)
                     val linkedGroupsText = "Linked source groups"
                     val selectText = androidStringResource(R.string.history_select)
@@ -289,16 +267,6 @@ fun HistoryScreen(
 
                     val actions = remember(state.selectedCategoryId, state.historyCategories) {
                         val list = mutableListOf<AppBar.Action>()
-
-                        if (state.selectedCategoryId == HistoryScreenModel.State.UPDATE_WATCH_TAB_ID) {
-                            list.add(
-                                AppBar.Action(
-                                    title = trackedMangaText,
-                                    icon = Icons.AutoMirrored.Outlined.ListAlt,
-                                    onClick = onClickTrackedManga,
-                                )
-                            )
-                        }
 
                         // Tombol Edit Kategori (Hanya muncul jika bukan tab "Semua")
                         if (state.selectedCategoryId != 0L) {
@@ -378,20 +346,14 @@ fun HistoryScreen(
 
                 ScrollableTabRow(
                     selectedTabIndex = when (state.selectedCategoryId) {
-                        HistoryScreenModel.State.UPDATE_WATCH_TAB_ID -> 0
-                        0L -> 1
+                        0L -> 0
                         else -> {
                             val index = state.historyCategories.indexOfFirst { it.id == state.selectedCategoryId }
-                            if (index == -1) 1 else index + 2
+                            if (index == -1) 0 else index + 1
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Tab(
-                        selected = state.selectedCategoryId == HistoryScreenModel.State.UPDATE_WATCH_TAB_ID,
-                        onClick = { onTabSelected(HistoryScreenModel.State.UPDATE_WATCH_TAB_ID) },
-                        text = { Text("Update Watch") },
-                    )
                     Tab(
                         selected = state.selectedCategoryId == 0L,
                         onClick = { onTabSelected(0L) },
@@ -408,59 +370,7 @@ fun HistoryScreen(
             }
         },
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
-        floatingActionButton = {
-            if (state.selectedCategoryId == HistoryScreenModel.State.UPDATE_WATCH_TAB_ID) {
-                val inboxCount = updateWatchState.enrichedInboxItems.size
-                if (inboxCount > 0) {
-                    val updateCount = updateWatchState.enrichedInboxItems.count { it.item.type == UpdateWatchInboxItem.TYPE_UPDATE }
-                    val warningCount = updateWatchState.enrichedInboxItems.count { it.item.type == UpdateWatchInboxItem.TYPE_INACTIVITY_WARNING }
-
-                    val text = when {
-                        updateCount > 0 && warningCount > 0 -> "$updateCount updates, $warningCount warnings"
-                        updateCount > 0 -> if (updateCount == 1) "1 update found" else "$updateCount updates found"
-                        warningCount > 0 -> if (warningCount == 1) "1 inactivity warning" else "$warningCount inactivity warnings"
-                        else -> "$inboxCount items in inbox"
-                    }
-
-                    ExtendedFloatingActionButton(
-                        text = { Text(text) },
-                        icon = { Icon(Icons.Outlined.NotificationsActive, contentDescription = null) },
-                        onClick = { showInboxSheet = true },
-                        containerColor = MaterialTheme.colorScheme.errorContainer,
-                        contentColor = MaterialTheme.colorScheme.onErrorContainer,
-                    )
-                } else {
-                    FloatingActionButton(
-                        onClick = { showInboxSheet = true },
-                    ) {
-                        Icon(Icons.Outlined.Notifications, contentDescription = "Updates Inbox")
-                    }
-                }
-            }
-        }
     ) { contentPadding ->
-        if (state.selectedCategoryId == HistoryScreenModel.State.UPDATE_WATCH_TAB_ID) {
-            UpdateWatchContent(
-                state = updateWatchState,
-                contentPadding = contentPadding,
-                onClickManga = onClickCover,
-                onPauseTracking = onPauseTracking,
-            )
-
-            if (showInboxSheet) {
-                UpdateWatchInboxSheet(
-                    items = updateWatchState.enrichedInboxItems,
-                    notificationsEnabled = updateWatchState.notificationsEnabled,
-                    onDismissRequest = { showInboxSheet = false },
-                    onClickItem = onClickCover,
-                    onDeleteItem = onDismissInboxItem,
-                    onDisableAutoRefresh = onDisableAutoRefresh,
-                    onToggleNotifications = onToggleNotifications,
-                )
-            }
-            return@Scaffold
-        }
-
         state.list.let {
             if (it == null) {
                 LoadingScreen(Modifier.padding(contentPadding))

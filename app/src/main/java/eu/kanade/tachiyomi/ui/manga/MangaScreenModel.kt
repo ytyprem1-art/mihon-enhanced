@@ -1393,7 +1393,7 @@ class MangaScreenModel(
                 val isTracked = manageUpdateWatch.getById(mangaId) != null
                 if (isTracked) {
                     manageUpdateWatch.delete(mangaId)
-                    UpdateWatchRefreshScheduler.setupTask(Injekt.get())
+                    UpdateWatchRefreshScheduler.setupTask(Injekt.get<android.app.Application>())
                 } else {
                     updateSuccessState { it.copy(dialog = Dialog.TrackUpdateWatch) }
                 }
@@ -1417,7 +1417,7 @@ class MangaScreenModel(
                         lastWarnedMilestone = 0
                     )
                 )
-                UpdateWatchRefreshScheduler.setupTask(Injekt.get())
+                UpdateWatchRefreshScheduler.setupTask(Injekt.get<android.app.Application>())
             } catch (e: Exception) {
                 logcat(LogPriority.ERROR, e)
             }

@@ -41,6 +41,7 @@ import eu.kanade.tachiyomi.ui.download.DownloadQueueScreen
 import eu.kanade.tachiyomi.ui.history.HistoryTab
 import eu.kanade.tachiyomi.ui.library.LibraryTab
 import eu.kanade.tachiyomi.ui.manga.MangaScreen
+import eu.kanade.tachiyomi.ui.mod.updatewatch.UpdateWatchTab
 import eu.kanade.tachiyomi.ui.more.MoreTab
 import eu.kanade.tachiyomi.ui.updates.UpdatesTab
 import kotlinx.coroutines.channels.Channel
@@ -50,6 +51,7 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import soup.compose.material.motion.animation.materialFadeThroughIn
 import soup.compose.material.motion.animation.materialFadeThroughOut
+import tachiyomi.domain.history.interactor.GetUpdateWatchInbox
 import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.components.material.NavigationBar
@@ -74,6 +76,7 @@ object HomeScreen : Screen() {
     private val TABS = listOf(
         LibraryTab,
         UpdatesTab,
+        UpdateWatchTab,
         HistoryTab,
         BrowseTab,
         MoreTab,
@@ -155,6 +158,7 @@ object HomeScreen : Screen() {
                         tabNavigator.current = when (it) {
                             is Tab.Library -> LibraryTab
                             Tab.Updates -> UpdatesTab
+                            is Tab.UpdateWatch -> UpdateWatchTab
                             is Tab.History -> HistoryTab
                             is Tab.Browse -> {
                                 if (it.toExtensions) {
@@ -168,10 +172,14 @@ object HomeScreen : Screen() {
                         if (it is Tab.Library && it.mangaIdToOpen != null) {
                             navigator.push(MangaScreen(it.mangaIdToOpen))
                         }
+                        if (it is Tab.UpdateWatch) {
+                             if (it.openInbox) {
+                                 eu.kanade.tachiyomi.ui.mod.updatewatch.UpdateWatchTab.openInboxOnLoad = true
+                             }
+                        }
                         if (it is Tab.History && it.openUpdateWatchInbox) {
-                            // Logic to open inbox will be handled in HistoryTab/Screen via shared state or similar
-                            // For now, I'll use a static flag in HistoryTab to keep it simple and minimal
-                            eu.kanade.tachiyomi.ui.history.HistoryTab.openInboxOnLoad = true
+                            tabNavigator.current = UpdateWatchTab
+                            eu.kanade.tachiyomi.ui.mod.updatewatch.UpdateWatchTab.openInboxOnLoad = true
                         }
                         if (it is Tab.More && it.toDownloads) {
                             navigator.push(DownloadQueueScreen)
@@ -266,6 +274,17 @@ object HomeScreen : Screen() {
                             }
                         }
                     }
+                    tab is UpdateWatchTab -> {
+                        val count by produceState(initialValue = 0) {
+                            Injekt.get<GetUpdateWatchInbox>().subscribe()
+                                .collectLatest { value = it.size }
+                        }
+                        if (count > 0) {
+                            Badge {
+                                Text(text = count.toString())
+                            }
+                        }
+                    }
                     BrowseTab::class.isInstance(tab) -> {
                         val count by produceState(initialValue = 0) {
                             Injekt.get<SourcePreferences>().extensionUpdatesCount.changes()
@@ -310,6 +329,7 @@ object HomeScreen : Screen() {
     sealed interface Tab {
         data class Library(val mangaIdToOpen: Long? = null) : Tab
         data object Updates : Tab
+        data class UpdateWatch(val openInbox: Boolean = false) : Tab
         data class History(val openUpdateWatchInbox: Boolean = false) : Tab
         data class Browse(val toExtensions: Boolean = false) : Tab
         data class More(val toDownloads: Boolean) : Tab

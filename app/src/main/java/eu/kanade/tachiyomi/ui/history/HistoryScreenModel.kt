@@ -516,11 +516,7 @@ class HistoryScreenModel(
         val mangaToCategoryMap: Map<Long, Long> = emptyMap(), // Cache peta kategori memori UI
         val selectionMode: Boolean = false,
         val selected: Set<Long> = emptySet(),
-    ) {
-        companion object {
-            const val UPDATE_WATCH_TAB_ID = -1L
-        }
-    }
+    )
 
     sealed interface Dialog {
         data object DeleteAll : Dialog

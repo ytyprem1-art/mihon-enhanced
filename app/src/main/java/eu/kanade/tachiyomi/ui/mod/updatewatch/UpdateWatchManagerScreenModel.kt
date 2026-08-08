@@ -143,7 +143,7 @@ class UpdateWatchManagerScreenModel(
         screenModelScope.launchIO {
             try {
                 manageUpdateWatch.delete(mangaId)
-                UpdateWatchRefreshScheduler.setupTask(Injekt.get())
+                UpdateWatchRefreshScheduler.setupTask(Injekt.get<android.app.Application>())
             } catch (e: Exception) {
                 logcat(LogPriority.ERROR, e)
             }
@@ -158,7 +158,7 @@ class UpdateWatchManagerScreenModel(
         screenModelScope.launchIO {
             try {
                 manageUpdateWatch.updateBackgroundRefresh(mangaId, enabled, interval, profile)
-                UpdateWatchRefreshScheduler.setupTask(Injekt.get())
+                UpdateWatchRefreshScheduler.setupTask(Injekt.get<android.app.Application>())
             } catch (e: Exception) {
                 logcat(LogPriority.ERROR, e)
             }
