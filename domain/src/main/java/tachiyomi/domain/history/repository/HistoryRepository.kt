@@ -24,4 +24,8 @@ interface HistoryRepository {
     suspend fun deleteAllHistory(): Boolean
 
     suspend fun upsertHistory(historyUpdate: HistoryUpdate)
+
+    suspend fun getHistoryByChapterId(chapterId: Long): History?
+
+    suspend fun deleteHistoryByChapterId(chapterId: Long)
 }

@@ -32,8 +32,8 @@ android {
     defaultConfig {
         applicationId = "dev.vishkel.mihon"
 
-        versionCode = 44
-        versionName = "2.0j"
+        versionCode = 45
+        versionName = "2.0k"
 
         buildConfigField("String", "COMMIT_COUNT", "\"${getLatestCommitCount()}\"")
         buildConfigField("String", "COMMIT_SHA", "\"${getLatestCommitSha()}\"")

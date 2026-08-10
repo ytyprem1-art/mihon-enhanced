@@ -77,10 +77,10 @@ class PreferenceModule(val app: Application) : InjektModule {
             BasePreferences(app, get())
         }
         addSingletonFactory {
-
             UpdateWatchDiagnosticsPreferences(get())
+        }
+        addSingletonFactory {
             BookmarkImportPreferences(get())
-
         }
     }
 }

@@ -46,6 +46,15 @@ ON H.chapter_id = C._id
 WHERE C.url = :chapterUrl AND C.manga_id = :mangaId AND C._id = H.chapter_id
 ORDER BY H._id ASC;
 
+getHistoryByChapterId:
+SELECT *
+FROM history
+WHERE chapter_id = :chapterId;
+
+deleteHistoryByChapterId:
+DELETE FROM history
+WHERE chapter_id = :chapterId;
+
 resetHistoryById:
 UPDATE history
 SET last_read = 0

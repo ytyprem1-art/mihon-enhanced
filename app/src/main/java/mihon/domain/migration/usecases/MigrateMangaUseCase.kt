@@ -10,11 +10,13 @@ import eu.kanade.tachiyomi.data.track.TrackerManager
 import kotlinx.coroutines.CancellationException
 import mihon.domain.migration.models.MigrationFlag
 import mihon.domain.source.interactor.UpdateMangaFromRemote
+import tachiyomi.data.Database
 import tachiyomi.domain.category.interactor.GetCategories
 import tachiyomi.domain.category.interactor.SetMangaCategories
 import tachiyomi.domain.chapter.interactor.GetChaptersByMangaId
 import tachiyomi.domain.chapter.interactor.UpdateChapter
 import tachiyomi.domain.chapter.model.toChapterUpdate
+import tachiyomi.domain.history.repository.HistoryRepository
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.manga.model.MangaUpdate
 import tachiyomi.domain.source.service.SourceManager
@@ -36,6 +38,8 @@ class MigrateMangaUseCase(
     private val insertTrack: InsertTrack,
     private val coverCache: CoverCache,
     private val updateMangaFromRemote: UpdateMangaFromRemote,
+    private val historyRepository: HistoryRepository,
+    private val database: Database,
 ) {
     private val enhancedServices by lazy { trackerManager.trackers.filterIsInstance<EnhancedTracker>() }
 
@@ -102,6 +106,19 @@ class MigrateMangaUseCase(
             }
                 .takeIf { it.isNotEmpty() }
                 ?.let { insertTrack.awaitAll(it) }
+
+            // MOD START: Migrate History
+            val prevMangaChapters = getChaptersByMangaId.await(current.id)
+            val mangaChapters = getChaptersByMangaId.await(target.id)
+            eu.kanade.tachiyomi.ui.mod.helper.HistoryMigrationHelper.migrateHistoryAndProgress(
+                database = database,
+                oldChapters = prevMangaChapters,
+                targetChapters = mangaChapters,
+                getHistoryByMangaId = historyRepository::getHistoryByMangaId,
+                oldManga = current,
+                targetManga = target
+            )
+            // MOD END: Migrate History
 
             // Delete downloaded
             if (MigrationFlag.REMOVE_DOWNLOAD in flags && currentSource != null) {

@@ -85,4 +85,18 @@ class HistoryRepositoryImpl(
             logcat(LogPriority.ERROR, throwable = e)
         }
     }
+
+    override suspend fun getHistoryByChapterId(chapterId: Long): History? {
+        return database.historyQueries
+            .getHistoryByChapterId(chapterId, HistoryMapper::mapHistory)
+            .awaitAsOneOrNull()
+    }
+
+    override suspend fun deleteHistoryByChapterId(chapterId: Long) {
+        try {
+            database.historyQueries.deleteHistoryByChapterId(chapterId)
+        } catch (e: Exception) {
+            logcat(LogPriority.ERROR, throwable = e)
+        }
+    }
 }

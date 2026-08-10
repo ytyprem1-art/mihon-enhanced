@@ -10,6 +10,7 @@ import eu.kanade.tachiyomi.data.download.DownloadProvider
 import eu.kanade.tachiyomi.source.Source
 import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.online.HttpSource
+import tachiyomi.data.Database
 import tachiyomi.data.chapter.ChapterSanitizer
 import tachiyomi.domain.chapter.interactor.GetChaptersByMangaId
 import tachiyomi.domain.chapter.interactor.ShouldUpdateDbChapter
@@ -19,9 +20,13 @@ import tachiyomi.domain.chapter.model.NoChaptersException
 import tachiyomi.domain.chapter.model.toChapterUpdate
 import tachiyomi.domain.chapter.repository.ChapterRepository
 import tachiyomi.domain.chapter.service.ChapterRecognition
+import tachiyomi.domain.history.repository.HistoryRepository
 import tachiyomi.domain.library.service.LibraryPreferences
+import tachiyomi.domain.manga.interactor.GetDuplicateLibraryManga
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.source.local.isLocal
+import logcat.LogPriority
+import tachiyomi.core.common.util.system.logcat
 import java.lang.Long.max
 import java.time.ZonedDateTime
 import java.util.TreeSet
@@ -36,6 +41,9 @@ class SyncChaptersWithSource(
     private val getChaptersByMangaId: GetChaptersByMangaId,
     private val getExcludedScanlators: GetExcludedScanlators,
     private val libraryPreferences: LibraryPreferences,
+    private val getDuplicateLibraryManga: GetDuplicateLibraryManga,
+    private val historyRepository: HistoryRepository,
+    private val database: Database,
 ) {
 
     /**
@@ -71,13 +79,28 @@ class SyncChaptersWithSource(
 
         val dbChapters = getChaptersByMangaId.await(manga.id)
 
+        // CASE A: Canonical Library manga exists
+        val canonicalTarget = eu.kanade.tachiyomi.ui.mod.helper.HistoryMigrationHelper.findCanonicalTarget(manga, getDuplicateLibraryManga::invoke)
+        if (canonicalTarget != null) {
+            logcat(LogPriority.INFO) { "Mod: Found canonical Library target ${canonicalTarget.id} for manga ${manga.id}" }
+            val targetChapters = getChaptersByMangaId.await(canonicalTarget.id)
+            eu.kanade.tachiyomi.ui.mod.helper.HistoryMigrationHelper.migrateHistoryAndProgress(
+                database = database,
+                oldChapters = dbChapters,
+                targetChapters = targetChapters,
+                getHistoryByMangaId = historyRepository::getHistoryByMangaId,
+                oldManga = manga,
+                targetManga = canonicalTarget
+            )
+        }
+
         val newChapters = mutableListOf<Chapter>()
         val updatedChapters = mutableListOf<Chapter>()
-        val removedChapters = dbChapters.filterNot { dbChapter ->
+        val toRemoveChapters = dbChapters.filterNot { dbChapter ->
             sourceChapters.any { sourceChapter ->
                 dbChapter.url == sourceChapter.url
             }
-        }
+        }.toMutableList()
 
         // Used to not set upload date of older chapters
         // to a higher value than newer chapters
@@ -98,7 +121,20 @@ class SyncChaptersWithSource(
             val chapterNumber = ChapterRecognition.parseChapterNumber(manga.title, chapter.name, chapter.chapterNumber)
             chapter = chapter.copy(chapterNumber = chapterNumber)
 
-            val dbChapter = dbChapters.find { it.url == chapter.url }
+            var dbChapter = dbChapters.find { it.url == chapter.url }
+            var isReconciled = false
+
+            if (dbChapter == null) {
+                dbChapter = eu.kanade.tachiyomi.ui.mod.helper.ChapterReconciliationHelper.findReconcilableCandidate(chapter, toRemoveChapters)
+                    ?.also {
+                        toRemoveChapters.remove(it)
+                        isReconciled = true
+                        logcat(LogPriority.INFO) {
+                            "Mod: Reconciled chapter ${it.url} -> ${chapter.url} for manga ${manga.id} " +
+                                "(ID: ${it.id}, Read: ${it.read}, Progress: ${it.lastPageRead})"
+                        }
+                    }
+            }
 
             if (dbChapter == null) {
                 val toAddChapter = if (chapter.dateUpload == 0L) {
@@ -110,7 +146,7 @@ class SyncChaptersWithSource(
                 }
                 newChapters.add(toAddChapter)
             } else {
-                if (shouldUpdateDbChapter.await(dbChapter, chapter)) {
+                if (shouldUpdateDbChapter.await(dbChapter, chapter) || isReconciled) {
                     val shouldRenameChapter = downloadProvider.isChapterDirNameChanged(dbChapter, chapter) &&
                         downloadManager.isChapterDownloaded(
                             dbChapter.name,
@@ -130,6 +166,7 @@ class SyncChaptersWithSource(
                         scanlator = chapter.scanlator,
                         sourceOrder = chapter.sourceOrder,
                         memo = chapter.memo,
+                        url = chapter.url,
                     )
 
                     if (chapter.dateUpload != 0L) {
@@ -139,6 +176,8 @@ class SyncChaptersWithSource(
                 }
             }
         }
+
+        val removedChapters = toRemoveChapters
 
         // Return if there's nothing to add, delete, or update to avoid unnecessary db transactions.
         if (newChapters.isEmpty() && removedChapters.isEmpty() && updatedChapters.isEmpty()) {
@@ -205,8 +244,22 @@ class SyncChaptersWithSource(
         }
 
         if (removedChapters.isNotEmpty()) {
-            val toDeleteIds = removedChapters.map { it.id }
-            chapterRepository.removeChaptersWithIds(toDeleteIds)
+            val history = historyRepository.getHistoryByMangaId(manga.id)
+            val chapterIdsWithHistory = history.map { it.chapterId }.toSet()
+
+            val toDeleteIds = removedChapters
+                .filter { it.id !in chapterIdsWithHistory }
+                .map { it.id }
+
+            if (toDeleteIds.isNotEmpty()) {
+                chapterRepository.removeChaptersWithIds(toDeleteIds)
+            }
+
+            if (toDeleteIds.size < removedChapters.size) {
+                logcat(LogPriority.INFO) {
+                    "Mod: Preserved ${removedChapters.size - toDeleteIds.size} chapters with history for manga ${manga.id}"
+                }
+            }
         }
 
         if (updatedToAdd.isNotEmpty()) {
