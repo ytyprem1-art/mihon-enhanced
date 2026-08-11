@@ -56,6 +56,7 @@ import androidx.paging.LoadState
 import androidx.compose.runtime.saveable.rememberSaveable
 import eu.kanade.tachiyomi.ui.webview.WebViewScreen
 import eu.kanade.tachiyomi.ui.mod.helper.TitleMatchHelper
+import eu.kanade.tachiyomi.ui.mod.helper.CloudflareChallengeHelper
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.channels.Channel
@@ -163,6 +164,68 @@ data class BrowseSourceScreen(
         val haptic = LocalHapticFeedback.current
         val uriHandler = LocalUriHandler.current
         val snackbarHostState = remember { SnackbarHostState() }
+
+        // MOD START: Manganato Cloudflare Auto-Challenge
+        LaunchedEffect(state.listing) {
+            val listing = state.listing
+            if (listing is Listing.Search &&
+                CloudflareChallengeHelper.isManganato(screenModel.source) &&
+                !screenModel.hasAutoTriggeredCloudflare
+            ) {
+                val source = screenModel.source as? HttpSource ?: return@LaunchedEffect
+                val searchUrl = CloudflareChallengeHelper.getSearchUrl(source, listing.query, listing.filters)
+
+                if (!CloudflareChallengeHelper.hasValidCfClearance(source, searchUrl)) {
+                    screenModel.hasAutoTriggeredCloudflare = true
+                    navigator.push(
+                        WebViewScreen(
+                            url = searchUrl ?: source.getHomeUrl(),
+                            initialTitle = source.name,
+                            sourceId = source.id,
+                            onDismissed = {
+                                mangaLazyPagingItems.refresh()
+                            },
+                            onAutoCloseCondition = { url, html ->
+                                url.contains("/search/story/") &&
+                                    "window._cf_chl_opt" !in html &&
+                                    "Ray ID is" !in html
+                            },
+                        ),
+                    )
+                }
+            }
+        }
+
+        LaunchedEffect(mangaLazyPagingItems.loadState.refresh) {
+            val loadState = mangaLazyPagingItems.loadState.refresh
+            if (loadState is LoadState.Error &&
+                CloudflareChallengeHelper.isManganato(screenModel.source) &&
+                CloudflareChallengeHelper.isCloudflareBypassFailure(loadState.error) &&
+                !screenModel.hasAutoTriggeredCloudflare
+            ) {
+                val source = screenModel.source as? HttpSource ?: return@LaunchedEffect
+                val listing = state.listing
+                val searchUrl = CloudflareChallengeHelper.getSearchUrl(source, listing.query, listing.filters)
+
+                screenModel.hasAutoTriggeredCloudflare = true
+                navigator.push(
+                    WebViewScreen(
+                        url = searchUrl ?: source.getHomeUrl(),
+                        initialTitle = source.name,
+                        sourceId = source.id,
+                        onDismissed = {
+                            mangaLazyPagingItems.retry()
+                        },
+                        onAutoCloseCondition = { url, html ->
+                            url.contains("/search/story/") &&
+                                "window._cf_chl_opt" !in html &&
+                                "Ray ID is" !in html
+                        },
+                    ),
+                )
+            }
+        }
+        // MOD END: Manganato Cloudflare Auto-Challenge
 
         val onHelpClick = { uriHandler.openUri(LocalSource.HELP_URL) }
         val onWebViewClick = f@{

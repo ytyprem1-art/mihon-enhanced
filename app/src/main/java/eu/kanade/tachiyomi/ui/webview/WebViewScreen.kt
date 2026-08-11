@@ -1,5 +1,6 @@
 package eu.kanade.tachiyomi.ui.webview
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 import cafe.adriel.voyager.core.model.rememberScreenModel
@@ -13,6 +14,8 @@ class WebViewScreen(
     private val url: String,
     private val initialTitle: String? = null,
     private val sourceId: Long? = null,
+    private val onDismissed: (() -> Unit)? = null,
+    private val onAutoCloseCondition: (suspend (url: String, html: String) -> Boolean)? = null,
 ) : Screen(), AssistContentScreen {
 
     private var assistUrl: String? = null
@@ -25,8 +28,16 @@ class WebViewScreen(
         val context = LocalContext.current
         val screenModel = rememberScreenModel { WebViewScreenModel(sourceId) }
 
+        val handlePop = {
+            navigator.pop()
+            onDismissed?.invoke()
+            Unit
+        }
+
+        BackHandler(enabled = true, onBack = handlePop)
+
         WebViewScreenContent(
-            onNavigateUp = { navigator.pop() },
+            onNavigateUp = handlePop,
             initialTitle = initialTitle,
             url = url,
             headers = screenModel.headers,
@@ -34,6 +45,7 @@ class WebViewScreen(
             onShare = { screenModel.shareWebpage(context, it) },
             onOpenInBrowser = { screenModel.openInBrowser(context, it) },
             onClearCookies = screenModel::clearCookies,
+            onAutoCloseCondition = onAutoCloseCondition,
         )
     }
 }

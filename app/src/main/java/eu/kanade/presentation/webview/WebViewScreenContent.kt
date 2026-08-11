@@ -77,6 +77,7 @@ fun WebViewScreenContent(
     onClearCookies: (String) -> Unit,
     headers: Map<String, String> = emptyMap(),
     onUrlChange: (String) -> Unit = {},
+    onAutoCloseCondition: (suspend (url: String, html: String) -> Boolean)? = null,
 ) {
     val coroutineScope = rememberCoroutineScope()
 
@@ -118,6 +119,12 @@ fun WebViewScreenContent(
                 scope.launch {
                     val html = view.getHtml()
                     showCloudflareHelp = "window._cf_chl_opt" in html || "Ray ID is" in html
+
+                    if (onAutoCloseCondition != null && url != null) {
+                        if (onAutoCloseCondition(url, html)) {
+                            onNavigateUp()
+                        }
+                    }
                 }
             }
 

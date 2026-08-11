@@ -4,6 +4,7 @@ import android.content.res.Configuration
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.unit.dp
 import androidx.paging.Pager
@@ -70,6 +71,8 @@ class BrowseSourceScreenModel(
 
     var displayMode by sourcePreferences.sourceDisplayMode.asState(screenModelScope)
 
+    var hasAutoTriggeredCloudflare by mutableStateOf(false)
+
     val source = sourceManager.getOrStub(sourceId)
 
     init {
@@ -126,10 +129,14 @@ class BrowseSourceScreenModel(
     }
 
     fun resetFilters() {
+        hasAutoTriggeredCloudflare = false
         mutableState.update { it.copy(filters = source.getFilterList()) }
     }
 
     fun setListing(listing: Listing) {
+        if (state.value.listing != listing) {
+            hasAutoTriggeredCloudflare = false
+        }
         mutableState.update { it.copy(listing = listing, toolbarQuery = null) }
     }
 
@@ -145,13 +152,20 @@ class BrowseSourceScreenModel(
         val input = state.value.listing as? Listing.Search
             ?: Listing.Search(query = null, filters = source.getFilterList())
 
+        val newQuery = query ?: input.query
+        val newFilters = filters ?: input.filters
+
+        if (newQuery != input.query || newFilters != input.filters) {
+            hasAutoTriggeredCloudflare = false
+        }
+
         mutableState.update {
             it.copy(
                 listing = input.copy(
-                    query = query ?: input.query,
-                    filters = filters ?: input.filters,
+                    query = newQuery,
+                    filters = newFilters,
                 ),
-                toolbarQuery = query ?: input.query,
+                toolbarQuery = newQuery,
             )
         }
     }
@@ -159,6 +173,8 @@ class BrowseSourceScreenModel(
     fun searchGenre(genreName: String) {
         val defaultFilters = source.getFilterList()
         var genreExists = false
+
+        hasAutoTriggeredCloudflare = false
 
         filter@ for (sourceFilter in defaultFilters) {
             if (sourceFilter is SourceModelFilter.Group<*>) {
