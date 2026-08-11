@@ -48,7 +48,7 @@ object CloudflareChallengeHelper {
         // Manganato specific: we require a fresh verification timestamp
         if (isManganato(source)) {
             val now = System.currentTimeMillis()
-            if (now - lastManganatoClearanceVerifiedAt > 30 * 60 * 1000L) {
+            if (now - lastManganatoClearanceVerifiedAt > 20 * 60 * 1000L) {
                 return false
             }
         }
