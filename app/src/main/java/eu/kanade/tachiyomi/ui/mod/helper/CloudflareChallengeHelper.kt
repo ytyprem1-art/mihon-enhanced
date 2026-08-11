@@ -12,6 +12,8 @@ import java.io.IOException
 
 object CloudflareChallengeHelper {
 
+    private var lastManganatoClearanceVerifiedAt: Long = 0L
+
     /**
      * Identifies if the source is Manganato (English).
      */
@@ -42,6 +44,15 @@ object CloudflareChallengeHelper {
      */
     fun hasValidCfClearance(source: Source?, targetUrl: String?): Boolean {
         val httpSource = source as? HttpSource ?: return true
+
+        // Manganato specific: we require a fresh verification timestamp
+        if (isManganato(source)) {
+            val now = System.currentTimeMillis()
+            if (now - lastManganatoClearanceVerifiedAt > 30 * 60 * 1000L) {
+                return false
+            }
+        }
+
         val url = targetUrl?.toHttpUrlOrNull() ?: httpSource.baseUrl.toHttpUrlOrNull() ?: return true
         return try {
             val networkHelper: NetworkHelper = Injekt.get()
@@ -50,6 +61,20 @@ object CloudflareChallengeHelper {
         } catch (e: Exception) {
             false
         }
+    }
+
+    /**
+     * Marks the Manganato clearance as verified.
+     */
+    fun markManganatoClearanceVerified() {
+        lastManganatoClearanceVerifiedAt = System.currentTimeMillis()
+    }
+
+    /**
+     * Invalidates the Manganato clearance state.
+     */
+    fun invalidateManganatoClearance() {
+        lastManganatoClearanceVerifiedAt = 0L
     }
 
     /**

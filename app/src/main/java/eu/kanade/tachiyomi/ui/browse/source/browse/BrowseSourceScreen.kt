@@ -166,6 +166,8 @@ data class BrowseSourceScreen(
         val snackbarHostState = remember { SnackbarHostState() }
 
         // MOD START: Manganato Cloudflare Auto-Challenge
+        var isWebViewSolved by remember { mutableStateOf(false) }
+
         LaunchedEffect(state.listing) {
             val listing = state.listing
             if (listing is Listing.Search &&
@@ -177,18 +179,27 @@ data class BrowseSourceScreen(
 
                 if (!CloudflareChallengeHelper.hasValidCfClearance(source, searchUrl)) {
                     screenModel.hasAutoTriggeredCloudflare = true
+                    isWebViewSolved = false
                     navigator.push(
                         WebViewScreen(
                             url = searchUrl ?: source.getHomeUrl(),
                             initialTitle = source.name,
                             sourceId = source.id,
                             onDismissed = {
+                                if (!isWebViewSolved) {
+                                    CloudflareChallengeHelper.invalidateManganatoClearance()
+                                }
                                 mangaLazyPagingItems.refresh()
                             },
                             onAutoCloseCondition = { url, html ->
-                                url.contains("/search/story/") &&
+                                val isSolved = url.contains("/search/story/") &&
                                     "window._cf_chl_opt" !in html &&
                                     "Ray ID is" !in html
+                                if (isSolved) {
+                                    isWebViewSolved = true
+                                    CloudflareChallengeHelper.markManganatoClearanceVerified()
+                                }
+                                isSolved
                             },
                         ),
                     )
@@ -207,19 +218,29 @@ data class BrowseSourceScreen(
                 val listing = state.listing
                 val searchUrl = CloudflareChallengeHelper.getSearchUrl(source, listing.query, listing.filters)
 
+                CloudflareChallengeHelper.invalidateManganatoClearance()
                 screenModel.hasAutoTriggeredCloudflare = true
+                isWebViewSolved = false
                 navigator.push(
                     WebViewScreen(
                         url = searchUrl ?: source.getHomeUrl(),
                         initialTitle = source.name,
                         sourceId = source.id,
                         onDismissed = {
+                            if (!isWebViewSolved) {
+                                CloudflareChallengeHelper.invalidateManganatoClearance()
+                            }
                             mangaLazyPagingItems.retry()
                         },
                         onAutoCloseCondition = { url, html ->
-                            url.contains("/search/story/") &&
+                            val isSolved = url.contains("/search/story/") &&
                                 "window._cf_chl_opt" !in html &&
                                 "Ray ID is" !in html
+                            if (isSolved) {
+                                isWebViewSolved = true
+                                CloudflareChallengeHelper.markManganatoClearanceVerified()
+                            }
+                            isSolved
                         },
                     ),
                 )
