@@ -2,12 +2,9 @@ package eu.kanade.tachiyomi.ui.mod.bookmarkimport
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Delete
@@ -23,7 +20,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import cafe.adriel.voyager.core.model.rememberScreenModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import eu.kanade.presentation.components.AppBar
@@ -40,14 +38,14 @@ class BookmarkImportScreen : Screen() {
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
         val context = LocalContext.current
-        val screenModel = rememberScreenModel { BookmarkImportScreenModel() }
-        val state by screenModel.state.collectAsState()
+        val viewModel = viewModel<BookmarkImportViewModel>()
+        val state by viewModel.state.collectAsStateWithLifecycle()
 
         val pickFileLauncher = rememberLauncherForActivityResult(
             contract = ActivityResultContracts.GetContent(),
         ) { uri ->
             if (uri != null) {
-                screenModel.processFile(context, uri)
+                viewModel.processFile(context, uri)
             }
         }
 
@@ -70,7 +68,7 @@ class BookmarkImportScreen : Screen() {
                         verticalArrangement = Arrangement.spacedBy(MaterialTheme.padding.medium),
                     ) {
                         if (state.hasSession && !state.isMatching && !state.isImporting) {
-                            SessionPrompt(state, screenModel)
+                            SessionPrompt(state, viewModel)
                         }
 
                         Text(
@@ -162,7 +160,7 @@ class BookmarkImportScreen : Screen() {
                             val mikotoIndex = state.entries.indexOfFirst { it.title.contains("Mikoto and Rei", ignoreCase = true) }
                             if (mikotoIndex != -1 && state.entries[mikotoIndex].matchResult == ManganatoCsvParser.MatchResult.UNCHECKED && !state.isMatching && !state.isImporting) {
                                 OutlinedButton(
-                                    onClick = { screenModel.checkMatches(mikotoIndex) },
+                                    onClick = { viewModel.checkMatches(mikotoIndex) },
                                     modifier = Modifier.fillMaxWidth(),
                                 ) {
                                     Text("Debug: Test matching 'Mikoto and Rei'")
@@ -177,7 +175,7 @@ class BookmarkImportScreen : Screen() {
                             ) {
                                 if (state.isMatching) {
                                     Button(
-                                        onClick = screenModel::cancelMatching,
+                                        onClick = viewModel::cancelMatching,
                                         modifier = Modifier.weight(1f),
                                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                                     ) {
@@ -185,7 +183,7 @@ class BookmarkImportScreen : Screen() {
                                     }
                                 } else if (state.isImporting) {
                                     Button(
-                                        onClick = screenModel::cancelImport,
+                                        onClick = viewModel::cancelImport,
                                         modifier = Modifier.weight(1f),
                                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                                     ) {
@@ -197,14 +195,14 @@ class BookmarkImportScreen : Screen() {
 
                                     if (hasUnchecked) {
                                         Button(
-                                            onClick = { screenModel.checkMatches() },
+                                            onClick = { viewModel.checkMatches() },
                                             modifier = Modifier.weight(1f),
                                         ) {
                                             Text("Check matches")
                                         }
                                     } else if (hasRetryableMatches) {
                                         OutlinedButton(
-                                            onClick = { screenModel.checkMatches(retryFailedOnly = true) },
+                                            onClick = { viewModel.checkMatches(retryFailedOnly = true) },
                                             modifier = Modifier.weight(1f),
                                         ) {
                                             Text("Retry failed matches")
@@ -216,14 +214,14 @@ class BookmarkImportScreen : Screen() {
 
                                     if (matchedCount > 0) {
                                         Button(
-                                            onClick = screenModel::showImportConfirmation,
+                                            onClick = viewModel::showImportConfirmation,
                                             modifier = Modifier.weight(1f),
                                         ) {
                                             Text("Import matched")
                                         }
                                     } else if (hasRetryableImports) {
                                         OutlinedButton(
-                                            onClick = { screenModel.importMatched(retryFailedOnly = true) },
+                                            onClick = { viewModel.importMatched(retryFailedOnly = true) },
                                             modifier = Modifier.weight(1f),
                                         ) {
                                             Text("Retry failed imports")
@@ -260,13 +258,13 @@ class BookmarkImportScreen : Screen() {
             }
 
             if (state.showImportConfirmation) {
-                ImportConfirmationDialog(state, screenModel)
+                ImportConfirmationDialog(state, viewModel)
             }
         }
     }
 
     @Composable
-    private fun SessionPrompt(state: BookmarkImportScreenModel.State, screenModel: BookmarkImportScreenModel) {
+    private fun SessionPrompt(state: BookmarkImportViewModel.State, viewModel: BookmarkImportViewModel) {
         Card(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)),
@@ -282,13 +280,13 @@ class BookmarkImportScreen : Screen() {
 
                 Row(horizontalArrangement = Arrangement.spacedBy(MaterialTheme.padding.small)) {
                     Button(
-                        onClick = screenModel::resumeSession,
+                        onClick = viewModel::resumeSession,
                         modifier = Modifier.weight(1f)
                     ) {
                         Text("Resume")
                     }
                     OutlinedButton(
-                        onClick = screenModel::discardSession,
+                        onClick = viewModel::discardSession,
                         modifier = Modifier.weight(1f),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
                     ) {
@@ -302,7 +300,7 @@ class BookmarkImportScreen : Screen() {
     }
 
     @Composable
-    private fun ImportProgress(state: BookmarkImportScreenModel.State) {
+    private fun ImportProgress(state: BookmarkImportViewModel.State) {
         Column(
             modifier = Modifier.padding(top = MaterialTheme.padding.small),
             verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -327,13 +325,13 @@ class BookmarkImportScreen : Screen() {
     }
 
     @Composable
-    private fun ImportConfirmationDialog(state: BookmarkImportScreenModel.State, screenModel: BookmarkImportScreenModel) {
+    private fun ImportConfirmationDialog(state: BookmarkImportViewModel.State, viewModel: BookmarkImportViewModel) {
         val matchedCount = state.entries.count { it.matchResult == ManganatoCsvParser.MatchResult.MATCHED }
         val withProgressCount = state.entries.count { it.matchResult == ManganatoCsvParser.MatchResult.MATCHED && it.viewedChapter != null }
         val unreadCount = matchedCount - withProgressCount
 
         AlertDialog(
-            onDismissRequest = screenModel::hideImportConfirmation,
+            onDismissRequest = viewModel::hideImportConfirmation,
             title = { Text("Import matched manga") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -349,12 +347,12 @@ class BookmarkImportScreen : Screen() {
                 }
             },
             confirmButton = {
-                TextButton(onClick = screenModel::importMatched) {
+                TextButton(onClick = viewModel::importMatched) {
                     Text("Import")
                 }
             },
             dismissButton = {
-                TextButton(onClick = screenModel::hideImportConfirmation) {
+                TextButton(onClick = viewModel::hideImportConfirmation) {
                     Text(stringResource(MR.strings.action_cancel))
                 }
             }
@@ -393,7 +391,7 @@ class BookmarkImportScreen : Screen() {
     }
 
     @Composable
-    private fun ValidPreview(state: BookmarkImportScreenModel.State) {
+    private fun ValidPreview(state: BookmarkImportViewModel.State) {
         PreviewCard(
             title = "File ready",
             icon = Icons.Outlined.CheckCircle,

@@ -17,7 +17,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import cafe.adriel.voyager.core.model.rememberScreenModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.CreationExtras
+import androidx.lifecycle.viewmodel.compose.viewModel
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import eu.kanade.presentation.components.AppBar
@@ -26,7 +28,6 @@ import eu.kanade.presentation.components.relativeDateText
 import eu.kanade.presentation.history.HistoryUiModel
 import eu.kanade.presentation.history.components.HistoryItem
 import eu.kanade.presentation.util.Screen
-import eu.kanade.presentation.util.animateItemFastScroll
 import eu.kanade.tachiyomi.ui.manga.MangaScreen
 import eu.kanade.tachiyomi.ui.reader.ReaderActivity
 import eu.kanade.tachiyomi.util.system.toast
@@ -45,8 +46,13 @@ class HistoryGroupDetailScreen(private val groupId: Long) : Screen() {
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
         val context = LocalContext.current
-        val screenModel = rememberScreenModel { HistoryGroupDetailScreenModel(groupId) }
-        val state by screenModel.state.collectAsState()
+        val viewModel = viewModel<HistoryGroupDetailViewModel>(
+            factory = HistoryGroupDetailViewModel.Factory,
+            extras = CreationExtras {
+                set(HistoryGroupDetailViewModel.GROUP_ID_KEY, groupId)
+            },
+        )
+        val state by viewModel.state.collectAsStateWithLifecycle()
 
         var showRemoveConfirmation by remember { mutableStateOf(false) }
 
@@ -59,9 +65,9 @@ class HistoryGroupDetailScreen(private val groupId: Long) : Screen() {
             onClickResume = { mangaId, chapterId ->
                 context.startActivity(ReaderActivity.newIntent(context, mangaId, chapterId))
             },
-            onClickEdit = screenModel::toggleSelectionMode,
+            onClickEdit = viewModel::toggleSelectionMode,
             onClickRemove = { showRemoveConfirmation = true },
-            onToggleSelection = screenModel::toggleSelection,
+            onToggleSelection = viewModel::toggleSelection,
             navigateUp = navigator::pop,
         )
 
@@ -73,7 +79,7 @@ class HistoryGroupDetailScreen(private val groupId: Long) : Screen() {
                 confirmButton = {
                     TextButton(
                         onClick = {
-                            screenModel.removeSelectedFromGroup()
+                            viewModel.removeSelectedFromGroup()
                             showRemoveConfirmation = false
                         },
                     ) {
@@ -89,9 +95,9 @@ class HistoryGroupDetailScreen(private val groupId: Long) : Screen() {
         }
 
         LaunchedEffect(Unit) {
-            screenModel.events.collectLatest { event ->
+            viewModel.events.collectLatest { event ->
                 when (event) {
-                    HistoryGroupDetailScreenModel.Event.GroupDissolved -> {
+                    HistoryGroupDetailViewModel.Event.GroupDissolved -> {
                         context.toast("History group removed because only one member remained.")
                         navigator.pop()
                     }
@@ -186,14 +192,14 @@ private fun HistoryGroupDetailScreen(
                     when (item) {
                         is HistoryUiModel.Header -> {
                             ListGroupHeader(
-                                modifier = Modifier.animateItemFastScroll(),
+                                modifier = Modifier.animateItem(),
                                 text = relativeDateText(item.date),
                             )
                         }
                         is HistoryUiModel.Item -> {
                             val history = item.item
                             HistoryItem(
-                                modifier = Modifier.animateItemFastScroll(),
+                                modifier = Modifier.animateItem(),
                                 history = history,
                                 onClickCover = { onClickCover(history.mangaId) },
                                 onClickResume = { onClickResume(history.mangaId, history.chapterId) },

@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -21,9 +20,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import cafe.adriel.voyager.core.model.rememberScreenModel
+import androidx.lifecycle.viewmodel.CreationExtras
+import androidx.lifecycle.viewmodel.compose.viewModel
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.Navigator
 import cafe.adriel.voyager.navigator.currentOrThrow
@@ -99,28 +98,31 @@ class MangaScreen(
         val context = LocalContext.current
         val haptic = LocalHapticFeedback.current
         val scope = rememberCoroutineScope()
-        val lifecycleOwner = LocalLifecycleOwner.current
-        val screenModel = rememberScreenModel {
-            MangaScreenModel(context, lifecycleOwner.lifecycle, mangaId, fromSource)
-        }
+        val viewModel = viewModel<MangaViewModel>(
+            factory = MangaViewModel.Factory,
+            extras = CreationExtras {
+                set(MangaViewModel.MANGA_ID_KEY, mangaId)
+                set(MangaViewModel.IS_FROM_SOURCE_KEY, fromSource)
+            },
+        )
 
-        val state by screenModel.state.collectAsStateWithLifecycle()
+        val state by viewModel.state.collectAsStateWithLifecycle()
 
-        if (state is MangaScreenModel.State.Loading) {
+        if (state is MangaViewModel.State.Loading) {
             LoadingScreen()
             return
         }
 
-        val successState = state as MangaScreenModel.State.Success
+        val successState = state as MangaViewModel.State.Success
         val isHttpSource = remember { successState.source is HttpSource }
 
         var showLinkedSourcesSheet by remember { mutableStateOf(false) }
 
-        LaunchedEffect(successState.manga, screenModel.source) {
+        LaunchedEffect(successState.manga, viewModel.source) {
             if (isHttpSource) {
                 try {
                     withIOContext {
-                        assistUrl = getMangaUrl(screenModel.manga, screenModel.source)
+                        assistUrl = getMangaUrl(viewModel.manga, viewModel.source)
                     }
                 } catch (e: Exception) {
                     logcat(LogPriority.ERROR, e) { "Failed to get manga URL" }
@@ -130,65 +132,65 @@ class MangaScreen(
 
         MangaScreen(
             state = successState,
-            snackbarHostState = screenModel.snackbarHostState,
+            snackbarHostState = viewModel.snackbarHostState,
             nextUpdate = successState.manga.expectedNextUpdate,
             isTabletUi = isTabletUi(),
-            chapterSwipeStartAction = screenModel.chapterSwipeStartAction,
-            chapterSwipeEndAction = screenModel.chapterSwipeEndAction,
+            chapterSwipeStartAction = viewModel.chapterSwipeStartAction,
+            chapterSwipeEndAction = viewModel.chapterSwipeEndAction,
             navigateUp = navigator::pop,
             onChapterClicked = { openChapter(context, it) },
-            onDownloadChapter = screenModel::runChapterDownloadActions.takeIf { !successState.source.isLocalOrStub() },
+            onDownloadChapter = viewModel::runChapterDownloadActions.takeIf { !successState.source.isLocalOrStub() },
             onAddToLibraryClicked = {
-                screenModel.toggleFavorite()
+                viewModel.toggleFavorite()
                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
             },
             onWebViewClicked = {
                 openMangaInWebView(
                     navigator,
-                    screenModel.manga,
-                    screenModel.source,
+                    viewModel.manga,
+                    viewModel.source,
                 )
             }.takeIf { isHttpSource },
             onWebViewLongClicked = {
                 copyMangaUrl(
                     context,
-                    screenModel.manga,
-                    screenModel.source,
+                    viewModel.manga,
+                    viewModel.source,
                 )
             }.takeIf { isHttpSource },
             onTrackingClicked = {
                 if (!successState.hasLoggedInTrackers) {
                     navigator.push(SettingsScreen(SettingsScreen.Destination.Tracking))
                 } else {
-                    screenModel.showTrackDialog()
+                    viewModel.showTrackDialog()
                 }
             },
-            onTagSearch = { scope.launch { performGenreSearch(navigator, it, screenModel.source!!) } },
-            onFilterButtonClicked = screenModel::showSettingsDialog,
-            onRefresh = screenModel::fetchAllFromSource,
-            onContinueReading = { continueReading(context, screenModel.getNextUnreadChapter()) },
+            onTagSearch = { scope.launch { performGenreSearch(navigator, it, viewModel.source!!) } },
+            onFilterButtonClicked = viewModel::showSettingsDialog,
+            onRefresh = viewModel::fetchAllFromSource,
+            onContinueReading = { continueReading(context, viewModel.getNextUnreadChapter()) },
             onSearch = { query, global -> scope.launch { performSearch(navigator, query, global) } },
-            onCoverClicked = screenModel::showCoverDialog,
-            onShareClicked = { shareManga(context, screenModel.manga, screenModel.source) }.takeIf { isHttpSource },
-            onDownloadActionClicked = screenModel::runDownloadAction.takeIf { !successState.source.isLocalOrStub() },
-            onEditCategoryClicked = screenModel::showChangeCategoryDialog.takeIf { successState.manga.favorite },
-            onEditFetchIntervalClicked = screenModel::showSetFetchIntervalDialog.takeIf {
+            onCoverClicked = viewModel::showCoverDialog,
+            onShareClicked = { shareManga(context, viewModel.manga, viewModel.source) }.takeIf { isHttpSource },
+            onDownloadActionClicked = viewModel::runDownloadAction.takeIf { !successState.source.isLocalOrStub() },
+            onEditCategoryClicked = viewModel::showChangeCategoryDialog.takeIf { successState.manga.favorite },
+            onEditFetchIntervalClicked = viewModel::showSetFetchIntervalDialog.takeIf {
                 successState.manga.favorite
             },
             onMigrateClicked = {
                 navigator.push(MigrationConfigScreen(successState.manga.id))
             }.takeIf { successState.manga.favorite },
             onEditNotesClicked = { navigator.push(MangaNotesScreen(manga = successState.manga)) },
-            onMultiBookmarkClicked = screenModel::bookmarkChapters,
-            onMultiMarkAsReadClicked = screenModel::markChaptersRead,
-            onMarkPreviousAsReadClicked = screenModel::markPreviousChapterRead,
-            onMultiDeleteClicked = screenModel::showDeleteChapterDialog,
-            onChapterSwipe = screenModel::chapterSwipe,
-            onChapterSelected = screenModel::toggleSelection,
-            onAllChapterSelected = screenModel::toggleAllSelection,
-            onInvertSelection = screenModel::invertSelection,
+            onMultiBookmarkClicked = viewModel::bookmarkChapters,
+            onMultiMarkAsReadClicked = viewModel::markChaptersRead,
+            onMarkPreviousAsReadClicked = viewModel::markPreviousChapterRead,
+            onMultiDeleteClicked = viewModel::showDeleteChapterDialog,
+            onChapterSwipe = viewModel::chapterSwipe,
+            onChapterSelected = viewModel::toggleSelection,
+            onAllChapterSelected = viewModel::toggleAllSelection,
+            onInvertSelection = viewModel::invertSelection,
             onLinkedSourcesClicked = { showLinkedSourcesSheet = true },
-            onUpdateWatchClicked = screenModel::toggleUpdateWatch,
+            onUpdateWatchClicked = viewModel::toggleUpdateWatch,
             onOpenSource = { sourceId, query ->
                 val currentSourceId = successState.source.id
 
@@ -231,17 +233,17 @@ class MangaScreen(
 
         if (showLinkedSourcesSheet) {
             LaunchedEffect(Unit) {
-                screenModel.refreshAllLinkedSources(manual = false)
+                viewModel.refreshAllLinkedSources(manual = false)
             }
             LinkedSourcesSheet(
                 onDismissRequest = { showLinkedSourcesSheet = false },
                 onSearchSourcesClick = {
                     showLinkedSourcesSheet = false
-                    screenModel.showCreateGroupDialog()
+                    viewModel.showCreateGroupDialog()
                 },
                 onJoinGroupClick = {
                     showLinkedSourcesSheet = false
-                    screenModel.showJoinGroupDialog()
+                    viewModel.showJoinGroupDialog()
                 },
                 onAddSourceClick = {
                     showLinkedSourcesSheet = false
@@ -265,16 +267,16 @@ class MangaScreen(
                 },
                 onMemberRemoveClick = { member ->
                     showLinkedSourcesSheet = false
-                    screenModel.showRemoveMemberDialog(member)
+                    viewModel.showRemoveMemberDialog(member)
                 },
                 onMemberRefreshClick = { member ->
-                    screenModel.refreshLinkedMember(member.id)
+                    viewModel.refreshLinkedMember(member.id)
                 },
-                onRefreshAllClick = screenModel::refreshAllLinkedSources,
-                onRenameGroupClick = screenModel::showRenameGroupDialog,
-                onDeleteGroupClick = screenModel::showDeleteGroupDialog,
+                onRefreshAllClick = viewModel::refreshAllLinkedSources,
+                onRenameGroupClick = viewModel::showRenameGroupDialog,
+                onDeleteGroupClick = viewModel::showDeleteGroupDialog,
                 isWideCompact = successState.isWideCompact,
-                onToggleWideCompact = screenModel::toggleWideCompact,
+                onToggleWideCompact = viewModel::toggleWideCompact,
                 linkedGroup = successState.linkedGroup,
                 linkedMembers = successState.linkedMembers,
                 currentMangaId = mangaId,
@@ -284,40 +286,40 @@ class MangaScreen(
 
         var showScanlatorsDialog by remember { mutableStateOf(false) }
 
-        val onDismissRequest = { screenModel.dismissDialog() }
+        val onDismissRequest = { viewModel.dismissDialog() }
         when (val dialog = successState.dialog) {
             null -> {}
-            is MangaScreenModel.Dialog.ChangeCategory -> {
+            is MangaViewModel.Dialog.ChangeCategory -> {
                 ChangeCategoryDialog(
                     initialSelection = dialog.initialSelection,
                     onDismissRequest = onDismissRequest,
                     onEditCategories = { navigator.push(CategoryScreen()) },
                     onConfirm = { include, _ ->
-                        screenModel.moveMangaToCategoriesAndAddToLibrary(dialog.manga, include)
+                        viewModel.moveMangaToCategoriesAndAddToLibrary(dialog.manga, include)
                     },
                 )
             }
-            is MangaScreenModel.Dialog.DeleteChapters -> {
+            is MangaViewModel.Dialog.DeleteChapters -> {
                 DeleteChaptersDialog(
                     onDismissRequest = onDismissRequest,
                     onConfirm = {
-                        screenModel.toggleAllSelection(false)
-                        screenModel.deleteChapters(dialog.chapters)
+                        viewModel.toggleAllSelection(false)
+                        viewModel.deleteChapters(dialog.chapters)
                     },
                 )
             }
 
-            is MangaScreenModel.Dialog.DuplicateManga -> {
+            is MangaViewModel.Dialog.DuplicateManga -> {
                 DuplicateMangaDialog(
                     duplicates = dialog.duplicates,
                     onDismissRequest = onDismissRequest,
-                    onConfirm = { screenModel.toggleFavorite(onRemoved = {}, checkDuplicate = false) },
+                    onConfirm = { viewModel.toggleFavorite(onRemoved = {}, checkDuplicate = false) },
                     onOpenManga = { navigator.push(MangaScreen(it.id)) },
-                    onMigrate = { screenModel.showMigrateDialog(it) },
+                    onMigrate = { viewModel.showMigrateDialog(it) },
                 )
             }
 
-            is MangaScreenModel.Dialog.Migrate -> {
+            is MangaViewModel.Dialog.Migrate -> {
                 MigrateMangaDialog(
                     current = dialog.current,
                     target = dialog.target,
@@ -326,20 +328,20 @@ class MangaScreen(
                     onDismissRequest = onDismissRequest,
                 )
             }
-            MangaScreenModel.Dialog.SettingsSheet -> ChapterSettingsDialog(
+            MangaViewModel.Dialog.SettingsSheet -> ChapterSettingsDialog(
                 onDismissRequest = onDismissRequest,
                 manga = successState.manga,
-                onDownloadFilterChanged = screenModel::setDownloadedFilter,
-                onUnreadFilterChanged = screenModel::setUnreadFilter,
-                onBookmarkedFilterChanged = screenModel::setBookmarkedFilter,
-                onSortModeChanged = screenModel::setSorting,
-                onDisplayModeChanged = screenModel::setDisplayMode,
-                onSetAsDefault = screenModel::setCurrentSettingsAsDefault,
-                onResetToDefault = screenModel::resetToDefaultSettings,
+                onDownloadFilterChanged = viewModel::setDownloadedFilter,
+                onUnreadFilterChanged = viewModel::setUnreadFilter,
+                onBookmarkedFilterChanged = viewModel::setBookmarkedFilter,
+                onSortModeChanged = viewModel::setSorting,
+                onDisplayModeChanged = viewModel::setDisplayMode,
+                onSetAsDefault = viewModel::setCurrentSettingsAsDefault,
+                onResetToDefault = viewModel::resetToDefaultSettings,
                 scanlatorFilterActive = successState.scanlatorFilterActive,
                 onScanlatorFilterClicked = { showScanlatorsDialog = true },
             )
-            MangaScreenModel.Dialog.TrackSheet -> {
+            MangaViewModel.Dialog.TrackSheet -> {
                 NavigatorAdaptiveSheet(
                     screen = TrackInfoDialogHomeScreen(
                         mangaId = successState.manga.id,
@@ -350,9 +352,14 @@ class MangaScreen(
                     onDismissRequest = onDismissRequest,
                 )
             }
-            MangaScreenModel.Dialog.FullCover -> {
-                val sm = rememberScreenModel { MangaCoverScreenModel(successState.manga.id) }
-                val manga by sm.state.collectAsState()
+            MangaViewModel.Dialog.FullCover -> {
+                val sm = viewModel<MangaCoverViewModel>(
+                    factory = MangaCoverViewModel.Factory,
+                    extras = CreationExtras {
+                        set(MangaCoverViewModel.MANGA_ID_KEY, successState.manga.id)
+                    },
+                )
+                val manga by sm.state.collectAsStateWithLifecycle()
                 if (manga != null) {
                     val getContent = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) {
                         if (it == null) return@rememberLauncherForActivityResult
@@ -376,16 +383,16 @@ class MangaScreen(
                     LoadingScreen(Modifier.systemBarsPadding())
                 }
             }
-            is MangaScreenModel.Dialog.SetFetchInterval -> {
+            is MangaViewModel.Dialog.SetFetchInterval -> {
                 SetIntervalDialog(
                     interval = dialog.manga.fetchInterval,
                     nextUpdate = dialog.manga.expectedNextUpdate,
                     onDismissRequest = onDismissRequest,
-                    onValueChanged = { interval: Int -> screenModel.setFetchInterval(dialog.manga, interval) }
-                        .takeIf { screenModel.isUpdateIntervalEnabled },
+                    onValueChanged = { interval: Int -> viewModel.setFetchInterval(dialog.manga, interval) }
+                        .takeIf { viewModel.isUpdateIntervalEnabled },
                 )
             }
-            is MangaScreenModel.Dialog.CreateLinkedGroup -> {
+            is MangaViewModel.Dialog.CreateLinkedGroup -> {
                 var name by remember { mutableStateOf(dialog.defaultName) }
                 androidx.compose.material3.AlertDialog(
                     onDismissRequest = onDismissRequest,
@@ -402,7 +409,7 @@ class MangaScreen(
                         androidx.compose.material3.TextButton(
                             onClick = {
                                 if (name.isNotBlank()) {
-                                    screenModel.createGroup(name)
+                                    viewModel.createGroup(name)
                                     onDismissRequest()
                                 }
                             },
@@ -417,7 +424,7 @@ class MangaScreen(
                     }
                 )
             }
-            is MangaScreenModel.Dialog.JoinLinkedGroup -> {
+            is MangaViewModel.Dialog.JoinLinkedGroup -> {
                 androidx.compose.material3.AlertDialog(
                     onDismissRequest = onDismissRequest,
                     title = { androidx.compose.material3.Text("Join Group") },
@@ -429,7 +436,7 @@ class MangaScreen(
                             ) { item ->
                                 androidx.compose.material3.ListItem(
                                     modifier = Modifier.clickable {
-                                        screenModel.joinGroup(item.group.id)
+                                        viewModel.joinGroup(item.group.id)
                                         onDismissRequest()
                                     },
                                     leadingContent = {
@@ -452,7 +459,7 @@ class MangaScreen(
                     }
                 )
             }
-            is MangaScreenModel.Dialog.RemoveLinkedMember -> {
+            is MangaViewModel.Dialog.RemoveLinkedMember -> {
                 val sourceManager = remember { Injekt.get<SourceManager>() }
                 val sourceName = remember(dialog.member.source) {
                     sourceManager.getOrStub(dialog.member.source).name
@@ -472,7 +479,7 @@ class MangaScreen(
                     confirmButton = {
                         androidx.compose.material3.TextButton(
                             onClick = {
-                                screenModel.removeMember(dialog.member)
+                                viewModel.removeMember(dialog.member)
                                 onDismissRequest()
                             },
                         ) {
@@ -486,7 +493,7 @@ class MangaScreen(
                     }
                 )
             }
-            is MangaScreenModel.Dialog.RenameLinkedGroup -> {
+            is MangaViewModel.Dialog.RenameLinkedGroup -> {
                 var name by remember { mutableStateOf(dialog.group.name) }
                 val scope = rememberCoroutineScope()
                 androidx.compose.material3.AlertDialog(
@@ -506,10 +513,10 @@ class MangaScreen(
                                 if (name.isNotBlank()) {
                                     scope.launch {
                                         try {
-                                            screenModel.renameLinkedGroup(name)
+                                            viewModel.renameLinkedGroup(name)
                                             onDismissRequest()
                                         } catch (e: Exception) {
-                                            // Dialog stays open, error shown in snackbar from screenModel
+                                            // Dialog stays open, error shown in snackbar from viewModel
                                         }
                                     }
                                 }
@@ -525,7 +532,7 @@ class MangaScreen(
                     }
                 )
             }
-            is MangaScreenModel.Dialog.DeleteLinkedGroup -> {
+            is MangaViewModel.Dialog.DeleteLinkedGroup -> {
                 androidx.compose.material3.AlertDialog(
                     onDismissRequest = onDismissRequest,
                     title = { androidx.compose.material3.Text("Delete Group") },
@@ -533,7 +540,7 @@ class MangaScreen(
                     confirmButton = {
                         androidx.compose.material3.TextButton(
                             onClick = {
-                                screenModel.deleteLinkedGroup()
+                                viewModel.deleteLinkedGroup()
                                 onDismissRequest()
                             },
                         ) {
@@ -547,10 +554,10 @@ class MangaScreen(
                     }
                 )
             }
-            MangaScreenModel.Dialog.TrackUpdateWatch -> {
+            MangaViewModel.Dialog.TrackUpdateWatch -> {
                 TrackUpdateWatchDialog(
                     onDismissRequest = onDismissRequest,
-                    onConfirm = screenModel::trackUpdateWatch,
+                    onConfirm = viewModel::trackUpdateWatch,
                 )
             }
         }
@@ -560,7 +567,7 @@ class MangaScreen(
                 availableScanlators = successState.availableScanlators,
                 excludedScanlators = successState.excludedScanlators,
                 onDismissRequest = { showScanlatorsDialog = false },
-                onConfirm = screenModel::setExcludedScanlators,
+                onConfirm = viewModel::setExcludedScanlators,
             )
         }
     }

@@ -9,6 +9,12 @@ data class RestoreOptions(
     val appSettings: Boolean = true,
     val extensionStores: Boolean = true,
     val sourceSettings: Boolean = true,
+
+    // Mod data
+    val modHistoryCategories: Boolean = true,
+    val modHistoryGroups: Boolean = true,
+    val modLinkedSources: Boolean = true,
+    val modUpdateWatch: Boolean = true,
 ) {
 
     fun asBooleanArray() = booleanArrayOf(
@@ -17,9 +23,14 @@ data class RestoreOptions(
         appSettings,
         extensionStores,
         sourceSettings,
+        modHistoryCategories,
+        modHistoryGroups,
+        modLinkedSources,
+        modUpdateWatch,
     )
 
-    fun canRestore() = libraryEntries || categories || appSettings || extensionStores || sourceSettings
+    fun canRestore() = libraryEntries || categories || appSettings || extensionStores || sourceSettings ||
+        modHistoryCategories || modHistoryGroups || modLinkedSources || modUpdateWatch
 
     companion object {
         val options = listOf(
@@ -50,12 +61,39 @@ data class RestoreOptions(
             ),
         )
 
+        val modOptions = listOf(
+            Entry(
+                label = MR.strings.mod_history_categories,
+                getter = RestoreOptions::modHistoryCategories,
+                setter = { options, enabled -> options.copy(modHistoryCategories = enabled) },
+            ),
+            Entry(
+                label = MR.strings.mod_history_groups,
+                getter = RestoreOptions::modHistoryGroups,
+                setter = { options, enabled -> options.copy(modHistoryGroups = enabled) },
+            ),
+            Entry(
+                label = MR.strings.mod_linked_sources,
+                getter = RestoreOptions::modLinkedSources,
+                setter = { options, enabled -> options.copy(modLinkedSources = enabled) },
+            ),
+            Entry(
+                label = MR.strings.mod_update_watch,
+                getter = RestoreOptions::modUpdateWatch,
+                setter = { options, enabled -> options.copy(modUpdateWatch = enabled) },
+            ),
+        )
+
         fun fromBooleanArray(array: BooleanArray) = RestoreOptions(
             libraryEntries = array[0],
             categories = array[1],
             appSettings = array[2],
             extensionStores = array[3],
             sourceSettings = array[4],
+            modHistoryCategories = array.getOrElse(5) { true },
+            modHistoryGroups = array.getOrElse(6) { true },
+            modLinkedSources = array.getOrElse(7) { true },
+            modUpdateWatch = array.getOrElse(8) { true },
         )
     }
 

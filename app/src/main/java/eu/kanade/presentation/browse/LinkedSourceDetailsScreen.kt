@@ -19,7 +19,6 @@ import eu.kanade.presentation.browse.components.LinkedSourceMemberItem
 import eu.kanade.presentation.components.AppBar
 import eu.kanade.presentation.components.AppBarActions
 import eu.kanade.presentation.components.DropdownMenu
-import eu.kanade.presentation.util.animateItemFastScroll
 import eu.kanade.tachiyomi.ui.manga.LinkedMember
 import tachiyomi.domain.source.linked.model.LinkedSourceGroup
 import tachiyomi.domain.source.service.SourceManager
@@ -110,7 +109,7 @@ fun LinkedSourceDetailsScreen(
                 key = { it.manga.id },
             ) { member ->
                 LinkedSourceMemberItem(
-                    modifier = Modifier.animateItemFastScroll(),
+                    modifier = Modifier.animateItem(),
                     member = member,
                     isRefreshing = refreshingIds.contains(member.manga.id),
                     onRefresh = { onRefreshMember(member) },

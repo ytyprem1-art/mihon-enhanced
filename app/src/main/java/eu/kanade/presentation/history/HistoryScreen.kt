@@ -54,12 +54,12 @@ import eu.kanade.presentation.components.SearchToolbar
 import eu.kanade.presentation.components.relativeDateText
 import eu.kanade.presentation.history.components.HistoryItem
 import eu.kanade.presentation.theme.TachiyomiPreviewTheme
-import eu.kanade.presentation.util.animateItemFastScroll
 import eu.kanade.presentation.util.isTabletUi
 import eu.kanade.tachiyomi.R
-import eu.kanade.tachiyomi.ui.history.HistoryScreenModel
+import eu.kanade.tachiyomi.ui.history.HistoryViewModel
 import eu.kanade.tachiyomi.ui.mod.components.HistoryAppBarActions
 import eu.kanade.tachiyomi.ui.mod.components.HistorySearchExpandedActions
+import kotlinx.datetime.LocalDate
 import tachiyomi.domain.history.model.HistoryWithRelations
 import tachiyomi.domain.manga.model.MangaCover
 import tachiyomi.domain.source.service.SourceManager
@@ -72,7 +72,6 @@ import tachiyomi.presentation.core.components.material.Scaffold
 import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.screens.EmptyScreen
 import tachiyomi.presentation.core.screens.LoadingScreen
-import java.time.LocalDate
 import androidx.activity.compose.BackHandler
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Notifications
@@ -86,18 +85,18 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun HistoryScreen(
-    state: HistoryScreenModel.State,
+    state: HistoryViewModel.State,
     snackbarHostState: SnackbarHostState,
     onSearchQueryChange: (String?) -> Unit,
     onClickCover: (mangaId: Long) -> Unit,
     onClickResume: (mangaId: Long, chapterId: Long) -> Unit,
     onClickFavorite: (mangaId: Long) -> Unit,
-    onDialogChange: (HistoryScreenModel.Dialog?) -> Unit,
+    onDialogChange: (HistoryViewModel.Dialog?) -> Unit,
     onTabSelected: (Long) -> Unit,
     onClickChangeCategory: (mangaId: Long) -> Unit,
     onClickLinkedSourceGroups: () -> Unit,
     onClickGroup: (groupId: Long) -> Unit,
-    screenModel: HistoryScreenModel,
+    viewModel: HistoryViewModel,
 ) {
     val scrollStates = rememberSaveable(
         saver = Saver<MutableMap<Long, LazyListState>, Map<Long, List<Int>>>(
@@ -122,7 +121,7 @@ fun HistoryScreen(
     }
     val scrollState = scrollStates.getOrPut(state.selectedCategoryId) { LazyListState() }
 
-    val onCancelSelection = { screenModel.toggleSelectionMode() }
+    val onCancelSelection = { viewModel.toggleSelectionMode() }
     val onCancelSearch = { onSearchQueryChange(null) }
 
     var searchActionsExpanded by remember { mutableStateOf(false) }
@@ -184,7 +183,7 @@ fun HistoryScreen(
                                         icon = Icons.Outlined.Delete,
                                         onClick = {
                                             onDialogChange(
-                                                HistoryScreenModel.Dialog.DeleteSelected(state.selected)
+                                                HistoryViewModel.Dialog.DeleteSelected(state.selected)
                                             )
                                         },
                                         enabled = state.selected.isNotEmpty(),
@@ -194,7 +193,7 @@ fun HistoryScreen(
                                         icon = Icons.Outlined.Folder,
                                         onClick = {
                                             onDialogChange(
-                                                HistoryScreenModel.Dialog.MoveSelectedToHistoryCategory(
+                                                HistoryViewModel.Dialog.MoveSelectedToHistoryCategory(
                                                     state.selected,
                                                     state.historyCategories
                                                 )
@@ -207,7 +206,7 @@ fun HistoryScreen(
                                         icon = Icons.Outlined.Merge,
                                         onClick = {
                                             if (state.selected.size == 1) {
-                                                screenModel.showAddToHistoryGroupDialog(state.selected.first())
+                                                viewModel.showAddToHistoryGroupDialog(state.selected.first())
                                             } else {
                                                 val selectedItems = state.list?.filterIsInstance<HistoryUiModel.Item>()
                                                     ?.filter { it.item.mangaId in state.selected }
@@ -221,7 +220,7 @@ fun HistoryScreen(
                                                 }
 
                                                 onDialogChange(
-                                                    HistoryScreenModel.Dialog.CreateHistoryGroup(
+                                                    HistoryViewModel.Dialog.CreateHistoryGroup(
                                                         state.selected,
                                                         suggestedName
                                                     )
@@ -244,12 +243,12 @@ fun HistoryScreen(
                                     AppBar.Action(
                                         title = stringResource(MR.strings.action_select_all),
                                         icon = Icons.Outlined.SelectAll,
-                                        onClick = { screenModel.selectAll(filteredHistoryIds) },
+                                        onClick = { viewModel.selectAll(filteredHistoryIds) },
                                     ),
                                     AppBar.Action(
                                         title = stringResource(MR.strings.action_select_inverse),
                                         icon = Icons.Outlined.FlipToBack,
-                                        onClick = { screenModel.invertSelection(filteredHistoryIds) },
+                                        onClick = { viewModel.invertSelection(filteredHistoryIds) },
                                     ),
                                 ),
                             )
@@ -276,7 +275,7 @@ fun HistoryScreen(
                                         title = manageCategoryText,
                                         icon = Icons.Outlined.Settings,
                                         onClick = {
-                                            onDialogChange(HistoryScreenModel.Dialog.ManageHistoryCategory(category))
+                                            onDialogChange(HistoryViewModel.Dialog.ManageHistoryCategory(category))
                                         },
                                     )
                                 )
@@ -295,7 +294,7 @@ fun HistoryScreen(
                             AppBar.Action(
                                 title = selectText,
                                 icon = Icons.Outlined.Checklist,
-                                onClick = { screenModel.toggleSelectionMode() },
+                                onClick = { viewModel.toggleSelectionMode() },
                             )
                         )
 
@@ -304,7 +303,7 @@ fun HistoryScreen(
                                 title = createCategoryText,
                                 icon = Icons.Outlined.Create,
                                 onClick = {
-                                    onDialogChange(HistoryScreenModel.Dialog.CreateHistoryCategory)
+                                    onDialogChange(HistoryViewModel.Dialog.CreateHistoryCategory)
                                 },
                             )
                         )
@@ -314,7 +313,7 @@ fun HistoryScreen(
                                 title = clearHistoryText,
                                 icon = Icons.Outlined.DeleteSweep,
                                 onClick = {
-                                    onDialogChange(HistoryScreenModel.Dialog.DeleteAll)
+                                    onDialogChange(HistoryViewModel.Dialog.DeleteAll)
                                 },
                             ),
                         )
@@ -385,22 +384,22 @@ fun HistoryScreen(
                     modifier = Modifier.padding(contentPadding),
                 )
             } else {
-                    HistoryScreenContent(
-                        history = filteredHistory,
-                        contentPadding = contentPadding,
-                        scrollState = scrollState,
-                        selectionMode = state.selectionMode,
-                        selected = state.selected,
-                        onClickCover = { history -> onClickCover(history.mangaId) },
-                        onClickResume = { history -> onClickResume(history.mangaId, history.chapterId) },
-                        onClickDelete = { item -> onDialogChange(HistoryScreenModel.Dialog.Delete(item)) },
-                        onClickFavorite = { history -> onClickFavorite(history.mangaId) },
-                        onClickChangeCategory = onClickChangeCategory,
-                        onClickGroup = onClickGroup,
-                        onClickRenameGroup = { group -> onDialogChange(HistoryScreenModel.Dialog.RenameHistoryGroup(group)) },
-                        onClickDeleteGroup = { group -> onDialogChange(HistoryScreenModel.Dialog.DeleteHistoryGroup(group)) },
-                        onToggleSelection = screenModel::toggleSelection,
-                    )
+                HistoryScreenContent(
+                    history = filteredHistory,
+                    contentPadding = contentPadding,
+                    scrollState = scrollState,
+                    selectionMode = state.selectionMode,
+                    selected = state.selected,
+                    onClickCover = { history -> onClickCover(history.mangaId) },
+                    onClickResume = { history -> onClickResume(history.mangaId, history.chapterId) },
+                    onClickDelete = { item -> onDialogChange(HistoryViewModel.Dialog.Delete(item)) },
+                    onClickFavorite = { history -> onClickFavorite(history.mangaId) },
+                    onClickChangeCategory = onClickChangeCategory,
+                    onClickGroup = onClickGroup,
+                    onClickRenameGroup = { group -> onDialogChange(HistoryViewModel.Dialog.RenameHistoryGroup(group)) },
+                    onClickDeleteGroup = { group -> onDialogChange(HistoryViewModel.Dialog.DeleteHistoryGroup(group)) },
+                    onToggleSelection = viewModel::toggleSelection,
+                )
             }
         }
     }
@@ -447,7 +446,7 @@ private fun HistoryScreenContent(
             when (item) {
                 is HistoryUiModel.Header -> {
                     ListGroupHeader(
-                        modifier = Modifier.animateItemFastScroll(),
+                        modifier = Modifier.animateItem(),
                         text = relativeDateText(item.date),
                     )
                 }
@@ -458,7 +457,7 @@ private fun HistoryScreenContent(
                     HistoryItem(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .animateItemFastScroll(),
+                            .animateItem(),
                         history = value,
                         onClickCover = { onClickCover(value) },
                         onClickResume = { onClickResume(value) },
@@ -483,7 +482,7 @@ private fun HistoryScreenContent(
                     HistoryItem(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .animateItemFastScroll(),
+                            .animateItem(),
                         history = value,
                         titleOverride = item.group.name,
                         onClickCover = { onClickGroup(item.group.id) },
@@ -563,8 +562,8 @@ sealed interface HistoryUiModel {
 @PreviewLightDark
 @Composable
 internal fun HistoryScreenPreviews(
-    @PreviewParameter(HistoryScreenModelStateProvider::class)
-    historyState: HistoryScreenModel.State,
+    @PreviewParameter(HistoryviewModelStateProvider::class)
+    historyState: HistoryViewModel.State,
 ) {
     TachiyomiPreviewTheme {
         Text("Preview Mode")

@@ -10,9 +10,10 @@ import eu.kanade.tachiyomi.data.backup.models.BackupHistory
 import eu.kanade.tachiyomi.data.backup.models.BackupHistoryCategory
 import eu.kanade.tachiyomi.data.backup.models.BackupManga
 import eu.kanade.tachiyomi.data.backup.models.BackupTracking
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import tachiyomi.data.Database
 import tachiyomi.data.MemoColumnAdapter
-import tachiyomi.data.MemoColumnAdapter.encode
 import tachiyomi.data.UpdateStrategyColumnAdapter
 import tachiyomi.domain.category.interactor.GetCategories
 import tachiyomi.domain.chapter.interactor.GetChaptersByMangaId
@@ -32,6 +33,7 @@ import logcat.LogPriority
 import tachiyomi.core.common.util.system.logcat
 import java.util.Date
 import kotlin.math.max
+import kotlin.time.Clock
 
 class MangaRestorer(
     private val database: Database = Injekt.get(),
@@ -45,13 +47,9 @@ class MangaRestorer(
     fetchInterval: FetchInterval = Injekt.get(),
 ) {
 
-    private var now = ZonedDateTime.now()
-    private var currentFetchWindow = fetchInterval.getWindow(now)
-
-    init {
-        now = ZonedDateTime.now()
-        currentFetchWindow = fetchInterval.getWindow(now)
-    }
+    private val timeZone = TimeZone.currentSystemDefault()
+    private val now = Clock.System.now().toLocalDateTime(timeZone)
+    private val currentFetchWindow = fetchInterval.getWindow(now.date, timeZone)
 
     suspend fun sortByNew(backupMangas: List<BackupManga>): List<BackupManga> {
         val urlsBySource = database.mangasQueries
@@ -70,6 +68,7 @@ class MangaRestorer(
         backupManga: BackupManga,
         backupCategories: List<BackupCategory>,
         backupHistoryCategories: List<BackupHistoryCategory> = emptyList(),
+        restoreHistoryCategories: Boolean = true,
     ): Long {
         return database.transactionWithResult {
             val dbManga = findExistingManga(backupManga)
@@ -90,6 +89,7 @@ class MangaRestorer(
                 history = backupManga.history,
                 tracks = backupManga.tracking,
                 excludedScanlators = backupManga.excludedScanlators,
+                restoreHistoryCategories = restoreHistoryCategories,
             )
             restoredManga.id
         }
@@ -293,14 +293,17 @@ class MangaRestorer(
         history: List<BackupHistory>,
         tracks: List<BackupTracking>,
         excludedScanlators: List<String>,
+        restoreHistoryCategories: Boolean,
     ): Manga {
         restoreCategories(manga, categories, backupCategories)
-        restoreHistoryCategory(manga, historyCategory, backupHistoryCategories)
+        if (restoreHistoryCategories) {
+            restoreHistoryCategory(manga, historyCategory, backupHistoryCategories)
+        }
         restoreChapters(manga, chapters)
         restoreTracking(manga, tracks)
         restoreHistory(manga.id, history)
         restoreExcludedScanlators(manga, excludedScanlators)
-        updateManga.awaitUpdateFetchInterval(manga, now, currentFetchWindow)
+        updateManga.awaitUpdateFetchInterval(manga, timeZone, now, currentFetchWindow)
         return manga
     }
 
@@ -383,7 +386,6 @@ class MangaRestorer(
                     logcat(LogPriority.WARN) { "Restore: Duplicate chapter found for manga $mangaId chapter ${history.url}" }
                 }
                 val chapter = chapterList.firstOrNull()
-
                 return@mapNotNull if (chapter == null) {
                     // Chapter doesn't exist; skip
                     null

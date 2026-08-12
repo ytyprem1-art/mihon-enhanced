@@ -3,28 +3,23 @@ package eu.kanade.tachiyomi.ui.mod.updatewatch
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
-import cafe.adriel.voyager.core.model.rememberScreenModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.Navigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import cafe.adriel.voyager.navigator.tab.TabOptions
 import eu.kanade.presentation.util.Tab
 import eu.kanade.tachiyomi.ui.manga.MangaScreen
-import eu.kanade.tachiyomi.ui.mod.updatewatch.UpdateWatchManagerScreen
-import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.components.material.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import eu.kanade.presentation.components.AppBarTitle
 import eu.kanade.presentation.components.AppBar
@@ -38,6 +33,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import tachiyomi.domain.history.model.UpdateWatchInboxItem
 import eu.kanade.tachiyomi.ui.mod.updatewatch.components.UpdateWatchInboxSheet
+import androidx.lifecycle.viewmodel.compose.viewModel
 
 data object UpdateWatchTab : Tab {
 
@@ -60,8 +56,8 @@ data object UpdateWatchTab : Tab {
     @Composable
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
-        val screenModel = rememberScreenModel { UpdateWatchScreenModel() }
-        val state by screenModel.state.collectAsState()
+        val viewModel = viewModel<UpdateWatchViewModel>()
+        val state by viewModel.state.collectAsStateWithLifecycle()
         val snackbarHostState = remember { SnackbarHostState() }
 
         var showInboxSheet by remember { mutableStateOf(false) }
@@ -69,14 +65,14 @@ data object UpdateWatchTab : Tab {
         LaunchedEffect(Unit) {
             if (openInboxOnLoad) {
                 openInboxOnLoad = false
-                screenModel.triggerInboxSheet()
+                viewModel.triggerInboxSheet()
             }
         }
 
         LaunchedEffect(state.showInboxOnLoad) {
             if (state.showInboxOnLoad) {
                 showInboxSheet = true
-                screenModel.clearInboxLoadTrigger()
+                viewModel.clearInboxLoadTrigger()
             }
         }
 
@@ -132,7 +128,7 @@ data object UpdateWatchTab : Tab {
                 state = state,
                 contentPadding = contentPadding,
                 onClickManga = { navigator.push(MangaScreen(it)) },
-                onPauseTracking = screenModel::pauseTracking,
+                onPauseTracking = viewModel::pauseTracking,
             )
 
             if (showInboxSheet) {
@@ -141,9 +137,9 @@ data object UpdateWatchTab : Tab {
                     notificationsEnabled = state.notificationsEnabled,
                     onDismissRequest = { showInboxSheet = false },
                     onClickItem = { navigator.push(MangaScreen(it)) },
-                    onDeleteItem = screenModel::dismissInboxItem,
-                    onDisableAutoRefresh = screenModel::disableAutoRefresh,
-                    onToggleNotifications = screenModel::toggleNotifications,
+                    onDeleteItem = viewModel::dismissInboxItem,
+                    onDisableAutoRefresh = viewModel::disableAutoRefresh,
+                    onToggleNotifications = viewModel::toggleNotifications,
                 )
             }
         }

@@ -55,6 +55,7 @@ fun AdaptiveSheet(
     enableImplicitDismiss: Boolean,
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
+    maxWidth: androidx.compose.ui.unit.Dp = 460.dp,
     content: @Composable () -> Unit,
 ) {
     val density = LocalDensity.current
@@ -86,7 +87,7 @@ fun AdaptiveSheet(
         ) {
             Surface(
                 modifier = Modifier
-                    .requiredWidthIn(max = 460.dp)
+                    .requiredWidthIn(max = maxWidth)
                     .clickable(
                         interactionSource = null,
                         indication = null,
@@ -143,7 +144,7 @@ fun AdaptiveSheet(
         ) {
             Surface(
                 modifier = Modifier
-                    .widthIn(max = 460.dp)
+                    .widthIn(max = maxWidth)
                     .clickable(
                         interactionSource = null,
                         indication = null,

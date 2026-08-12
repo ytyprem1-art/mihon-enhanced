@@ -7,10 +7,10 @@ import androidx.compose.animation.graphics.vector.AnimatedImageVector
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.LocalContext
-import cafe.adriel.voyager.core.model.rememberScreenModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.Navigator
 import cafe.adriel.voyager.navigator.currentOrThrow
@@ -53,8 +53,9 @@ import tachiyomi.domain.history.group.model.HistoryGroup
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.i18n.stringResource
 import kotlinx.coroutines.launch
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 
 data object HistoryTab : Tab {
 
@@ -82,30 +83,29 @@ data object HistoryTab : Tab {
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
         val context = LocalContext.current
-        val screenModel = rememberScreenModel { HistoryScreenModel() }
-        val state by screenModel.state.collectAsState()
+        val viewModel = viewModel<HistoryViewModel>()
+        val state by viewModel.state.collectAsStateWithLifecycle()
 
         HistoryScreen(
             state = state,
             snackbarHostState = snackbarHostState,
-            onSearchQueryChange = screenModel::updateSearchQuery,
+            onSearchQueryChange = viewModel::updateSearchQuery,
             onClickCover = { navigator.push(MangaScreen(it)) },
-            onClickResume = screenModel::getNextChapterForManga,
-            onDialogChange = screenModel::setDialog,
-            onClickFavorite = screenModel::addFavorite,
-            onTabSelected = screenModel::updateSelectedCategory,
-            onClickChangeCategory = screenModel::showChangeHistoryCategoryDialog,
+            onClickResume = viewModel::getNextChapterForManga,
+            onDialogChange = viewModel::setDialog,
+            onClickFavorite = viewModel::addFavorite,
+            onTabSelected = viewModel::updateSelectedCategory,
+            onClickChangeCategory = viewModel::showChangeHistoryCategoryDialog,
             onClickLinkedSourceGroups = { navigator.push(LinkedSourcesScreen()) },
             onClickGroup = { navigator.push(HistoryGroupDetailScreen(it)) },
-            screenModel = screenModel,
+            viewModel = viewModel,
         )
 
-        val onDismissRequest = { screenModel.setDialog(null) }
+        val onDismissRequest = { viewModel.setDialog(null) }
         when (val dialog = state.dialog) {
 
-            // 👇 TAMBAHKAN BLOK DIALOG KUSTOM INI DI SINI
-            is HistoryScreenModel.Dialog.CreateHistoryCategory -> {
-                var categoryName by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf("") }
+            is HistoryViewModel.Dialog.CreateHistoryCategory -> {
+                var categoryName by remember { mutableStateOf("") }
                 androidx.compose.material3.AlertDialog(
                     onDismissRequest = onDismissRequest,
                     title = { androidx.compose.material3.Text(androidStringResource(R.string.history_categories_create_title)) },
@@ -121,7 +121,7 @@ data object HistoryTab : Tab {
                         androidx.compose.material3.TextButton(
                             onClick = {
                                 if (categoryName.isNotBlank()) {
-                                    screenModel.createHistoryCategory(categoryName)
+                                    viewModel.createHistoryCategory(categoryName)
                                     onDismissRequest()
                                 }
                             }
@@ -137,7 +137,7 @@ data object HistoryTab : Tab {
                 )
             }
 
-            is HistoryScreenModel.Dialog.ManageHistoryCategory -> {
+            is HistoryViewModel.Dialog.ManageHistoryCategory -> {
                 androidx.compose.material3.AlertDialog(
                     onDismissRequest = onDismissRequest,
                     title = { androidx.compose.material3.Text(androidStringResource(R.string.history_categories_edit_title)) },
@@ -150,7 +150,7 @@ data object HistoryTab : Tab {
                             Spacer(modifier = Modifier.height(16.dp))
                             androidx.compose.material3.TextButton(
                                 onClick = {
-                                    screenModel.setDialog(HistoryScreenModel.Dialog.RenameHistoryCategory(dialog.category))
+                                    viewModel.setDialog(HistoryViewModel.Dialog.RenameHistoryCategory(dialog.category))
                                 },
                                 modifier = Modifier.fillMaxWidth()
                             ) {
@@ -169,7 +169,7 @@ data object HistoryTab : Tab {
                             Row(modifier = Modifier.fillMaxWidth()) {
                                 androidx.compose.material3.OutlinedButton(
                                     onClick = {
-                                        screenModel.moveHistoryCategoryLeft(dialog.category)
+                                        viewModel.moveHistoryCategoryLeft(dialog.category)
                                         onDismissRequest()
                                     },
                                     modifier = Modifier.weight(1f)
@@ -179,7 +179,7 @@ data object HistoryTab : Tab {
                                 Spacer(modifier = Modifier.width(8.dp))
                                 androidx.compose.material3.OutlinedButton(
                                     onClick = {
-                                        screenModel.moveHistoryCategoryRight(dialog.category)
+                                        viewModel.moveHistoryCategoryRight(dialog.category)
                                         onDismissRequest()
                                     },
                                     modifier = Modifier.weight(1f)
@@ -190,7 +190,7 @@ data object HistoryTab : Tab {
                             Spacer(modifier = Modifier.height(8.dp))
                             androidx.compose.material3.TextButton(
                                 onClick = {
-                                    screenModel.setDialog(HistoryScreenModel.Dialog.DeleteHistoryCategory(dialog.category))
+                                    viewModel.setDialog(HistoryViewModel.Dialog.DeleteHistoryCategory(dialog.category))
                                 },
                                 modifier = Modifier.fillMaxWidth(),
                                 colors = androidx.compose.material3.ButtonDefaults.textButtonColors(
@@ -219,8 +219,8 @@ data object HistoryTab : Tab {
                 )
             }
 
-            is HistoryScreenModel.Dialog.RenameHistoryCategory -> {
-                var categoryName by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(dialog.category.name) }
+            is HistoryViewModel.Dialog.RenameHistoryCategory -> {
+                var categoryName by remember { mutableStateOf(dialog.category.name) }
                 androidx.compose.material3.AlertDialog(
                     onDismissRequest = onDismissRequest,
                     title = { androidx.compose.material3.Text(androidStringResource(R.string.history_categories_rename_title)) },
@@ -236,7 +236,7 @@ data object HistoryTab : Tab {
                         androidx.compose.material3.TextButton(
                             onClick = {
                                 if (categoryName.isNotBlank()) {
-                                    screenModel.renameHistoryCategory(dialog.category.id, categoryName)
+                                    viewModel.renameHistoryCategory(dialog.category.id, categoryName)
                                     onDismissRequest()
                                 }
                             }
@@ -251,7 +251,7 @@ data object HistoryTab : Tab {
                     }
                 )
             }
-            is HistoryScreenModel.Dialog.DeleteHistoryCategory -> {
+            is HistoryViewModel.Dialog.DeleteHistoryCategory -> {
                 androidx.compose.material3.AlertDialog(
                     onDismissRequest = onDismissRequest,
                     title = { androidx.compose.material3.Text(androidStringResource(R.string.history_categories_delete_title)) },
@@ -259,7 +259,7 @@ data object HistoryTab : Tab {
                     confirmButton = {
                         androidx.compose.material3.TextButton(
                             onClick = {
-                                screenModel.deleteHistoryCategory(dialog.category.id)
+                                viewModel.deleteHistoryCategory(dialog.category.id)
                                 onDismissRequest()
                             }
                         ) {
@@ -274,19 +274,19 @@ data object HistoryTab : Tab {
                 )
             }
 
-            is HistoryScreenModel.Dialog.Delete -> {
+            is HistoryViewModel.Dialog.Delete -> {
                 HistoryDeleteDialog(
                     onDismissRequest = onDismissRequest,
                     onDelete = { all ->
                         if (all) {
-                            screenModel.removeAllFromHistory(dialog.history.mangaId)
+                            viewModel.removeAllFromHistory(dialog.history.mangaId)
                         } else {
-                            screenModel.removeFromHistory(dialog.history)
+                            viewModel.removeFromHistory(dialog.history)
                         }
                     },
                 )
             }
-            is HistoryScreenModel.Dialog.DeleteSelected -> {
+            is HistoryViewModel.Dialog.DeleteSelected -> {
                 androidx.compose.material3.AlertDialog(
                     onDismissRequest = onDismissRequest,
                     title = { androidx.compose.material3.Text(androidStringResource(R.string.history_delete_selected_title)) },
@@ -294,7 +294,7 @@ data object HistoryTab : Tab {
                     confirmButton = {
                         androidx.compose.material3.TextButton(
                             onClick = {
-                                screenModel.removeSelectedFromHistory(dialog.mangaIds)
+                                viewModel.removeSelectedFromHistory(dialog.mangaIds)
                                 onDismissRequest()
                             }
                         ) {
@@ -308,43 +308,43 @@ data object HistoryTab : Tab {
                     }
                 )
             }
-            is HistoryScreenModel.Dialog.DeleteAll -> {
+            is HistoryViewModel.Dialog.DeleteAll -> {
                 HistoryDeleteAllDialog(
                     onDismissRequest = onDismissRequest,
-                    onDelete = screenModel::removeAllHistory,
+                    onDelete = viewModel::removeAllHistory,
                 )
             }
-            is HistoryScreenModel.Dialog.DuplicateManga -> {
+            is HistoryViewModel.Dialog.DuplicateManga -> {
                 DuplicateMangaDialog(
                     duplicates = dialog.duplicates,
                     onDismissRequest = onDismissRequest,
-                    onConfirm = { screenModel.addFavorite(dialog.manga) },
+                    onConfirm = { viewModel.addFavorite(dialog.manga) },
                     onOpenManga = { navigator.push(MangaScreen(it.id)) },
-                    onMigrate = { screenModel.showMigrateDialog(dialog.manga, it) },
+                    onMigrate = { viewModel.showMigrateDialog(dialog.manga, it) },
                 )
             }
-            is HistoryScreenModel.Dialog.ChangeHistoryCategory -> {
+            is HistoryViewModel.Dialog.ChangeHistoryCategory -> {
                 HistoryCategoryDialog(
                     categories = dialog.categories,
                     initialSelection = dialog.initialSelection,
                     onDismissRequest = onDismissRequest,
                     onConfirm = { categoryId ->
-                        screenModel.moveMangaToHistoryCategory(dialog.mangaId, categoryId)
+                        viewModel.moveMangaToHistoryCategory(dialog.mangaId, categoryId)
                     },
                 )
             }
-            is HistoryScreenModel.Dialog.MoveSelectedToHistoryCategory -> {
+            is HistoryViewModel.Dialog.MoveSelectedToHistoryCategory -> {
                 HistoryCategoryDialog(
                     categories = dialog.categories,
                     initialSelection = 0L,
                     onDismissRequest = onDismissRequest,
                     onConfirm = { categoryId ->
-                        screenModel.moveSelectedToHistoryCategory(dialog.mangaIds, categoryId)
+                        viewModel.moveSelectedToHistoryCategory(dialog.mangaIds, categoryId)
                     },
                 )
             }
-            is HistoryScreenModel.Dialog.CreateHistoryGroup -> {
-                var groupName by androidx.compose.runtime.remember(dialog) { androidx.compose.runtime.mutableStateOf(dialog.suggestedName) }
+            is HistoryViewModel.Dialog.CreateHistoryGroup -> {
+                var groupName by remember(dialog) { mutableStateOf(dialog.suggestedName) }
                 androidx.compose.material3.AlertDialog(
                     onDismissRequest = onDismissRequest,
                     title = { androidx.compose.material3.Text("Create History Group") },
@@ -360,7 +360,7 @@ data object HistoryTab : Tab {
                         androidx.compose.material3.TextButton(
                             onClick = {
                                 if (groupName.isNotBlank()) {
-                                    screenModel.createHistoryGroup(groupName, dialog.mangaIds)
+                                    viewModel.createHistoryGroup(groupName, dialog.mangaIds)
                                 }
                             }
                         ) {
@@ -374,7 +374,7 @@ data object HistoryTab : Tab {
                     }
                 )
             }
-            is HistoryScreenModel.Dialog.AddToHistoryGroup -> {
+            is HistoryViewModel.Dialog.AddToHistoryGroup -> {
                 androidx.compose.material3.AlertDialog(
                     onDismissRequest = onDismissRequest,
                     title = { androidx.compose.material3.Text("Add to History Group") },
@@ -389,7 +389,7 @@ data object HistoryTab : Tab {
                                 ) { group ->
                                     androidx.compose.material3.ListItem(
                                         modifier = Modifier.clickable {
-                                            screenModel.addMangaToHistoryGroup(dialog.mangaId, group.id)
+                                            viewModel.addMangaToHistoryGroup(dialog.mangaId, group.id)
                                         },
                                         headlineContent = { androidx.compose.material3.Text(group.name) },
                                     )
@@ -405,8 +405,8 @@ data object HistoryTab : Tab {
                     }
                 )
             }
-            is HistoryScreenModel.Dialog.RenameHistoryGroup -> {
-                var groupName by androidx.compose.runtime.remember(dialog) { androidx.compose.runtime.mutableStateOf(dialog.group.name) }
+            is HistoryViewModel.Dialog.RenameHistoryGroup -> {
+                var groupName by remember(dialog) { mutableStateOf(dialog.group.name) }
                 androidx.compose.material3.AlertDialog(
                     onDismissRequest = onDismissRequest,
                     title = { androidx.compose.material3.Text("Rename History Group") },
@@ -422,7 +422,7 @@ data object HistoryTab : Tab {
                         androidx.compose.material3.TextButton(
                             onClick = {
                                 if (groupName.isNotBlank()) {
-                                    screenModel.renameHistoryGroup(dialog.group.id, groupName)
+                                    viewModel.renameHistoryGroup(dialog.group.id, groupName)
                                 }
                             }
                         ) {
@@ -436,7 +436,7 @@ data object HistoryTab : Tab {
                     }
                 )
             }
-            is HistoryScreenModel.Dialog.DeleteHistoryGroup -> {
+            is HistoryViewModel.Dialog.DeleteHistoryGroup -> {
                 androidx.compose.material3.AlertDialog(
                     onDismissRequest = onDismissRequest,
                     title = { androidx.compose.material3.Text("Delete history group?") },
@@ -444,7 +444,7 @@ data object HistoryTab : Tab {
                     confirmButton = {
                         androidx.compose.material3.TextButton(
                             onClick = {
-                                screenModel.deleteHistoryGroup(dialog.group.id)
+                                viewModel.deleteHistoryGroup(dialog.group.id)
                                 onDismissRequest()
                             }
                         ) {
@@ -458,17 +458,17 @@ data object HistoryTab : Tab {
                     }
                 )
             }
-            is HistoryScreenModel.Dialog.ChangeCategory -> {
+            is HistoryViewModel.Dialog.ChangeCategory -> {
                 ChangeCategoryDialog(
                     initialSelection = dialog.initialSelection,
                     onDismissRequest = onDismissRequest,
                     onEditCategories = { navigator.push(CategoryScreen()) },
                     onConfirm = { include, _ ->
-                        screenModel.moveMangaToCategoriesAndAddToLibrary(dialog.manga, include)
+                        viewModel.moveMangaToCategoriesAndAddToLibrary(dialog.manga, include)
                     },
                 )
             }
-            is HistoryScreenModel.Dialog.Migrate -> {
+            is HistoryViewModel.Dialog.Migrate -> {
                 MigrateMangaDialog(
                     current = dialog.current,
                     target = dialog.target,
@@ -487,26 +487,26 @@ data object HistoryTab : Tab {
         }
 
         LaunchedEffect(Unit) {
-            screenModel.events.collectLatest { e ->
+            viewModel.events.collectLatest { e ->
                 when (e) {
-                    HistoryScreenModel.Event.InternalError ->
+                    HistoryViewModel.Event.InternalError ->
                         snackbarHostState.showSnackbar(context.stringResource(MR.strings.internal_error))
-                    HistoryScreenModel.Event.HistoryCleared ->
+                    HistoryViewModel.Event.HistoryCleared ->
                         snackbarHostState.showSnackbar(context.stringResource(MR.strings.clear_history_completed))
-                    HistoryScreenModel.Event.HistoryGroupCreated ->
+                    HistoryViewModel.Event.HistoryGroupCreated ->
                         snackbarHostState.showSnackbar("History group created")
-                    HistoryScreenModel.Event.AddedToHistoryGroup ->
+                    HistoryViewModel.Event.AddedToHistoryGroup ->
                         snackbarHostState.showSnackbar("Added to history group")
-                    is HistoryScreenModel.Event.Error ->
+                    is HistoryViewModel.Event.Error ->
                         snackbarHostState.showSnackbar(e.message)
-                    is HistoryScreenModel.Event.OpenChapter -> openChapter(context, e.chapter)
+                    is HistoryViewModel.Event.OpenChapter -> openChapter(context, e.chapter)
                 }
             }
         }
 
         LaunchedEffect(Unit) {
             resumeLastChapterReadEvent.receiveAsFlow().collectLatest {
-                openChapter(context, screenModel.getNextChapter())
+                openChapter(context, viewModel.getNextChapter())
             }
         }
     }

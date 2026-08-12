@@ -89,6 +89,7 @@ fun LinkedSourcesSheet(
 
     AdaptiveSheet(
         onDismissRequest = onDismissRequest,
+        maxWidth = if (isWideCompact) screenWidth * 0.95f else 460.dp,
         modifier = if (isWideCompact) Modifier.requiredWidth(screenWidth * 0.95f) else Modifier,
     ) {
         Column(

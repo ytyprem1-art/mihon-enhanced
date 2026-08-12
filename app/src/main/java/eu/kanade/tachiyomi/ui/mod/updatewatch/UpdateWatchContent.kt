@@ -16,7 +16,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import eu.kanade.presentation.history.components.HistoryItem
-import eu.kanade.presentation.util.animateItemFastScroll
 import eu.kanade.presentation.util.relativeTimeSpanString
 import eu.kanade.tachiyomi.ui.mod.updatewatch.helper.UpdateWatchOverdueHelper
 import eu.kanade.tachiyomi.ui.mod.updatewatch.helper.UpdateWatchRefreshHelper
@@ -34,7 +33,7 @@ import uy.kohesive.injekt.api.get
 
 @Composable
 fun UpdateWatchContent(
-    state: UpdateWatchScreenModel.State,
+    state: UpdateWatchViewModel.State,
     contentPadding: PaddingValues,
     onClickManga: (Long) -> Unit,
     onPauseTracking: (Long) -> Unit,
@@ -61,7 +60,7 @@ fun UpdateWatchContent(
                 when (item) {
                     is UpdateWatchUiModel.Header -> {
                         ListGroupHeader(
-                            modifier = Modifier.animateItemFastScroll(),
+                            modifier = Modifier.animateItem(),
                             text = item.title,
                         )
                     }
@@ -88,15 +87,15 @@ fun UpdateWatchContent(
                         HistoryItem(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .animateItemFastScroll(),
+                                .animateItem(),
                             history = HistoryWithRelations(
-                                id = 0,
+                                id = 0L,
                                 mangaId = item.trackingManga.id,
                                 chapterId = item.latestChapter.id,
                                 title = item.group?.name ?: item.trackingManga.title,
                                 chapterNumber = item.latestChapter.chapterNumber,
                                 readAt = java.util.Date(item.latestChapter.dateUpload),
-                                readDuration = 0,
+                                readDuration = 0L,
                                 coverData = MangaCover(
                                     mangaId = item.trackingManga.id,
                                     sourceId = item.trackingManga.source,

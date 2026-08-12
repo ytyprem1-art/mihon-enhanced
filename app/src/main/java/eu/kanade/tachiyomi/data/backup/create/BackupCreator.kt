@@ -49,9 +49,9 @@ import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat
-import java.time.Instant
 import java.util.Date
 import java.util.Locale
+import kotlin.time.Clock
 
 class BackupCreator(
     private val context: Context,
@@ -166,28 +166,40 @@ class BackupCreator(
                 backupPreferences = backupAppPreferences(options),
                 backupExtensionStores = backupExtensionStores(options),
                 backupSourcePreferences = backupSourcePreferences(options),
-                backupHistoryCategories = manageHistoryCategory.subscribe().first().map {
-                    BackupHistoryCategory(it.name, it.id, it.sort)
+                backupHistoryCategories = if (options.modHistoryCategories) {
+                    manageHistoryCategory.subscribe().first().map {
+                        BackupHistoryCategory(it.name, it.id, it.sort)
+                    }
+                } else {
+                    emptyList()
                 },
-                backupLinkedSourceGroups = manageLinkedSourceGroup.subscribe().first().map { group ->
-                    BackupLinkedSourceGroup(
-                        name = group.name,
-                        members = manageLinkedSourceGroup.subscribeMemberIds(group.id).first().mapNotNull {
-                            getModMember(it)
-                        }
-                    )
+                backupLinkedSourceGroups = if (options.modLinkedSources) {
+                    manageLinkedSourceGroup.subscribe().first().map { group ->
+                        BackupLinkedSourceGroup(
+                            name = group.name,
+                            members = manageLinkedSourceGroup.subscribeMemberIds(group.id).first().mapNotNull {
+                                getModMember(it)
+                            }
+                        )
+                    }
+                } else {
+                    emptyList()
                 },
-                backupManualHistoryGroups = manageHistoryGroups.subscribe().first().map { group ->
-                    BackupManualHistoryGroup(
-                        name = group.name,
-                        members = manageHistoryGroups.subscribeMembers(group.id).first().mapNotNull {
-                            getModMember(it)
-                        }
-                    )
+                backupManualHistoryGroups = if (options.modHistoryGroups) {
+                    manageHistoryGroups.subscribe().first().map { group ->
+                        BackupManualHistoryGroup(
+                            name = group.name,
+                            members = manageHistoryGroups.subscribeMembers(group.id).first().mapNotNull {
+                                getModMember(it)
+                            }
+                        )
+                    }
+                } else {
+                    emptyList()
                 },
-                backupUpdateWatch = backupUpdateWatch,
-                backupUpdateWatchInbox = backupUpdateWatchInbox,
-                backupUpdateWatchHistory = backupUpdateWatchHistory,
+                backupUpdateWatch = if (options.modUpdateWatch) backupUpdateWatch else emptyList(),
+                backupUpdateWatchInbox = if (options.modUpdateWatch) backupUpdateWatchInbox else emptyList(),
+                backupUpdateWatchHistory = if (options.modUpdateWatch) backupUpdateWatchHistory else emptyList(),
             )
 
             val byteArray = parser.encodeToByteArray(Backup.serializer(), backup)
@@ -209,7 +221,7 @@ class BackupCreator(
             BackupFileValidator(context).validate(fileUri)
 
             if (isAutoBackup) {
-                backupPreferences.lastAutoBackupTimestamp.set(Instant.now().toEpochMilli())
+                backupPreferences.lastAutoBackupTimestamp.set(Clock.System.now().toEpochMilliseconds())
             }
 
             return fileUri.toString()

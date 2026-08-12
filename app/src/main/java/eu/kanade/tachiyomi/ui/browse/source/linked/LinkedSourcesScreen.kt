@@ -10,7 +10,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import cafe.adriel.voyager.core.model.rememberScreenModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import eu.kanade.presentation.browse.LinkedSourcesScreen
@@ -24,8 +25,8 @@ class LinkedSourcesScreen : Screen() {
     @Composable
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
-        val screenModel = rememberScreenModel { LinkedSourcesScreenModel() }
-        val state by screenModel.state.collectAsState()
+        val viewModel = viewModel<LinkedSourcesViewModel>()
+        val state by viewModel.state.collectAsStateWithLifecycle()
 
         var showCreateDialog by remember { mutableStateOf(false) }
         var groupToRename by remember { mutableStateOf<LinkedSourceGroup?>(null) }
@@ -34,9 +35,9 @@ class LinkedSourcesScreen : Screen() {
         LinkedSourcesScreen(
             groups = state.groups,
             searchQuery = state.searchQuery,
-            onSearchQueryChange = screenModel::updateSearchQuery,
-            sortMode = screenModel.sortMode,
-            onSortModeChange = screenModel::setSortMode,
+            onSearchQueryChange = viewModel::updateSearchQuery,
+            sortMode = viewModel.sortMode,
+            onSortModeChange = viewModel::setSortMode,
             onClickCreate = { showCreateDialog = true },
             onClickRename = { groupToRename = it },
             onClickDelete = { groupToDelete = it },
@@ -61,7 +62,7 @@ class LinkedSourcesScreen : Screen() {
                     TextButton(
                         onClick = {
                             if (name.isNotBlank()) {
-                                screenModel.createGroup(name)
+                                viewModel.createGroup(name)
                                 showCreateDialog = false
                             }
                         },
@@ -94,7 +95,7 @@ class LinkedSourcesScreen : Screen() {
                     TextButton(
                         onClick = {
                             if (name.isNotBlank()) {
-                                screenModel.renameGroup(group.id, name)
+                                viewModel.renameGroup(group.id, name)
                                 groupToRename = null
                             }
                         },
@@ -118,7 +119,7 @@ class LinkedSourcesScreen : Screen() {
                 confirmButton = {
                     TextButton(
                         onClick = {
-                            screenModel.deleteGroup(group.id)
+                            viewModel.deleteGroup(group.id)
                             groupToDelete = null
                         },
                     ) {

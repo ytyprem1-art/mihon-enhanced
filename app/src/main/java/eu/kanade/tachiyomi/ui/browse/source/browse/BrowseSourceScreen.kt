@@ -34,7 +34,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalUriHandler
-import cafe.adriel.voyager.core.model.rememberScreenModel
+import androidx.lifecycle.viewmodel.CreationExtras
+import androidx.lifecycle.viewmodel.compose.viewModel
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import eu.kanade.core.util.ifSourcesLoaded
@@ -48,7 +49,7 @@ import eu.kanade.presentation.util.AssistContentScreen
 import eu.kanade.presentation.util.Screen
 import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.ui.browse.extension.details.SourcePreferencesScreen
-import eu.kanade.tachiyomi.ui.browse.source.browse.BrowseSourceScreenModel.Listing
+import eu.kanade.tachiyomi.ui.browse.source.browse.BrowseSourceViewModel.Listing
 import eu.kanade.tachiyomi.ui.category.CategoryScreen
 import eu.kanade.tachiyomi.ui.manga.MangaScreen
 import tachiyomi.domain.manga.model.Manga
@@ -100,8 +101,14 @@ data class BrowseSourceScreen(
             return
         }
 
-        val screenModel = rememberScreenModel { BrowseSourceScreenModel(sourceId, listingQuery) }
-        val state by screenModel.state.collectAsState()
+        val viewModel = viewModel<BrowseSourceViewModel>(
+            factory = BrowseSourceViewModel.Factory,
+            extras = CreationExtras {
+                set(BrowseSourceViewModel.SOURCE_ID_KEY, sourceId)
+                set(BrowseSourceViewModel.LISTING_QUERY_KEY, listingQuery)
+            },
+        )
+        val state by viewModel.state.collectAsState()
 
         val navigator = LocalNavigator.currentOrThrow
 
@@ -111,7 +118,7 @@ data class BrowseSourceScreen(
         var showSourceSwitcher by remember { mutableStateOf(false) }
 
         var hasAutoOpened by rememberSaveable(smartJumpSessionId) { mutableStateOf(false) }
-        val mangaLazyPagingItems = screenModel.mangaPagerFlowFlow.collectAsLazyPagingItems()
+        val mangaLazyPagingItems = viewModel.mangaPagerFlowFlow.collectAsLazyPagingItems()
 
         LaunchedEffect(mangaLazyPagingItems.loadState.refresh, smartJumpTitle) {
             if (smartJumpTitle == null || hasAutoOpened) return@LaunchedEffect
@@ -147,14 +154,14 @@ data class BrowseSourceScreen(
 
         val navigateUp: () -> Unit = {
             when {
-                !state.isUserQuery && state.toolbarQuery != null -> screenModel.setToolbarQuery(null)
+                !state.isUserQuery && state.toolbarQuery != null -> viewModel.setToolbarQuery(null)
                 else -> navigator.pop()
             }
         }
 
-        if (screenModel.source is StubSource) {
+        if (viewModel.source is StubSource) {
             MissingSourceScreen(
-                source = screenModel.source,
+                source = viewModel.source,
                 navigateUp = navigateUp,
             )
             return
@@ -171,14 +178,14 @@ data class BrowseSourceScreen(
         LaunchedEffect(state.listing) {
             val listing = state.listing
             if (listing is Listing.Search &&
-                CloudflareChallengeHelper.isManganato(screenModel.source) &&
-                !screenModel.hasAutoTriggeredCloudflare
+                CloudflareChallengeHelper.isManganato(viewModel.source) &&
+                !viewModel.hasAutoTriggeredCloudflare
             ) {
-                val source = screenModel.source as? HttpSource ?: return@LaunchedEffect
+                val source = viewModel.source as? HttpSource ?: return@LaunchedEffect
                 val searchUrl = CloudflareChallengeHelper.getSearchUrl(source, listing.query, listing.filters)
 
                 if (!CloudflareChallengeHelper.hasValidCfClearance(source, searchUrl)) {
-                    screenModel.hasAutoTriggeredCloudflare = true
+                    viewModel.hasAutoTriggeredCloudflare = true
                     isWebViewSolved = false
                     navigator.push(
                         WebViewScreen(
@@ -210,16 +217,16 @@ data class BrowseSourceScreen(
         LaunchedEffect(mangaLazyPagingItems.loadState.refresh) {
             val loadState = mangaLazyPagingItems.loadState.refresh
             if (loadState is LoadState.Error &&
-                CloudflareChallengeHelper.isManganato(screenModel.source) &&
+                CloudflareChallengeHelper.isManganato(viewModel.source) &&
                 CloudflareChallengeHelper.isCloudflareBypassFailure(loadState.error) &&
-                !screenModel.hasAutoTriggeredCloudflare
+                !viewModel.hasAutoTriggeredCloudflare
             ) {
-                val source = screenModel.source as? HttpSource ?: return@LaunchedEffect
+                val source = viewModel.source as? HttpSource ?: return@LaunchedEffect
                 val listing = state.listing
                 val searchUrl = CloudflareChallengeHelper.getSearchUrl(source, listing.query, listing.filters)
 
                 CloudflareChallengeHelper.invalidateManganatoClearance()
-                screenModel.hasAutoTriggeredCloudflare = true
+                viewModel.hasAutoTriggeredCloudflare = true
                 isWebViewSolved = false
                 navigator.push(
                     WebViewScreen(
@@ -250,7 +257,7 @@ data class BrowseSourceScreen(
 
         val onHelpClick = { uriHandler.openUri(LocalSource.HELP_URL) }
         val onWebViewClick = f@{
-            val source = screenModel.source as? HttpSource ?: return@f
+            val source = viewModel.source as? HttpSource ?: return@f
             navigator.push(
                 WebViewScreen(
                     url = source.getHomeUrl(),
@@ -260,8 +267,8 @@ data class BrowseSourceScreen(
             )
         }
 
-        LaunchedEffect(screenModel.source) {
-            assistUrl = (screenModel.source as? HttpSource)?.getHomeUrl()
+        LaunchedEffect(viewModel.source) {
+            assistUrl = (viewModel.source as? HttpSource)?.getHomeUrl()
         }
 
         Scaffold(
@@ -273,15 +280,15 @@ data class BrowseSourceScreen(
                 ) {
                     BrowseSourceToolbar(
                         searchQuery = state.toolbarQuery,
-                        onSearchQueryChange = screenModel::setToolbarQuery,
-                        source = screenModel.source,
-                        displayMode = screenModel.displayMode,
-                        onDisplayModeChange = { screenModel.displayMode = it },
+                        onSearchQueryChange = viewModel::setToolbarQuery,
+                        source = viewModel.source,
+                        displayMode = viewModel.displayMode,
+                        onDisplayModeChange = { viewModel.displayMode = it },
                         navigateUp = navigateUp,
                         onWebViewClick = onWebViewClick,
                         onHelpClick = onHelpClick,
                         onSettingsClick = { navigator.push(SourcePreferencesScreen(sourceId)) },
-                        onSearch = screenModel::search,
+                        onSearch = viewModel::search,
                     )
 
                     Row(
@@ -293,8 +300,8 @@ data class BrowseSourceScreen(
                         FilterChip(
                             selected = state.listing == Listing.Popular,
                             onClick = {
-                                screenModel.resetFilters()
-                                screenModel.setListing(Listing.Popular)
+                                viewModel.resetFilters()
+                                viewModel.setListing(Listing.Popular)
                             },
                             leadingIcon = {
                                 Icon(
@@ -308,12 +315,12 @@ data class BrowseSourceScreen(
                                 Text(text = stringResource(MR.strings.popular))
                             },
                         )
-                        if (screenModel.source.supportsLatest) {
+                        if (viewModel.source.supportsLatest) {
                             FilterChip(
                                 selected = state.listing == Listing.Latest,
                                 onClick = {
-                                    screenModel.resetFilters()
-                                    screenModel.setListing(Listing.Latest)
+                                    viewModel.resetFilters()
+                                    viewModel.setListing(Listing.Latest)
                                 },
                                 leadingIcon = {
                                     Icon(
@@ -331,7 +338,7 @@ data class BrowseSourceScreen(
                         if (state.filters.isNotEmpty()) {
                             FilterChip(
                                 selected = state.listing is Listing.Search,
-                                onClick = screenModel::openFilterSheet,
+                                onClick = viewModel::openFilterSheet,
                                 leadingIcon = {
                                     Icon(
                                         imageVector = Icons.Outlined.FilterList,
@@ -365,10 +372,10 @@ data class BrowseSourceScreen(
             },
         ) { paddingValues ->
             BrowseSourceContent(
-                source = screenModel.source,
+                source = viewModel.source,
                 mangaList = mangaLazyPagingItems,
-                columns = screenModel.getColumnsPreference(LocalConfiguration.current.orientation),
-                displayMode = screenModel.displayMode,
+                columns = viewModel.getColumnsPreference(LocalConfiguration.current.orientation),
+                displayMode = viewModel.displayMode,
                 snackbarHostState = snackbarHostState,
                 contentPadding = paddingValues,
                 onWebViewClick = onWebViewClick,
@@ -386,13 +393,13 @@ data class BrowseSourceScreen(
                 },
                 onMangaLongClick = { manga ->
                     scope.launchIO {
-                        val duplicates = screenModel.getDuplicateLibraryManga(manga)
+                        val duplicates = viewModel.getDuplicateLibraryManga(manga)
                         when {
-                            manga.favorite -> screenModel.setDialog(BrowseSourceScreenModel.Dialog.RemoveManga(manga))
-                            duplicates.isNotEmpty() -> screenModel.setDialog(
-                                BrowseSourceScreenModel.Dialog.AddDuplicateManga(manga, duplicates),
+                            manga.favorite -> viewModel.setDialog(BrowseSourceViewModel.Dialog.RemoveManga(manga))
+                            duplicates.isNotEmpty() -> viewModel.setDialog(
+                                BrowseSourceViewModel.Dialog.AddDuplicateManga(manga, duplicates),
                             )
-                            else -> screenModel.addFavorite(manga)
+                            else -> viewModel.addFavorite(manga)
                         }
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                     }
@@ -401,28 +408,28 @@ data class BrowseSourceScreen(
             )
         }
 
-        val onDismissRequest = { screenModel.setDialog(null) }
+        val onDismissRequest = { viewModel.setDialog(null) }
         when (val dialog = state.dialog) {
-            is BrowseSourceScreenModel.Dialog.Filter -> {
+            is BrowseSourceViewModel.Dialog.Filter -> {
                 SourceFilterDialog(
                     onDismissRequest = onDismissRequest,
                     filters = state.filters,
-                    onReset = screenModel::resetFilters,
-                    onFilter = { screenModel.search(filters = state.filters) },
-                    onUpdate = screenModel::setFilters,
+                    onReset = viewModel::resetFilters,
+                    onFilter = { viewModel.search(filters = state.filters) },
+                    onUpdate = viewModel::setFilters,
                 )
             }
-            is BrowseSourceScreenModel.Dialog.AddDuplicateManga -> {
+            is BrowseSourceViewModel.Dialog.AddDuplicateManga -> {
                 DuplicateMangaDialog(
                     duplicates = dialog.duplicates,
                     onDismissRequest = onDismissRequest,
-                    onConfirm = { screenModel.addFavorite(dialog.manga) },
+                    onConfirm = { viewModel.addFavorite(dialog.manga) },
                     onOpenManga = { navigator.push(MangaScreen(it.id)) },
-                    onMigrate = { screenModel.setDialog(BrowseSourceScreenModel.Dialog.Migrate(dialog.manga, it)) },
+                    onMigrate = { viewModel.setDialog(BrowseSourceViewModel.Dialog.Migrate(dialog.manga, it)) },
                 )
             }
 
-            is BrowseSourceScreenModel.Dialog.Migrate -> {
+            is BrowseSourceViewModel.Dialog.Migrate -> {
                 MigrateMangaDialog(
                     current = dialog.current,
                     target = dialog.target,
@@ -431,23 +438,23 @@ data class BrowseSourceScreen(
                     onDismissRequest = onDismissRequest,
                 )
             }
-            is BrowseSourceScreenModel.Dialog.RemoveManga -> {
+            is BrowseSourceViewModel.Dialog.RemoveManga -> {
                 RemoveMangaDialog(
                     onDismissRequest = onDismissRequest,
                     onConfirm = {
-                        screenModel.changeMangaFavorite(dialog.manga)
+                        viewModel.changeMangaFavorite(dialog.manga)
                     },
                     mangaToRemove = dialog.manga,
                 )
             }
-            is BrowseSourceScreenModel.Dialog.ChangeMangaCategory -> {
+            is BrowseSourceViewModel.Dialog.ChangeMangaCategory -> {
                 ChangeCategoryDialog(
                     initialSelection = dialog.initialSelection,
                     onDismissRequest = onDismissRequest,
                     onEditCategories = { navigator.push(CategoryScreen()) },
                     onConfirm = { include, _ ->
-                        screenModel.changeMangaFavorite(dialog.manga)
-                        screenModel.moveMangaToCategories(dialog.manga, include)
+                        viewModel.changeMangaFavorite(dialog.manga)
+                        viewModel.moveMangaToCategories(dialog.manga, include)
                     },
                 )
             }
@@ -476,8 +483,8 @@ data class BrowseSourceScreen(
             queryEvent.receiveAsFlow()
                 .collectLatest {
                     when (it) {
-                        is SearchType.Genre -> screenModel.searchGenre(it.txt)
-                        is SearchType.Text -> screenModel.search(it.txt)
+                        is SearchType.Genre -> viewModel.searchGenre(it.txt)
+                        is SearchType.Text -> viewModel.search(it.txt)
                     }
                 }
         }

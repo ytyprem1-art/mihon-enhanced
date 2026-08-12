@@ -50,11 +50,22 @@ class BackupFileValidator(
             .map { it.name }
             .sorted()
 
-        return Results(missingSources, missingTrackers)
+        return Results(
+            missingSources = missingSources,
+            missingTrackers = missingTrackers,
+            hasModHistoryCategories = backup.backupHistoryCategories.isNotEmpty(),
+            hasModHistoryGroups = backup.backupManualHistoryGroups.isNotEmpty(),
+            hasModLinkedSources = backup.backupLinkedSourceGroups.isNotEmpty(),
+            hasModUpdateWatch = backup.backupUpdateWatch.isNotEmpty(),
+        )
     }
 
     data class Results(
         val missingSources: List<String>,
         val missingTrackers: List<String>,
+        val hasModHistoryCategories: Boolean = false,
+        val hasModHistoryGroups: Boolean = false,
+        val hasModLinkedSources: Boolean = false,
+        val hasModUpdateWatch: Boolean = false,
     )
 }

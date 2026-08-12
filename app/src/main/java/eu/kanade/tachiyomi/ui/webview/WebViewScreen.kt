@@ -3,7 +3,8 @@ package eu.kanade.tachiyomi.ui.webview
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
-import cafe.adriel.voyager.core.model.rememberScreenModel
+import androidx.lifecycle.viewmodel.CreationExtras
+import androidx.lifecycle.viewmodel.compose.viewModel
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import eu.kanade.presentation.util.AssistContentScreen
@@ -26,7 +27,12 @@ class WebViewScreen(
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
         val context = LocalContext.current
-        val screenModel = rememberScreenModel { WebViewScreenModel(sourceId) }
+        val viewModel = viewModel<WebViewViewModel>(
+            factory = WebViewViewModel.Factory,
+            extras = CreationExtras {
+                set(WebViewViewModel.SOURCE_ID_KEY, sourceId)
+            },
+        )
 
         val handlePop = {
             navigator.pop()
@@ -40,11 +46,12 @@ class WebViewScreen(
             onNavigateUp = handlePop,
             initialTitle = initialTitle,
             url = url,
-            headers = screenModel.headers,
+            headers = viewModel.headers,
+            defaultUserAgentProvider = viewModel::defaultUserAgentProvider,
             onUrlChange = { assistUrl = it },
-            onShare = { screenModel.shareWebpage(context, it) },
-            onOpenInBrowser = { screenModel.openInBrowser(context, it) },
-            onClearCookies = screenModel::clearCookies,
+            onShare = { viewModel.shareWebpage(context, it) },
+            onOpenInBrowser = { viewModel.openInBrowser(context, it) },
+            onClearCookies = viewModel::clearCookies,
             onAutoCloseCondition = onAutoCloseCondition,
         )
     }

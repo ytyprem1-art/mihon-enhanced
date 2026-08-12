@@ -13,7 +13,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import cafe.adriel.voyager.core.model.rememberScreenModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import dev.icerock.moko.resources.StringResource
@@ -21,7 +22,6 @@ import eu.kanade.presentation.components.AppBarActions
 import eu.kanade.presentation.components.SearchToolbar
 import eu.kanade.presentation.history.components.HistoryItem
 import eu.kanade.presentation.util.Screen
-import eu.kanade.presentation.util.animateItemFastScroll
 import eu.kanade.presentation.util.relativeTimeSpanString
 import eu.kanade.tachiyomi.ui.mod.updatewatch.helper.UpdateWatchRefreshHelper
 import eu.kanade.tachiyomi.ui.mod.updatewatch.worker.UpdateWatchDiagnosticsManager
@@ -75,8 +75,8 @@ class UpdateWatchManagerScreen : Screen() {
     @Composable
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
-        val screenModel = rememberScreenModel { UpdateWatchManagerScreenModel() }
-        val state by screenModel.state.collectAsState()
+        val viewModel = viewModel<UpdateWatchManagerViewModel>()
+        val state by viewModel.state.collectAsStateWithLifecycle()
 
         val scrollState = rememberLazyListState()
 
@@ -84,7 +84,7 @@ class UpdateWatchManagerScreen : Screen() {
         var showHelpSheet by remember { mutableStateOf(false) }
         var showTrackedHelpSheet by remember { mutableStateOf(false) }
 
-        LaunchedEffect(screenModel.sortMode) {
+        LaunchedEffect(viewModel.sortMode) {
             scrollState.scrollToItem(0)
         }
 
@@ -92,7 +92,7 @@ class UpdateWatchManagerScreen : Screen() {
             topBar = { scrollBehavior ->
                 SearchToolbar(
                     searchQuery = state.searchQuery,
-                    onChangeSearchQuery = screenModel::updateSearchQuery,
+                    onChangeSearchQuery = viewModel::updateSearchQuery,
                     titleContent = { Text("Tracked manga") },
                     navigateUp = navigator::pop,
                     actions = {
@@ -117,7 +117,7 @@ class UpdateWatchManagerScreen : Screen() {
                                             UpdateWatchRefreshScheduler.runNow(context, UpdateWatchRefreshWorker.SIM_NONE)
                                             showDebugMenu = false
                                             scope.launch {
-                                                screenModel.snackbarHostState.showSnackbar("Background refresh dry run started")
+                                                viewModel.snackbarHostState.showSnackbar("Background refresh dry run started")
                                             }
                                         },
                                     )
@@ -127,7 +127,7 @@ class UpdateWatchManagerScreen : Screen() {
                                             UpdateWatchRefreshScheduler.runNow(context, UpdateWatchRefreshWorker.SIM_HTTP_429)
                                             showDebugMenu = false
                                             scope.launch {
-                                                screenModel.snackbarHostState.showSnackbar("Simulating HTTP 429")
+                                                viewModel.snackbarHostState.showSnackbar("Simulating HTTP 429")
                                             }
                                         },
                                     )
@@ -137,7 +137,7 @@ class UpdateWatchManagerScreen : Screen() {
                                             UpdateWatchRefreshScheduler.runNow(context, UpdateWatchRefreshWorker.SIM_HTTP_403)
                                             showDebugMenu = false
                                             scope.launch {
-                                                screenModel.snackbarHostState.showSnackbar("Simulating HTTP 403")
+                                                viewModel.snackbarHostState.showSnackbar("Simulating HTTP 403")
                                             }
                                         },
                                     )
@@ -147,7 +147,7 @@ class UpdateWatchManagerScreen : Screen() {
                                             UpdateWatchRefreshScheduler.runNow(context, UpdateWatchRefreshWorker.SIM_TRANSIENT)
                                             showDebugMenu = false
                                             scope.launch {
-                                                screenModel.snackbarHostState.showSnackbar("Simulating Transient Failure")
+                                                viewModel.snackbarHostState.showSnackbar("Simulating Transient Failure")
                                             }
                                         },
                                     )
@@ -157,7 +157,7 @@ class UpdateWatchManagerScreen : Screen() {
                                             UpdateWatchRefreshScheduler.runNow(context, UpdateWatchRefreshWorker.SIM_ORDINARY)
                                             showDebugMenu = false
                                             scope.launch {
-                                                screenModel.snackbarHostState.showSnackbar("Simulating Ordinary Failure")
+                                                viewModel.snackbarHostState.showSnackbar("Simulating Ordinary Failure")
                                             }
                                         },
                                     )
@@ -201,12 +201,12 @@ class UpdateWatchManagerScreen : Screen() {
                                             Text(title)
                                         },
                                         onClick = {
-                                            screenModel.setSortMode(mode)
+                                            viewModel.setSortMode(mode)
                                             showSortMenu = false
                                         },
                                         trailingIcon = {
                                             RadioButton(
-                                                selected = screenModel.sortMode == mode,
+                                                selected = viewModel.sortMode == mode,
                                                 onClick = null,
                                             )
                                         },
@@ -218,19 +218,19 @@ class UpdateWatchManagerScreen : Screen() {
                     scrollBehavior = scrollBehavior,
                 )
             },
-            snackbarHost = { SnackbarHost(hostState = screenModel.snackbarHostState) },
+            snackbarHost = { SnackbarHost(hostState = viewModel.snackbarHostState) },
         ) { contentPadding ->
             UpdateWatchManagerContent(
                 state = state,
                 contentPadding = contentPadding,
                 scrollState = scrollState,
                 onClickManga = { navigator.push(MangaScreen(it)) },
-                onUntrack = screenModel::untrack,
+                onUntrack = viewModel::untrack,
                 onEditBackgroundRefresh = { editItem = it },
                 onShowHelp = { showHelpSheet = true },
                 onShowTrackedHelp = { showTrackedHelpSheet = true },
                 onShowDiagnostics = { navigator.push(UpdateWatchDiagnosticsScreen()) },
-                screenModel = screenModel,
+                viewModel = viewModel,
             )
 
             if (editItem != null) {
@@ -238,7 +238,7 @@ class UpdateWatchManagerScreen : Screen() {
                     item = editItem!!,
                     onDismissRequest = { editItem = null },
                     onSave = { enabled, interval, profile ->
-                        screenModel.updateBackgroundRefresh(editItem!!.trackingManga.id, enabled, interval, profile)
+                        viewModel.updateBackgroundRefresh(editItem!!.trackingManga.id, enabled, interval, profile)
                         editItem = null
                     },
                     onShowHelp = { showHelpSheet = true },
@@ -263,7 +263,7 @@ class UpdateWatchManagerScreen : Screen() {
 
 @Composable
 private fun UpdateWatchManagerContent(
-    state: UpdateWatchManagerScreenModel.State,
+    state: UpdateWatchManagerViewModel.State,
     contentPadding: PaddingValues,
     scrollState: androidx.compose.foundation.lazy.LazyListState,
     onClickManga: (Long) -> Unit,
@@ -272,7 +272,7 @@ private fun UpdateWatchManagerContent(
     onShowHelp: () -> Unit,
     onShowTrackedHelp: () -> Unit,
     onShowDiagnostics: () -> Unit,
-    screenModel: UpdateWatchManagerScreenModel,
+    viewModel: UpdateWatchManagerViewModel,
 ) {
     val items = state.items
     if (items == null) {
@@ -353,8 +353,8 @@ private fun UpdateWatchManagerContent(
                         },
                         trailingContent = {
                             Switch(
-                                checked = screenModel.funOverdueMessages,
-                                onCheckedChange = { screenModel.toggleFunOverdueMessages(it) }
+                                checked = viewModel.funOverdueMessages,
+                                onCheckedChange = { viewModel.toggleFunOverdueMessages(it) }
                             )
                         }
                     )
@@ -378,15 +378,15 @@ private fun UpdateWatchManagerContent(
                     HistoryItem(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .animateItemFastScroll(),
+                            .animateItem(),
                         history = HistoryWithRelations(
-                            id = 0,
+                            id = 0L,
                             mangaId = item.trackingManga.id,
                             chapterId = item.latestChapter.id,
                             title = item.group?.name ?: item.trackingManga.title,
                             chapterNumber = item.latestChapter.chapterNumber,
                             readAt = if (item.latestChapter.dateUpload > 0) java.util.Date(item.latestChapter.dateUpload) else null,
-                            readDuration = 0,
+                            readDuration = 0L,
                             coverData = MangaCover(
                                 mangaId = item.trackingManga.id,
                                 sourceId = item.trackingManga.source,
@@ -458,7 +458,7 @@ private fun UpdateWatchManagerContent(
                                     DropdownMenuItem(
                                         text = { Text("Debug: Refresh now (real)") },
                                         onClick = {
-                                            screenModel.simulateRealRefresh(item)
+                                            viewModel.simulateRealRefresh(item)
                                             showMenu = false
                                         },
                                         leadingIcon = {
@@ -480,7 +480,7 @@ private fun UpdateWatchManagerContent(
                                         DropdownMenuItem(
                                             text = { Text("$milestone days") },
                                             onClick = {
-                                                screenModel.simulateInactivityWarning(item, milestone)
+                                                viewModel.simulateInactivityWarning(item, milestone)
                                                 showDebugMilestoneMenu = false
                                             }
                                         )

@@ -1,7 +1,6 @@
 package eu.kanade.tachiyomi.ui.browse.source.linked
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
@@ -11,7 +10,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -28,7 +26,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import cafe.adriel.voyager.core.model.rememberScreenModel
+import androidx.lifecycle.viewmodel.CreationExtras
+import androidx.lifecycle.viewmodel.compose.viewModel
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import eu.kanade.core.util.ifSourcesLoaded
@@ -56,13 +55,14 @@ class LinkedSourceSearchScreen(
         val navigator = LocalNavigator.currentOrThrow
         val context = LocalContext.current
 
-        val screenModel = rememberScreenModel {
-            LinkedSourceSearchScreenModel(
-                linkedGroupId = linkedGroupId,
-                initialQuery = searchQuery,
-            )
-        }
-        val state by screenModel.state.collectAsState()
+        val viewModel = viewModel<LinkedSourceSearchViewModel>(
+            factory = LinkedSourceSearchViewModel.Factory,
+            extras = CreationExtras {
+                set(LinkedSourceSearchViewModel.LINKED_GROUP_ID_KEY, linkedGroupId)
+                set(LinkedSourceSearchViewModel.INITIAL_QUERY_KEY, searchQuery)
+            },
+        )
+        val state by viewModel.state.collectAsState()
         var showSingleLoadingScreen by remember {
             mutableStateOf(searchQuery.isNotEmpty() && state.total == 1)
         }
@@ -88,11 +88,11 @@ class LinkedSourceSearchScreen(
             GlobalSearchScreen(
                 state = state,
                 navigateUp = navigator::pop,
-                onChangeSearchQuery = screenModel::updateSearchQuery,
-                onSearch = { screenModel.search() },
-                getManga = { screenModel.getManga(it) },
-                onChangeSearchFilter = screenModel::setSourceFilter,
-                onToggleResults = screenModel::toggleFilterResults,
+                onChangeSearchQuery = viewModel::updateSearchQuery,
+                onSearch = { viewModel.search() },
+                getManga = { viewModel.getManga(it) },
+                onChangeSearchFilter = viewModel::setSourceFilter,
+                onToggleResults = viewModel::toggleFilterResults,
                 onClickSource = {
                     navigator.push(BrowseSourceScreen(it.id, state.searchQuery))
                 },
@@ -104,7 +104,7 @@ class LinkedSourceSearchScreen(
                         currentGroupId = linkedGroupId,
                         mangaGroupId = state.mangaGroupIds[manga.id],
                         onAddClick = { targetManga ->
-                            screenModel.addMangaToGroup(targetManga) { result ->
+                            viewModel.addMangaToGroup(targetManga) { result ->
                                 when (result) {
                                     AddResult.Success -> context.toast("Added to group")
                                     AddResult.AlreadyInThisGroup -> {}

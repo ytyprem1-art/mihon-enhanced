@@ -14,6 +14,12 @@ data class BackupOptions(
     val extensionStores: Boolean = true,
     val sourceSettings: Boolean = true,
     val privateSettings: Boolean = false,
+
+    // Mod data
+    val modHistoryCategories: Boolean = true,
+    val modHistoryGroups: Boolean = true,
+    val modLinkedSources: Boolean = true,
+    val modUpdateWatch: Boolean = true,
 ) {
 
     fun asBooleanArray() = booleanArrayOf(
@@ -27,9 +33,14 @@ data class BackupOptions(
         extensionStores,
         sourceSettings,
         privateSettings,
+        modHistoryCategories,
+        modHistoryGroups,
+        modLinkedSources,
+        modUpdateWatch,
     )
 
-    fun canCreate() = libraryEntries || categories || appSettings || extensionStores || sourceSettings
+    fun canCreate() = libraryEntries || categories || appSettings || extensionStores || sourceSettings ||
+        modHistoryCategories || modHistoryGroups || modLinkedSources || modUpdateWatch
 
     companion object {
         val libraryOptions = listOf(
@@ -93,6 +104,29 @@ data class BackupOptions(
             ),
         )
 
+        val modOptions = listOf(
+            Entry(
+                label = MR.strings.mod_history_categories,
+                getter = BackupOptions::modHistoryCategories,
+                setter = { options, enabled -> options.copy(modHistoryCategories = enabled) },
+            ),
+            Entry(
+                label = MR.strings.mod_history_groups,
+                getter = BackupOptions::modHistoryGroups,
+                setter = { options, enabled -> options.copy(modHistoryGroups = enabled) },
+            ),
+            Entry(
+                label = MR.strings.mod_linked_sources,
+                getter = BackupOptions::modLinkedSources,
+                setter = { options, enabled -> options.copy(modLinkedSources = enabled) },
+            ),
+            Entry(
+                label = MR.strings.mod_update_watch,
+                getter = BackupOptions::modUpdateWatch,
+                setter = { options, enabled -> options.copy(modUpdateWatch = enabled) },
+            ),
+        )
+
         fun fromBooleanArray(array: BooleanArray) = BackupOptions(
             libraryEntries = array[0],
             categories = array[1],
@@ -104,6 +138,10 @@ data class BackupOptions(
             extensionStores = array[7],
             sourceSettings = array[8],
             privateSettings = array[9],
+            modHistoryCategories = array.getOrElse(10) { true },
+            modHistoryGroups = array.getOrElse(11) { true },
+            modLinkedSources = array.getOrElse(12) { true },
+            modUpdateWatch = array.getOrElse(13) { true },
         )
     }
 

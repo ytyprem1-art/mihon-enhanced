@@ -137,16 +137,17 @@ class BackupRestorer(
                     if (options.categories) backup.backupCategories else emptyList(),
                     backup.backupHistoryCategories,
                     mangaUrlToIdMap,
+                    options.modHistoryCategories,
                 ).join()
 
                 logcat(LogPriority.INFO) { "BackupRestorer: Calling modRestorer.restoreGroups" }
                 val mangaUrlToTitleMap = backup.backupManga.associate { (it.source to it.url) to it.title }
                 val skippedCount = modRestorer.restoreGroups(
-                    backupLinkedSourceGroups = backup.backupLinkedSourceGroups,
-                    backupManualHistoryGroups = backup.backupManualHistoryGroups,
-                    backupUpdateWatch = backup.backupUpdateWatch,
-                    backupUpdateWatchInbox = backup.backupUpdateWatchInbox,
-                    backupUpdateWatchHistory = backup.backupUpdateWatchHistory,
+                    backupLinkedSourceGroups = if (options.modLinkedSources) backup.backupLinkedSourceGroups else emptyList(),
+                    backupManualHistoryGroups = if (options.modHistoryGroups) backup.backupManualHistoryGroups else emptyList(),
+                    backupUpdateWatch = if (options.modUpdateWatch) backup.backupUpdateWatch else emptyList(),
+                    backupUpdateWatchInbox = if (options.modUpdateWatch) backup.backupUpdateWatchInbox else emptyList(),
+                    backupUpdateWatchHistory = if (options.modUpdateWatch) backup.backupUpdateWatchHistory else emptyList(),
                     mangaUrlToIdMap = mangaUrlToIdMap,
                     mangaUrlToTitleMap = mangaUrlToTitleMap,
                     onSkip = { errors.add(Date() to it) },
@@ -181,18 +182,41 @@ class BackupRestorer(
         backupCategories: List<BackupCategory>,
         backupHistoryCategories: List<BackupHistoryCategory>,
         mangaUrlToIdMap: MutableMap<Pair<Long, String>, Long>,
+        restoreHistoryCategories: Boolean,
     ) = launch {
         mangaRestorer.sortByNew(backupMangas)
             .chunked(100)
             .forEach { chunk ->
-                database.transaction {
+                val ids = mutableListOf<Long>()
+                val restoredAsBatch = try {
+                    database.transaction {
+                        chunk.forEach {
+                            ensureActive()
+                            val id = mangaRestorer.restore(it, backupCategories, backupHistoryCategories, restoreHistoryCategories)
+                            ids.add(id)
+                        }
+                    }
+                    true
+                } catch (e: Exception) {
+                    ensureActive()
+                    logcat(LogPriority.WARN, e) { "Batch restore failed, retrying entry by entry" }
+                    false
+                }
+
+                if (restoredAsBatch) {
+                    chunk.forEachIndexed { index, backupManga ->
+                        mangaUrlToIdMap[backupManga.source to backupManga.url] = ids[index]
+                    }
+                    restoreProgress.addAndFetch(chunk.size)
+                } else {
                     chunk.forEach {
                         ensureActive()
 
                         try {
-                            val id = mangaRestorer.restore(it, backupCategories, backupHistoryCategories)
+                            val id = mangaRestorer.restore(it, backupCategories, backupHistoryCategories, restoreHistoryCategories)
                             mangaUrlToIdMap[it.source to it.url] = id
                         } catch (e: Exception) {
+                            ensureActive()
                             val sourceName = sourceMapping[it.source] ?: it.source.toString()
                             errors.add(Date() to "${it.title} [$sourceName]: ${e.message}")
                         }
@@ -200,6 +224,7 @@ class BackupRestorer(
                         restoreProgress.incrementAndFetch()
                     }
                 }
+
                 notifier.showRestoreProgress(chunk.last().title, restoreProgress.load(), restoreAmount, isSync)
             }
     }

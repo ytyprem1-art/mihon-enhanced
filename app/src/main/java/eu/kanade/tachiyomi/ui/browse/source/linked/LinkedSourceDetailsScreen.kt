@@ -17,7 +17,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import cafe.adriel.voyager.core.model.rememberScreenModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.CreationExtras
+import androidx.lifecycle.viewmodel.compose.viewModel
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import eu.kanade.presentation.browse.LinkedSourceDetailsScreen
@@ -38,8 +40,13 @@ class LinkedSourceDetailsScreen(private val groupId: Long) : Screen() {
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
         val context = LocalContext.current
-        val screenModel = rememberScreenModel { LinkedSourceDetailsScreenModel(groupId) }
-        val state by screenModel.state.collectAsState()
+        val viewModel = viewModel<LinkedSourceDetailsViewModel>(
+            factory = LinkedSourceDetailsViewModel.Factory,
+            extras = CreationExtras {
+                set(LinkedSourceDetailsViewModel.GROUP_ID_KEY, groupId)
+            },
+        )
+        val state by viewModel.state.collectAsState()
 
         var memberToDelete by remember { mutableStateOf<LinkedMember?>(null) }
 
@@ -53,9 +60,9 @@ class LinkedSourceDetailsScreen(private val groupId: Long) : Screen() {
                     navigator.push(LinkedSourceSearchScreen(it.id, it.name))
                 }
             },
-            onClickCreateHistoryGroup = screenModel::createHistoryGroup,
-            onClickSetTrackingSource = screenModel::showTrackingSourcePicker,
-            onRefreshMember = { screenModel.refreshMember(it.manga.id) },
+            onClickCreateHistoryGroup = viewModel::createHistoryGroup,
+            onClickSetTrackingSource = viewModel::showTrackingSourcePicker,
+            onRefreshMember = { viewModel.refreshMember(it.manga.id) },
             onDeleteMember = { memberToDelete = it },
             navigateUp = navigator::pop,
         )
@@ -74,7 +81,7 @@ class LinkedSourceDetailsScreen(private val groupId: Long) : Screen() {
                 confirmButton = {
                     TextButton(
                         onClick = {
-                            screenModel.removeMember(member.manga.id, member.manga.source)
+                            viewModel.removeMember(member.manga.id, member.manga.source)
                             memberToDelete = null
                         },
                     ) {
@@ -90,12 +97,12 @@ class LinkedSourceDetailsScreen(private val groupId: Long) : Screen() {
         }
 
         when (val dialog = state.dialog) {
-            is LinkedSourceDetailsScreenModel.Dialog.CreateHistoryGroupWarning -> {
+            is LinkedSourceDetailsViewModel.Dialog.CreateHistoryGroupWarning -> {
                 val isEligible = dialog.eligible.size >= 2
                 val sourceManager = remember { Injekt.get<SourceManager>() }
 
                 AlertDialog(
-                    onDismissRequest = screenModel::dismissDialog,
+                    onDismissRequest = viewModel::dismissDialog,
                     title = { Text("Some sources will be skipped") },
                     text = {
                         androidx.compose.foundation.layout.Column {
@@ -141,9 +148,9 @@ class LinkedSourceDetailsScreen(private val groupId: Long) : Screen() {
                         TextButton(
                             onClick = {
                                 if (isEligible) {
-                                    screenModel.performCreateHistoryGroup(state.group?.name ?: "", dialog.eligible.map { it.manga.id })
+                                    viewModel.performCreateHistoryGroup(state.group?.name ?: "", dialog.eligible.map { it.manga.id })
                                 } else {
-                                    screenModel.dismissDialog()
+                                    viewModel.dismissDialog()
                                 }
                             },
                         ) {
@@ -152,17 +159,17 @@ class LinkedSourceDetailsScreen(private val groupId: Long) : Screen() {
                     },
                     dismissButton = if (isEligible) {
                         {
-                            TextButton(onClick = screenModel::dismissDialog) {
+                            TextButton(onClick = viewModel::dismissDialog) {
                                 Text(stringResource(MR.strings.action_cancel))
                             }
                         }
                     } else null,
                 )
             }
-            is LinkedSourceDetailsScreenModel.Dialog.TrackingSourcePicker -> {
+            is LinkedSourceDetailsViewModel.Dialog.TrackingSourcePicker -> {
                 val sourceManager = remember { Injekt.get<SourceManager>() }
                 AlertDialog(
-                    onDismissRequest = screenModel::dismissDialog,
+                    onDismissRequest = viewModel::dismissDialog,
                     title = { Text("Manage tracking") },
                     text = {
                         androidx.compose.foundation.lazy.LazyColumn {
@@ -172,7 +179,7 @@ class LinkedSourceDetailsScreen(private val groupId: Long) : Screen() {
                             ) { member ->
                                 androidx.compose.material3.ListItem(
                                     modifier = Modifier.clickable {
-                                        screenModel.toggleTracking(member.manga.id)
+                                        viewModel.toggleTracking(member.manga.id)
                                     },
                                     headlineContent = { Text(member.manga.title) },
                                     supportingContent = {
@@ -189,7 +196,7 @@ class LinkedSourceDetailsScreen(private val groupId: Long) : Screen() {
                         }
                     },
                     confirmButton = {
-                        TextButton(onClick = screenModel::dismissDialog) {
+                        TextButton(onClick = viewModel::dismissDialog) {
                             Text(stringResource(MR.strings.action_ok))
                         }
                     },
@@ -199,12 +206,12 @@ class LinkedSourceDetailsScreen(private val groupId: Long) : Screen() {
         }
 
         LaunchedEffect(Unit) {
-            screenModel.events.collect { event: LinkedSourceDetailsScreenModel.Event ->
+            viewModel.events.collect { event: LinkedSourceDetailsViewModel.Event ->
                 when (event) {
-                    LinkedSourceDetailsScreenModel.Event.HistoryGroupCreated -> {
+                    LinkedSourceDetailsViewModel.Event.HistoryGroupCreated -> {
                         context.toast("History group created")
                     }
-                    is LinkedSourceDetailsScreenModel.Event.ShowMessage -> {
+                    is LinkedSourceDetailsViewModel.Event.ShowMessage -> {
                         context.toast(event.message)
                     }
                 }

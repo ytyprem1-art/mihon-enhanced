@@ -18,8 +18,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import cafe.adriel.voyager.core.model.StateScreenModel
-import cafe.adriel.voyager.core.model.rememberScreenModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import eu.kanade.presentation.components.AppBar
@@ -29,6 +29,7 @@ import eu.kanade.tachiyomi.ui.mod.updatewatch.worker.UpdateWatchDiagnosticsManag
 import eu.kanade.tachiyomi.ui.mod.updatewatch.worker.UpdateWatchSchedulerDiagnostic
 import eu.kanade.tachiyomi.util.system.copyToClipboard
 import kotlinx.coroutines.flow.update
+import mihon.core.viewmodel.StateViewModel
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.components.material.Scaffold
 import tachiyomi.presentation.core.components.material.padding
@@ -40,8 +41,8 @@ class UpdateWatchDiagnosticsScreen : Screen() {
     @Composable
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
-        val screenModel = rememberScreenModel { UpdateWatchDiagnosticsScreenModel() }
-        val state by screenModel.state.collectAsState()
+        val viewModel = viewModel<UpdateWatchDiagnosticsViewModel>()
+        val state by viewModel.state.collectAsStateWithLifecycle()
         val context = LocalContext.current
 
         var showDeleteAllDialog by remember { mutableStateOf(false) }
@@ -49,7 +50,7 @@ class UpdateWatchDiagnosticsScreen : Screen() {
 
         if (state.selection.isNotEmpty()) {
             BackHandler {
-                screenModel.clearSelection()
+                viewModel.clearSelection()
             }
         }
 
@@ -114,7 +115,7 @@ class UpdateWatchDiagnosticsScreen : Screen() {
                         }
                     },
                     actionModeCounter = state.selection.size,
-                    onCancelActionMode = screenModel::clearSelection,
+                    onCancelActionMode = viewModel::clearSelection,
                     actionModeActions = {
                         IconButton(onClick = { showDeleteSelectedDialog = true }) {
                             Icon(imageVector = Icons.Outlined.Delete, contentDescription = "Delete selected")
@@ -140,10 +141,10 @@ class UpdateWatchDiagnosticsScreen : Screen() {
                             diagnostic = diagnostic,
                             isSelected = isSelected,
                             isInSelectionMode = state.selection.isNotEmpty(),
-                            onLongClick = { screenModel.toggleSelection(diagnostic.id) },
+                            onLongClick = { viewModel.toggleSelection(diagnostic.id) },
                             onClick = {
                                 if (state.selection.isNotEmpty()) {
-                                    screenModel.toggleSelection(diagnostic.id)
+                                    viewModel.toggleSelection(diagnostic.id)
                                 }
                             }
                         )
@@ -157,7 +158,7 @@ class UpdateWatchDiagnosticsScreen : Screen() {
                     onDismissRequest = { showDeleteAllDialog = false },
                     confirmButton = {
                         TextButton(onClick = {
-                            screenModel.clear()
+                            viewModel.clear()
                             showDeleteAllDialog = false
                         }) {
                             Text(stringResource(MR.strings.action_ok))
@@ -178,7 +179,7 @@ class UpdateWatchDiagnosticsScreen : Screen() {
                     onDismissRequest = { showDeleteSelectedDialog = false },
                     confirmButton = {
                         TextButton(onClick = {
-                            screenModel.deleteSelected()
+                            viewModel.deleteSelected()
                             showDeleteSelectedDialog = false
                         }) {
                             Text(stringResource(MR.strings.action_ok))
@@ -372,7 +373,7 @@ class UpdateWatchDiagnosticsScreen : Screen() {
     }
 }
 
-class UpdateWatchDiagnosticsScreenModel : StateScreenModel<UpdateWatchDiagnosticsScreenModel.State>(State()) {
+class UpdateWatchDiagnosticsViewModel : StateViewModel<UpdateWatchDiagnosticsViewModel.State>(State()) {
     data class State(
         val diagnostics: List<UpdateWatchSchedulerDiagnostic> = emptyList(),
         val selection: Set<String> = emptySet(),

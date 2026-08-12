@@ -44,7 +44,7 @@ fun HistoryCategoryDialog(
             Box(modifier = Modifier.fillMaxWidth()) {
                 Text(text = androidStringResource(R.string.history_categories_move_to))
                 Text(
-                    text = "History Mod • v2.0L\nDiscord • @vishkel01\nSource on GitHub",
+                    text = "History Mod • v2.0M\nDiscord • @vishkel01\nSource on GitHub",
                     modifier = Modifier.align(Alignment.TopEnd),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,

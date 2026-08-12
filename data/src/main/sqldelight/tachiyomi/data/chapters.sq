@@ -90,7 +90,8 @@ SELECT *
 FROM chapters
 WHERE url = :chapterUrl
 AND manga_id = :mangaId
-ORDER BY _id ASC;
+ORDER BY _id ASC
+LIMIT 1;
 
 removeChaptersWithIds:
 DELETE FROM chapters

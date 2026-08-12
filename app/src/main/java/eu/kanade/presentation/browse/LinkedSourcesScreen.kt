@@ -25,8 +25,7 @@ import eu.kanade.presentation.browse.components.LinkedSourceGroupItem
 import eu.kanade.presentation.components.AppBar
 import eu.kanade.presentation.components.AppBarActions
 import eu.kanade.presentation.components.SearchToolbar
-import eu.kanade.presentation.util.animateItemFastScroll
-import eu.kanade.tachiyomi.ui.browse.source.linked.LinkedSourcesScreenModel
+import eu.kanade.tachiyomi.ui.browse.source.linked.LinkedSourcesViewModel
 import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.domain.source.linked.model.LinkedSourceGroup
 import tachiyomi.i18n.MR
@@ -37,7 +36,7 @@ import tachiyomi.presentation.core.screens.EmptyScreen
 
 @Composable
 fun LinkedSourcesScreen(
-    groups: List<LinkedSourcesScreenModel.GroupWithMetadata>,
+    groups: List<LinkedSourcesViewModel.GroupWithMetadata>,
     searchQuery: String?,
     onSearchQueryChange: (String?) -> Unit,
     sortMode: LibraryPreferences.LinkedSourceGroupSort,
@@ -137,7 +136,7 @@ fun LinkedSourcesScreen(
                 key = { it.group.id },
             ) { item ->
                 LinkedSourceGroupItem(
-                    modifier = Modifier.animateItemFastScroll(),
+                    modifier = Modifier.animateItem(),
                     group = item.group,
                     representativeManga = item.representativeManga,
                     sourceNames = item.sourceNames,
