@@ -8,6 +8,7 @@ import eu.kanade.domain.ui.UiPreferences
 import eu.kanade.tachiyomi.core.security.PrivacyPreferences
 import eu.kanade.tachiyomi.core.security.SecurityPreferences
 import eu.kanade.tachiyomi.network.NetworkPreferences
+import eu.kanade.tachiyomi.ui.mod.EnhancedPreferences
 import eu.kanade.tachiyomi.ui.mod.updatewatch.worker.UpdateWatchDiagnosticsPreferences
 import eu.kanade.tachiyomi.ui.mod.bookmarkimport.BookmarkImportPreferences
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
@@ -79,6 +80,9 @@ class PreferenceModule(val app: Application) : InjektModule {
         }
         addSingletonFactory {
             BasePreferences(app, get())
+        }
+        addSingletonFactory {
+            EnhancedPreferences(get())
         }
         addSingletonFactory {
             UpdateWatchDiagnosticsPreferences(get())

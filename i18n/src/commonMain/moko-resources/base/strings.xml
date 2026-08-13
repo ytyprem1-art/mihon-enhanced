@@ -1080,4 +1080,9 @@
     <string name="mod_linked_sources">Linked sources</string>
     <string name="mod_update_watch">Update Watch</string>
     <string name="mod_update_watch_summary">Tracked manga, auto refresh, inbox, history</string>
+
+    <string name="pref_grid_columns">Grid columns</string>
+    <string name="pref_grid_columns_2">2 columns</string>
+    <string name="pref_grid_columns_3">3 columns</string>
+    <string name="pref_grid_columns_4">4 columns</string>
 </resources>

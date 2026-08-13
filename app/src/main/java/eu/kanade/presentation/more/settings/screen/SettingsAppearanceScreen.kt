@@ -18,6 +18,7 @@ import eu.kanade.presentation.more.settings.Preference
 import eu.kanade.presentation.more.settings.screen.appearance.AppLanguageScreen
 import eu.kanade.presentation.more.settings.widget.AppThemeModePreferenceWidget
 import eu.kanade.presentation.more.settings.widget.AppThemePreferenceWidget
+import eu.kanade.tachiyomi.ui.mod.EnhancedPreferences
 import eu.kanade.tachiyomi.util.system.toast
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toJavaLocalDateTime
@@ -38,10 +39,11 @@ object SettingsAppearanceScreen : SearchableSettings {
     @Composable
     override fun getPreferences(): List<Preference> {
         val uiPreferences = remember { Injekt.get<UiPreferences>() }
+        val enhancedPreferences = remember { Injekt.get<EnhancedPreferences>() }
 
         return listOf(
             getThemeGroup(uiPreferences = uiPreferences),
-            getDisplayGroup(uiPreferences = uiPreferences),
+            getDisplayGroup(uiPreferences = uiPreferences, enhancedPreferences = enhancedPreferences),
         )
     }
 
@@ -98,6 +100,7 @@ object SettingsAppearanceScreen : SearchableSettings {
     @Composable
     private fun getDisplayGroup(
         uiPreferences: UiPreferences,
+        enhancedPreferences: EnhancedPreferences,
     ): Preference.PreferenceGroup {
         val context = LocalContext.current
         val navigator = LocalNavigator.currentOrThrow
@@ -115,6 +118,16 @@ object SettingsAppearanceScreen : SearchableSettings {
                 Preference.PreferenceItem.TextPreference(
                     title = stringResource(MR.strings.pref_app_language),
                     onClick = { navigator.push(AppLanguageScreen()) },
+                ),
+                Preference.PreferenceItem.ListPreference(
+                    preference = enhancedPreferences.gridColumns,
+                    entries = mapOf(
+                        0 to stringResource(MR.strings.label_auto),
+                        2 to stringResource(MR.strings.pref_grid_columns_2),
+                        3 to stringResource(MR.strings.pref_grid_columns_3),
+                        4 to stringResource(MR.strings.pref_grid_columns_4),
+                    ),
+                    title = stringResource(MR.strings.pref_grid_columns),
                 ),
                 Preference.PreferenceItem.ListPreference(
                     preference = uiPreferences.tabletUiMode,
