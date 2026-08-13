@@ -8,6 +8,8 @@ class EnhancedPreferences(
 ) {
     val gridColumns: Preference<Int> = preferenceStore.getInt("enhanced_grid_columns", 0)
 
+    val lastDismissedWelcomeVersion: Preference<Int> = preferenceStore.getInt("enhanced_last_dismissed_welcome_version", 0)
+
     companion object {
         const val GRID_AUTO = 0
     }

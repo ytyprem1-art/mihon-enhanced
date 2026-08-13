@@ -81,6 +81,8 @@ import eu.kanade.presentation.util.DefaultNavigatorScreenTransition
 import eu.kanade.tachiyomi.data.cache.ChapterCache
 import eu.kanade.tachiyomi.data.download.DownloadCache
 import eu.kanade.tachiyomi.data.notification.NotificationReceiver
+import eu.kanade.tachiyomi.ui.mod.EnhancedPreferences
+import eu.kanade.tachiyomi.ui.mod.welcome.WelcomeSheet
 import eu.kanade.tachiyomi.ui.mod.updatewatch.worker.UpdateWatchNotifier
 import eu.kanade.tachiyomi.data.updater.AppUpdateChecker
 import eu.kanade.tachiyomi.extension.api.ExtensionApi
@@ -129,6 +131,7 @@ class MainActivity : BaseActivity() {
 
     private val libraryPreferences: LibraryPreferences by injectLazy()
     private val preferences: BasePreferences by injectLazy()
+    private val enhancedPreferences: EnhancedPreferences by injectLazy()
 
     private val downloadCache: DownloadCache by injectLazy()
     private val chapterCache: ChapterCache by injectLazy()
@@ -263,6 +266,7 @@ class MainActivity : BaseActivity() {
                     if (isLaunch) CheckForUpdates()
                     ShowOnboarding()
                     ShowDonationCampaign()
+                    ShowWelcome()
                 }
             }
         }
@@ -469,6 +473,25 @@ class MainActivity : BaseActivity() {
         }
     }
 
+    @Composable
+    private fun ShowWelcome() {
+        var showWelcome by remember {
+            val lastDismissed = enhancedPreferences.lastDismissedWelcomeVersion.get()
+            mutableStateOf(lastDismissed < CURRENT_WELCOME_VERSION)
+        }
+
+        if (showWelcome) {
+            WelcomeSheet(
+                onDismissRequest = { dontShowAgain ->
+                    if (dontShowAgain) {
+                        enhancedPreferences.lastDismissedWelcomeVersion.set(CURRENT_WELCOME_VERSION)
+                    }
+                    showWelcome = false
+                }
+            )
+        }
+    }
+
     /**
      * Sets custom splash screen exit animation on devices prior to Android 12.
      *
@@ -603,6 +626,8 @@ class MainActivity : BaseActivity() {
         const val INTENT_SEARCH = "eu.kanade.tachiyomi.SEARCH"
         const val INTENT_SEARCH_QUERY = "query"
         const val INTENT_SEARCH_FILTER = "filter"
+
+        private const val CURRENT_WELCOME_VERSION = 2
     }
 }
 
