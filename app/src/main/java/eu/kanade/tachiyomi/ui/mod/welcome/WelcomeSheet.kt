@@ -35,6 +35,7 @@ import tachiyomi.presentation.core.i18n.stringResource
 
 @Composable
 fun WelcomeSheet(
+    showDontShowAgain: Boolean = true,
     onDismissRequest: (dontShowAgain: Boolean) -> Unit,
 ) {
     var dontShowAgain by remember { mutableStateOf(false) }
@@ -170,11 +171,13 @@ fun WelcomeSheet(
                     .padding(horizontal = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                LabeledCheckbox(
-                    label = stringResource(MR.strings.mod_welcome_dont_show_again),
-                    checked = dontShowAgain,
-                    onCheckedChange = { dontShowAgain = it },
-                )
+                if (showDontShowAgain) {
+                    LabeledCheckbox(
+                        label = stringResource(MR.strings.mod_welcome_dont_show_again),
+                        checked = dontShowAgain,
+                        onCheckedChange = { dontShowAgain = it },
+                    )
+                }
 
                 Button(
                     onClick = { onDismissRequest(dontShowAgain) },

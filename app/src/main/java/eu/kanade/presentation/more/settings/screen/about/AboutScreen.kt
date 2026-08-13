@@ -33,6 +33,7 @@ import eu.kanade.tachiyomi.BuildConfig
 import eu.kanade.tachiyomi.data.updater.AppUpdateChecker
 import eu.kanade.tachiyomi.data.updater.RELEASE_URL
 import eu.kanade.tachiyomi.ui.more.NewUpdateScreen
+import eu.kanade.tachiyomi.ui.mod.welcome.WelcomeSheet
 import eu.kanade.tachiyomi.util.CrashLogUtil
 import eu.kanade.tachiyomi.util.lang.toDateTimestampString
 import eu.kanade.tachiyomi.util.system.copyToClipboard
@@ -73,6 +74,7 @@ object AboutScreen : Screen() {
         val handleBack = LocalBackPress.current
         val navigator = LocalNavigator.currentOrThrow
         var isCheckingUpdates by remember { mutableStateOf(false) }
+        var showWelcomeSheet by remember { mutableStateOf(false) }
 
         Scaffold(
             topBar = { scrollBehavior ->
@@ -153,6 +155,13 @@ object AboutScreen : Screen() {
 
                 item {
                     TextPreferenceWidget(
+                        title = stringResource(MR.strings.mod_whats_new),
+                        onPreferenceClick = { showWelcomeSheet = true },
+                    )
+                }
+
+                item {
+                    TextPreferenceWidget(
                         title = stringResource(MR.strings.licenses),
                         onPreferenceClick = { navigator.push(OpenSourceLicensesScreen()) },
                     )
@@ -205,6 +214,15 @@ object AboutScreen : Screen() {
                     }
                 }
             }
+        }
+
+        if (showWelcomeSheet) {
+            WelcomeSheet(
+                showDontShowAgain = false,
+                onDismissRequest = {
+                    showWelcomeSheet = false
+                },
+            )
         }
     }
 

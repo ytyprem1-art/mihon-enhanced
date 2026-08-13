@@ -1119,4 +1119,5 @@
     <string name="mod_welcome_feedback_desc">Found a bug, have feedback, or want to suggest something?\nFeel free to DM me on Discord: @vishkel01</string>
     <string name="mod_welcome_footer">Mihon Enhanced is an unofficial modification and is not affiliated with the official Mihon project.</string>
     <string name="mod_welcome_dont_show_again">Don\'t show this again</string>
+    <string name="mod_whats_new">What\'s new in Mihon Enhanced</string>
 </resources>
