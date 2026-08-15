@@ -68,6 +68,7 @@ class GlobalChatViewModel : StateViewModel<GlobalChatState>(GlobalChatState.Need
                         val isMangaShare = doc.getBoolean("isMangaShare") ?: false
 
                         ChatMessage(
+                            id = doc.id,
                             sender = sender,
                             text = text,
                             timestamp = timestamp,
@@ -78,6 +79,9 @@ class GlobalChatViewModel : StateViewModel<GlobalChatState>(GlobalChatState.Need
                             mangaTitle = doc.getString("mangaTitle"),
                             mangaCoverUrl = doc.getString("mangaCoverUrl"),
                             sourceName = doc.getString("sourceName"),
+                            replyToId = doc.getString("replyToId"),
+                            replyToText = doc.getString("replyToText"),
+                            replyToUser = doc.getString("replyToUser"),
                         )
                     }
                     mutableState.update { state ->
@@ -91,17 +95,37 @@ class GlobalChatViewModel : StateViewModel<GlobalChatState>(GlobalChatState.Need
             }
     }
 
+    fun setReplyingTo(message: ChatMessage?) {
+        mutableState.update { state ->
+            if (state is GlobalChatState.ChatRoom) {
+                state.copy(replyingTo = message)
+            } else {
+                state
+            }
+        }
+    }
+
     fun sendMessage(text: String) {
         val currentState = state.value
         if (currentState is GlobalChatState.ChatRoom && text.isNotBlank()) {
-            val messageData = mapOf(
+            val messageData = mutableMapOf<String, Any?>(
                 "senderName" to currentState.username,
                 "text" to text,
                 "timestamp" to FieldValue.serverTimestamp(),
                 "isMangaShare" to false,
             )
+
+            currentState.replyingTo?.let { reply ->
+                messageData["replyToId"] = reply.id
+                messageData["replyToText"] = if (reply.isMangaShare) "[Manga] ${reply.mangaTitle}" else reply.text
+                messageData["replyToUser"] = reply.sender
+            }
+
             db.collection("global_chat").add(messageData)
-                .addOnSuccessListener { Log.d("GlobalChat", "Action Success") }
+                .addOnSuccessListener {
+                    Log.d("GlobalChat", "Action Success")
+                    setReplyingTo(null)
+                }
                 .addOnFailureListener { e -> Log.e("GlobalChat", "Firebase Action Failed", e) }
         }
     }
@@ -116,10 +140,12 @@ sealed interface GlobalChatState {
     data class ChatRoom(
         val username: String,
         val messages: List<ChatMessage>,
+        val replyingTo: ChatMessage? = null,
     ) : GlobalChatState
 }
 
 data class ChatMessage(
+    val id: String = "",
     val sender: String,
     val text: String,
     val timestamp: Long,
@@ -130,4 +156,7 @@ data class ChatMessage(
     val mangaTitle: String? = null,
     val mangaCoverUrl: String? = null,
     val sourceName: String? = null,
+    val replyToId: String? = null,
+    val replyToText: String? = null,
+    val replyToUser: String? = null,
 )

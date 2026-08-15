@@ -1,15 +1,20 @@
 package eu.kanade.tachiyomi.ui.chat
 
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -32,6 +37,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Book
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.HorizontalDivider
@@ -54,7 +60,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil3.request.ImageRequest
 import coil3.request.crossfade
 import eu.kanade.presentation.manga.components.MangaCover
@@ -70,6 +78,8 @@ fun GlobalChatScreen(
     onSetUsername: (String) -> Unit,
     onSendMessage: (String) -> Unit,
     onMangaClick: (ChatMessage) -> Unit,
+    onReplyClick: (ChatMessage) -> Unit,
+    onCancelReply: () -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -81,7 +91,7 @@ fun GlobalChatScreen(
                 UsernameEntry(onSetUsername)
             }
             is GlobalChatState.ChatRoom -> {
-                ChatRoomContent(state, onSendMessage, onMangaClick)
+                ChatRoomContent(state, onSendMessage, onMangaClick, onReplyClick, onCancelReply)
             }
         }
     }
@@ -128,6 +138,8 @@ private fun ColumnScope.ChatRoomContent(
     state: GlobalChatState.ChatRoom,
     onSendMessage: (String) -> Unit,
     onMangaClick: (ChatMessage) -> Unit,
+    onReplyClick: (ChatMessage) -> Unit,
+    onCancelReply: () -> Unit,
 ) {
     val listState = rememberLazyListState()
 
@@ -146,7 +158,12 @@ private fun ColumnScope.ChatRoomContent(
         verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.Bottom),
     ) {
         items(reversedMessages) { message ->
-            ChatBubble(message, isMe = message.sender == state.username, onMangaClick)
+            ChatBubble(
+                message = message,
+                isMe = message.sender == state.username,
+                onMangaClick = onMangaClick,
+                onReplyClick = onReplyClick,
+            )
         }
     }
 
@@ -157,15 +174,67 @@ private fun ColumnScope.ChatRoomContent(
             .fillMaxWidth()
             .windowInsetsPadding(WindowInsets.ime.union(WindowInsets.navigationBars).only(WindowInsetsSides.Bottom)),
     ) {
-        ChatInput(onSendMessage)
+        Column {
+            state.replyingTo?.let { reply ->
+                ReplyPreview(message = reply, onCancelReply = onCancelReply)
+            }
+            ChatInput(onSendMessage)
+        }
     }
 }
 
+@Composable
+private fun ReplyPreview(
+    message: ChatMessage,
+    onCancelReply: () -> Unit,
+) {
+    val userColor = remember(message.sender) { getUserColor(message.sender) }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+            .padding(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .width(4.dp)
+                .height(32.dp)
+                .clip(RoundedCornerShape(2.dp))
+                .background(userColor),
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = message.sender,
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                color = userColor,
+            )
+            Text(
+                text = if (message.isMangaShare) "[Manga] ${message.mangaTitle}" else message.text,
+                style = MaterialTheme.typography.bodySmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        IconButton(onClick = onCancelReply) {
+            Icon(
+                imageVector = Icons.Default.Close,
+                contentDescription = "Cancel reply",
+                modifier = Modifier.size(16.dp),
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ChatBubble(
     message: ChatMessage,
     isMe: Boolean,
     onMangaClick: (ChatMessage) -> Unit,
+    onReplyClick: (ChatMessage) -> Unit,
 ) {
     val alignment = if (isMe) Alignment.End else Alignment.Start
     val userColor = remember(message.sender) { getUserColor(message.sender) }
@@ -200,6 +269,10 @@ private fun ChatBubble(
                 bottomStart = if (isMe) 12.dp else 0.dp,
                 bottomEnd = if (isMe) 0.dp else 12.dp,
             ),
+            modifier = Modifier.combinedClickable(
+                onClick = {},
+                onLongClick = { onReplyClick(message) },
+            ),
         ) {
             Column(modifier = Modifier.padding(8.dp)) {
                 if (!isMe) {
@@ -209,6 +282,40 @@ private fun ChatBubble(
                         fontWeight = FontWeight.Bold,
                         color = labelColor,
                     )
+                }
+
+                // Reply info
+                if (message.replyToId != null) {
+                    val replyUserColor = remember(message.replyToUser) { getUserColor(message.replyToUser ?: "") }
+                    Surface(
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        shape = RoundedCornerShape(4.dp),
+                        modifier = Modifier.padding(bottom = 4.dp),
+                    ) {
+                        Row(modifier = Modifier.height(IntrinsicSize.Min)) {
+                            Box(
+                                modifier = Modifier
+                                    .width(2.dp)
+                                    .fillMaxHeight()
+                                    .background(replyUserColor),
+                            )
+                            Column(modifier = Modifier.padding(4.dp)) {
+                                Text(
+                                    text = message.replyToUser ?: "Unknown",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = replyUserColor,
+                                )
+                                Text(
+                                    text = message.replyToText ?: "",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontSize = 10.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                        }
+                    }
                 }
 
                 if (message.isMangaShare) {
