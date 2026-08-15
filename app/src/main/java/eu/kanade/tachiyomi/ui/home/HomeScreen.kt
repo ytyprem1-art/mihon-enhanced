@@ -38,6 +38,7 @@ import eu.kanade.presentation.util.Screen
 import eu.kanade.presentation.util.isTabletUi
 import eu.kanade.tachiyomi.ui.browse.BrowseTab
 import eu.kanade.tachiyomi.ui.chat.ChatTab
+import eu.kanade.tachiyomi.ui.chat.ChatManager
 import eu.kanade.tachiyomi.ui.download.DownloadQueueScreen
 import eu.kanade.tachiyomi.ui.history.HistoryTab
 import eu.kanade.tachiyomi.ui.library.LibraryTab
@@ -304,6 +305,17 @@ object HomeScreen : Screen() {
                                     text = count.toString(),
                                     modifier = Modifier.semantics { contentDescription = desc },
                                 )
+                            }
+                        }
+                    }
+                    tab is ChatTab -> {
+                        val count by produceState(initialValue = 0) {
+                            Injekt.get<ChatManager>().unreadCount
+                                .collectLatest { value = it }
+                        }
+                        if (count > 0) {
+                            Badge {
+                                Text(text = count.toString())
                             }
                         }
                     }
