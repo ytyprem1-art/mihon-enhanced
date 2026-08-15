@@ -2,6 +2,7 @@ package eu.kanade.tachiyomi.ui.chat
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -31,13 +33,19 @@ import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.RemoveRedEye
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.HorizontalDivider
@@ -47,11 +55,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -60,12 +71,17 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import coil3.request.ImageRequest
 import coil3.request.crossfade
 import eu.kanade.presentation.manga.components.MangaCover
+import kotlinx.coroutines.launch
 import tachiyomi.domain.manga.model.MangaCover as MangaCoverModel
 import tachiyomi.presentation.core.components.material.Scaffold
 import java.text.SimpleDateFormat
@@ -80,7 +96,42 @@ fun GlobalChatScreen(
     onMangaClick: (ChatMessage) -> Unit,
     onReplyClick: (ChatMessage) -> Unit,
     onCancelReply: () -> Unit,
+    updatePresence: (Boolean) -> Unit,
+    markAsRead: () -> Unit,
+    onTyping: (Boolean) -> Unit,
 ) {
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    DisposableEffect(Unit) {
+        updatePresence(true)
+        markAsRead()
+        onDispose {
+            updatePresence(false)
+        }
+    }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                updatePresence(true)
+                markAsRead()
+            } else if (event == Lifecycle.Event.ON_PAUSE) {
+                updatePresence(false)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    // Auto-mark as read when new messages arrive while screen is active
+    LaunchedEffect(state) {
+        if (state is GlobalChatState.ChatRoom && lifecycleOwner.lifecycle.currentState == Lifecycle.State.RESUMED) {
+            markAsRead()
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -91,9 +142,85 @@ fun GlobalChatScreen(
                 UsernameEntry(onSetUsername)
             }
             is GlobalChatState.ChatRoom -> {
-                ChatRoomContent(state, onSendMessage, onMangaClick, onReplyClick, onCancelReply)
+                PresenceHeader(users = state.onlineUsers, unreadCount = state.unreadCount)
+                ChatRoomContent(state, onSendMessage, onMangaClick, onReplyClick, onCancelReply, onTyping)
             }
         }
+    }
+}
+
+@Composable
+private fun PresenceHeader(users: List<ChatUser>, unreadCount: Int) {
+    Column {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = "Global Chat",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.weight(1f)
+            )
+            if (unreadCount > 0) {
+                Badge { Text(unreadCount.toString()) }
+                Spacer(modifier = Modifier.width(8.dp))
+            }
+        }
+        LazyRow(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 8.dp),
+            contentPadding = PaddingValues(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            items(users) { user ->
+                OnlineUserItem(user)
+            }
+        }
+        HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
+    }
+}
+
+@Composable
+private fun OnlineUserItem(user: ChatUser) {
+    val color = remember(user.username) { getUserColor(user.username) }
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Box {
+            Surface(
+                modifier = Modifier.size(32.dp),
+                shape = CircleShape,
+                color = color.copy(alpha = 0.2f),
+                border = androidx.compose.foundation.BorderStroke(1.dp, color)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(
+                        text = user.username.take(1).uppercase(),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = color
+                    )
+                }
+            }
+            if (user.isOnline) {
+                Box(
+                    modifier = Modifier
+                        .size(10.dp)
+                        .clip(CircleShape)
+                        .background(Color.Green)
+                        .align(Alignment.BottomEnd)
+                        .border(1.dp, MaterialTheme.colorScheme.surface, CircleShape)
+                )
+            }
+        }
+        Text(
+            text = user.username,
+            style = MaterialTheme.typography.labelSmall,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.width(40.dp),
+            textAlign = TextAlign.Center
+        )
     }
 }
 
@@ -130,7 +257,11 @@ private fun ColumnScope.UsernameEntry(onSetUsername: (String) -> Unit) {
         }
     }
     // Anchor to bottom safely
-    Spacer(modifier = Modifier.windowInsetsPadding(WindowInsets.ime.union(WindowInsets.navigationBars).only(WindowInsetsSides.Bottom)))
+    Spacer(
+        modifier = Modifier
+            .navigationBarsPadding()
+            .imePadding(),
+    )
 }
 
 @Composable
@@ -140,8 +271,11 @@ private fun ColumnScope.ChatRoomContent(
     onMangaClick: (ChatMessage) -> Unit,
     onReplyClick: (ChatMessage) -> Unit,
     onCancelReply: () -> Unit,
+    onTyping: (Boolean) -> Unit,
 ) {
     val listState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
+    var inputText by remember { mutableStateOf("") }
 
     // Reversed list for standard chat behavior (newest at bottom, sticks to bottom)
     val reversedMessages = remember(state.messages) {
@@ -154,17 +288,38 @@ private fun ColumnScope.ChatRoomContent(
             .weight(1f)
             .fillMaxWidth(),
         reverseLayout = true,
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(8.dp),
+        contentPadding = PaddingValues(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.Bottom),
     ) {
         items(reversedMessages) { message ->
+            val isMe = message.senderUid == (state as? GlobalChatState.ChatRoom)?.onlineUsers?.find { it.username == state.username }?.uid
+                || message.sender == state.username
+
             ChatBubble(
                 message = message,
-                isMe = message.sender == state.username,
+                isMe = isMe,
                 onMangaClick = onMangaClick,
                 onReplyClick = onReplyClick,
+                onReplyJumpClick = { replyId ->
+                    val index = reversedMessages.indexOfFirst { it.id == replyId }
+                    if (index != -1) {
+                        scope.launch {
+                            listState.animateScrollToItem(index)
+                        }
+                    }
+                },
+                allUsers = state.onlineUsers
             )
         }
+    }
+
+    if (!state.typingIndicator.isNullOrBlank()) {
+        Text(
+            text = "${state.typingIndicator} is typing...",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+        )
     }
 
     HorizontalDivider()
@@ -172,13 +327,22 @@ private fun ColumnScope.ChatRoomContent(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .windowInsetsPadding(WindowInsets.ime.union(WindowInsets.navigationBars).only(WindowInsetsSides.Bottom)),
+            .navigationBarsPadding()
+            .imePadding(),
     ) {
         Column {
             state.replyingTo?.let { reply ->
                 ReplyPreview(message = reply, onCancelReply = onCancelReply)
             }
-            ChatInput(onSendMessage)
+            ChatInput(
+                text = inputText,
+                onTextChange = { inputText = it },
+                onSendMessage = {
+                    onSendMessage(it)
+                    inputText = ""
+                },
+                onTyping = onTyping,
+            )
         }
     }
 }
@@ -235,6 +399,8 @@ private fun ChatBubble(
     isMe: Boolean,
     onMangaClick: (ChatMessage) -> Unit,
     onReplyClick: (ChatMessage) -> Unit,
+    onReplyJumpClick: (String) -> Unit,
+    allUsers: List<ChatUser>,
 ) {
     val alignment = if (isMe) Alignment.End else Alignment.Start
     val userColor = remember(message.sender) { getUserColor(message.sender) }
@@ -256,6 +422,8 @@ private fun ChatBubble(
     } else {
         userColor
     }
+
+    var showReadReceipts by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -285,12 +453,14 @@ private fun ChatBubble(
                 }
 
                 // Reply info
-                if (message.replyToId != null) {
-                    val replyUserColor = remember(message.replyToUser) { getUserColor(message.replyToUser ?: "") }
+                if (message.replyToMessageId != null) {
+                    val replyUserColor = remember(message.replyToSenderName) { getUserColor(message.replyToSenderName ?: "") }
                     Surface(
                         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                         shape = RoundedCornerShape(4.dp),
-                        modifier = Modifier.padding(bottom = 4.dp),
+                        modifier = Modifier
+                            .padding(bottom = 4.dp)
+                            .clickable { onReplyJumpClick(message.replyToMessageId) },
                     ) {
                         Row(modifier = Modifier.height(IntrinsicSize.Min)) {
                             Box(
@@ -301,7 +471,7 @@ private fun ChatBubble(
                             )
                             Column(modifier = Modifier.padding(4.dp)) {
                                 Text(
-                                    text = message.replyToUser ?: "Unknown",
+                                    text = message.replyToSenderName ?: "Unknown",
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Bold,
                                     color = replyUserColor,
@@ -328,18 +498,79 @@ private fun ChatBubble(
                     )
                 }
 
-                val timeText = remember(message.timestamp) {
-                    SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(message.timestamp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.End,
+                    modifier = Modifier.align(Alignment.End)
+                ) {
+                    val timeText = remember(message.timestamp) {
+                        SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(message.timestamp))
+                    }
+                    Text(
+                        text = timeText,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = textColor.copy(alpha = 0.6f),
+                    )
+
+                    if (isMe && message.readBy.size > 1) { // 1 is me
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Icon(
+                            imageVector = Icons.Default.RemoveRedEye,
+                            contentDescription = "Read receipts",
+                            modifier = Modifier
+                                .size(12.dp)
+                                .clickable { showReadReceipts = true },
+                            tint = labelColor.copy(alpha = 0.7f)
+                        )
+                    }
                 }
-                Text(
-                    text = timeText,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = textColor.copy(alpha = 0.6f),
-                    modifier = Alignment.End.let { Modifier.align(it) },
-                )
             }
         }
     }
+
+    if (showReadReceipts) {
+        ReadReceiptsDialog(
+            readBy = message.readBy,
+            allUsers = allUsers,
+            onDismiss = { showReadReceipts = false }
+        )
+    }
+}
+
+@Composable
+private fun ReadReceiptsDialog(
+    readBy: Map<String, Long>,
+    allUsers: List<ChatUser>,
+    onDismiss: () -> Unit,
+) {
+    val locale = androidx.compose.ui.text.intl.Locale.current
+    val timeFormatter = remember(locale) { SimpleDateFormat("HH:mm:ss", locale.platformLocale) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Read by") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                readBy.forEach { (uid, timestamp) ->
+                    val user = allUsers.find { it.uid == uid }
+                    if (user != null) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            OnlineUserItem(user)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = timeFormatter.format(Date(timestamp)),
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Close")
+            }
+        }
+    )
 }
 
 @Composable
@@ -395,8 +626,16 @@ private fun MangaShareCard(
 }
 
 @Composable
-private fun ChatInput(onSendMessage: (String) -> Unit) {
-    var text by remember { mutableStateOf("") }
+private fun ChatInput(
+    text: String,
+    onTextChange: (String) -> Unit,
+    onSendMessage: (String) -> Unit,
+    onTyping: (Boolean) -> Unit,
+) {
+    LaunchedEffect(text) {
+        onTyping(text.isNotBlank())
+    }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -405,7 +644,7 @@ private fun ChatInput(onSendMessage: (String) -> Unit) {
     ) {
         OutlinedTextField(
             value = text,
-            onValueChange = { text = it },
+            onValueChange = onTextChange,
             placeholder = { Text("Type a message...") },
             modifier = Modifier.weight(1f),
             maxLines = 3,
@@ -414,7 +653,6 @@ private fun ChatInput(onSendMessage: (String) -> Unit) {
         IconButton(
             onClick = {
                 onSendMessage(text)
-                text = ""
             },
             enabled = text.isNotBlank(),
         ) {
