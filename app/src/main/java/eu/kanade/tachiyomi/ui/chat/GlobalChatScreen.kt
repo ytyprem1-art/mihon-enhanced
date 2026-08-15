@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
-import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -51,6 +50,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -168,8 +168,25 @@ private fun ChatBubble(
     onMangaClick: (ChatMessage) -> Unit,
 ) {
     val alignment = if (isMe) Alignment.End else Alignment.Start
-    val backgroundColor = if (isMe) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.secondaryContainer
-    val textColor = if (isMe) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSecondaryContainer
+    val userColor = remember(message.sender) { getUserColor(message.sender) }
+
+    val backgroundColor = if (isMe) {
+        MaterialTheme.colorScheme.primaryContainer
+    } else {
+        userColor.copy(alpha = 0.2f)
+    }
+
+    val textColor = if (isMe) {
+        MaterialTheme.colorScheme.onPrimaryContainer
+    } else {
+        MaterialTheme.colorScheme.onSurface
+    }
+
+    val labelColor = if (isMe) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        userColor
+    }
 
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -190,7 +207,7 @@ private fun ChatBubble(
                         text = message.sender,
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
-                        color = textColor,
+                        color = labelColor,
                     )
                 }
 
@@ -300,4 +317,28 @@ private fun ChatInput(onSendMessage: (String) -> Unit) {
             )
         }
     }
+}
+
+private fun getUserColor(username: String): Color {
+    val colors = listOf(
+        Color(0xFFEF5350), // Red
+        Color(0xFFEC407A), // Pink
+        Color(0xFFAB47BC), // Purple
+        Color(0xFF7E57C2), // Deep Purple
+        Color(0xFF5C6BC0), // Indigo
+        Color(0xFF42A5F5), // Blue
+        Color(0xFF29B6F6), // Light Blue
+        Color(0xFF26C6DA), // Cyan
+        Color(0xFF26A69A), // Teal
+        Color(0xFF66BB6A), // Green
+        Color(0xFF9CCC65), // Light Green
+        Color(0xFFD4E157), // Lime
+        Color(0xFFFFEE58), // Yellow
+        Color(0xFFFFCA28), // Amber
+        Color(0xFFFFA726), // Orange
+        Color(0xFFFF7043), // Deep Orange
+    )
+    val hash = username.hashCode()
+    val index = Math.abs(hash) % colors.size
+    return colors[index]
 }
