@@ -1,6 +1,5 @@
 package eu.kanade.tachiyomi.ui.chat
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -38,9 +37,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import coil3.request.crossfade
+import eu.kanade.presentation.manga.components.MangaCover
+import tachiyomi.domain.manga.model.MangaCover as MangaCoverModel
 import tachiyomi.presentation.core.components.material.Scaffold
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -210,30 +213,25 @@ private fun MangaShareCard(
             modifier = Modifier.padding(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            if (message.mangaCoverUrl != null) {
-                AsyncImage(
-                    model = message.mangaCoverUrl,
-                    contentDescription = null,
-                    modifier = Modifier
-                        .size(60.dp, 80.dp)
-                        .clip(RoundedCornerShape(4.dp)),
-                    contentScale = ContentScale.Crop,
-                )
-            } else {
-                Box(
-                    modifier = Modifier
-                        .size(60.dp, 80.dp)
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(MaterialTheme.colorScheme.secondary),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Book,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSecondary,
+            val imageModel = remember(message.mangaCoverUrl, message.sourceId) {
+                if (message.sourceId != null && message.mangaCoverUrl != null) {
+                    MangaCoverModel(
+                        mangaId = -1L,
+                        sourceId = message.sourceId,
+                        isMangaFavorite = false,
+                        url = message.mangaCoverUrl,
+                        lastModified = 0L,
                     )
+                } else {
+                    message.mangaCoverUrl
                 }
             }
+
+            MangaCover.Book(
+                data = imageModel,
+                modifier = Modifier.size(60.dp, 80.dp),
+            )
+
             Spacer(modifier = Modifier.width(8.dp))
             Column {
                 Text(
