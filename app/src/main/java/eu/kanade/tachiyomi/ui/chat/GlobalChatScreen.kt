@@ -4,13 +4,28 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -56,30 +71,29 @@ fun GlobalChatScreen(
     onSendMessage: (String) -> Unit,
     onMangaClick: (ChatMessage) -> Unit,
 ) {
-    Scaffold { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues),
-        ) {
-            when (state) {
-                is GlobalChatState.NeedUsername -> {
-                    UsernameEntry(onSetUsername)
-                }
-                is GlobalChatState.ChatRoom -> {
-                    ChatRoomContent(state, onSendMessage, onMangaClick)
-                }
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding(),
+    ) {
+        when (state) {
+            is GlobalChatState.NeedUsername -> {
+                UsernameEntry(onSetUsername)
+            }
+            is GlobalChatState.ChatRoom -> {
+                ChatRoomContent(state, onSendMessage, onMangaClick)
             }
         }
     }
 }
 
 @Composable
-private fun UsernameEntry(onSetUsername: (String) -> Unit) {
+private fun ColumnScope.UsernameEntry(onSetUsername: (String) -> Unit) {
     var username by remember { mutableStateOf("") }
     Column(
         modifier = Modifier
-            .fillMaxSize()
+            .weight(1f)
+            .fillMaxWidth()
             .padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
@@ -105,38 +119,44 @@ private fun UsernameEntry(onSetUsername: (String) -> Unit) {
             Text("Join Chat")
         }
     }
+    // Anchor to bottom safely
+    Spacer(modifier = Modifier.windowInsetsPadding(WindowInsets.ime.union(WindowInsets.navigationBars).only(WindowInsetsSides.Bottom)))
 }
 
 @Composable
-private fun ChatRoomContent(
+private fun ColumnScope.ChatRoomContent(
     state: GlobalChatState.ChatRoom,
     onSendMessage: (String) -> Unit,
     onMangaClick: (ChatMessage) -> Unit,
 ) {
     val listState = rememberLazyListState()
 
-    LaunchedEffect(state.messages.size) {
-        if (state.messages.isNotEmpty()) {
-            listState.animateScrollToItem(state.messages.size - 1)
+    // Reversed list for standard chat behavior (newest at bottom, sticks to bottom)
+    val reversedMessages = remember(state.messages) {
+        state.messages.asReversed()
+    }
+
+    LazyColumn(
+        state = listState,
+        modifier = Modifier
+            .weight(1f)
+            .fillMaxWidth(),
+        reverseLayout = true,
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.Bottom),
+    ) {
+        items(reversedMessages) { message ->
+            ChatBubble(message, isMe = message.sender == state.username, onMangaClick)
         }
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        LazyColumn(
-            state = listState,
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth(),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            items(state.messages) { message ->
-                ChatBubble(message, isMe = message.sender == state.username, onMangaClick)
-            }
-        }
+    HorizontalDivider()
 
-        HorizontalDivider()
-
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .windowInsetsPadding(WindowInsets.ime.union(WindowInsets.navigationBars).only(WindowInsetsSides.Bottom)),
+    ) {
         ChatInput(onSendMessage)
     }
 }
