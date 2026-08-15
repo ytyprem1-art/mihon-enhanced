@@ -10,6 +10,8 @@ class EnhancedPreferences(
 
     val lastDismissedWelcomeVersion: Preference<Int> = preferenceStore.getInt("enhanced_last_dismissed_welcome_version", 0)
 
+    val globalChatUsername: Preference<String> = preferenceStore.getString("enhanced_global_chat_username", "")
+
     companion object {
         const val GRID_AUTO = 0
     }

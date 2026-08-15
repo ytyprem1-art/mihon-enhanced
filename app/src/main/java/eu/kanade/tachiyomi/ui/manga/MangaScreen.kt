@@ -57,6 +57,7 @@ import eu.kanade.tachiyomi.ui.browse.source.linked.LinkedSourceSearchScreen
 import eu.kanade.tachiyomi.ui.category.CategoryScreen
 import eu.kanade.tachiyomi.ui.home.HomeScreen
 import eu.kanade.tachiyomi.ui.manga.notes.MangaNotesScreen
+import eu.kanade.tachiyomi.ui.mod.EnhancedPreferences
 import eu.kanade.tachiyomi.ui.manga.track.TrackInfoDialogHomeScreen
 import eu.kanade.tachiyomi.ui.reader.ReaderActivity
 import eu.kanade.tachiyomi.ui.setting.SettingsScreen
@@ -172,6 +173,7 @@ class MangaScreen(
             onSearch = { query, global -> scope.launch { performSearch(navigator, query, global) } },
             onCoverClicked = viewModel::showCoverDialog,
             onShareClicked = { shareManga(context, viewModel.manga, viewModel.source) }.takeIf { isHttpSource },
+            onShareToChatClicked = { shareMangaToChat(context, viewModel.manga, viewModel.source) }.takeIf { isHttpSource },
             onDownloadActionClicked = viewModel::runDownloadAction.takeIf { !successState.source.isLocalOrStub() },
             onEditCategoryClicked = viewModel::showChangeCategoryDialog.takeIf { successState.manga.favorite },
             onEditFetchIntervalClicked = viewModel::showSetFetchIntervalDialog.takeIf {
@@ -612,6 +614,38 @@ class MangaScreen(
         } catch (e: Exception) {
             context.toast(e.message)
         }
+    }
+
+    private fun shareMangaToChat(context: Context, manga_: Manga?, source_: Source?) {
+        val manga = manga_ ?: return
+        val source = source_ ?: return
+        val enhancedPreferences = Injekt.get<EnhancedPreferences>()
+        val username = enhancedPreferences.globalChatUsername.get()
+
+        if (username.isBlank()) {
+            context.toast("Please set a username in Chat first")
+            return
+        }
+
+        val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+        val messageData = mapOf(
+            "senderName" to username,
+            "text" to "Shared a manga",
+            "timestamp" to com.google.firebase.firestore.FieldValue.serverTimestamp(),
+            "isMangaShare" to true,
+            "mangaId" to manga.id,
+            "mangaTitle" to manga.title,
+            "mangaCoverUrl" to manga.thumbnailUrl,
+            "sourceName" to source.name,
+        )
+
+        db.collection("global_chat").add(messageData)
+            .addOnSuccessListener {
+                context.toast("Shared to Chat")
+            }
+            .addOnFailureListener { e ->
+                context.toast("Failed to share: ${e.message}")
+            }
     }
 
     /**

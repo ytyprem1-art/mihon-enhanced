@@ -15,13 +15,7 @@ plugins {
     alias(libs.plugins.aboutLibraries)
     alias(libs.plugins.androidx.baselineProfile)
     alias(libs.plugins.kotlin.serialization)
-}
-
-if (false) {
-    pluginManager.apply {
-        apply(libs.plugins.google.services.get().pluginId)
-        apply(libs.plugins.firebase.crashlytics.get().pluginId)
-    }
+    alias(libs.plugins.google.services)
 }
 
 val keystorePropertiesFile = rootProject.file("keystore.properties")
@@ -32,7 +26,7 @@ android {
     defaultConfig {
         applicationId = "dev.vishkel.mihon"
 
-        versionCode = 47
+        versionCode = 48
         versionName = "Mihon 0.20.4 • Mod 2.0"
 
         buildConfigField("String", "COMMIT_COUNT", "\"${getLatestCommitCount()}\"")
@@ -330,6 +324,10 @@ dependencies {
     implementation(libs.leakCanary.plumber)
 
     testImplementation(libs.kotlinx.coroutines.test)
+
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.auth)
+    implementation(libs.firebase.firestore)
 }
 
 androidComponents {
