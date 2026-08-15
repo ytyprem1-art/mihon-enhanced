@@ -33,6 +33,7 @@ fun MangaToolbar(
     navigateUp: () -> Unit,
     onClickFilter: () -> Unit,
     onClickShare: (() -> Unit)?,
+    onClickShareToChat: (() -> Unit)?,
     onClickDownload: ((DownloadAction) -> Unit)?,
     onClickEditCategory: (() -> Unit)?,
     onClickRefresh: () -> Unit,
@@ -146,6 +147,14 @@ fun MangaToolbar(
                             AppBar.OverflowAction(
                                 title = stringResource(MR.strings.action_share),
                                 onClick = onClickShare,
+                            ),
+                        )
+                    }
+                    if (onClickShareToChat != null) {
+                        add(
+                            AppBar.OverflowAction(
+                                title = "Share to Chat",
+                                onClick = onClickShareToChat,
                             ),
                         )
                     }

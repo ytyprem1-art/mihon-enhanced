@@ -37,6 +37,7 @@ import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.presentation.util.Screen
 import eu.kanade.presentation.util.isTabletUi
 import eu.kanade.tachiyomi.ui.browse.BrowseTab
+import eu.kanade.tachiyomi.ui.chat.ChatTab
 import eu.kanade.tachiyomi.ui.download.DownloadQueueScreen
 import eu.kanade.tachiyomi.ui.history.HistoryTab
 import eu.kanade.tachiyomi.ui.library.LibraryTab
@@ -79,6 +80,7 @@ object HomeScreen : Screen() {
         UpdateWatchTab,
         HistoryTab,
         BrowseTab,
+        ChatTab,
         MoreTab,
     )
 
@@ -166,6 +168,7 @@ object HomeScreen : Screen() {
                                 }
                                 BrowseTab
                             }
+                            Tab.Chat -> ChatTab
                             is Tab.More -> MoreTab
                         }
 
@@ -332,6 +335,7 @@ object HomeScreen : Screen() {
         data class UpdateWatch(val openInbox: Boolean = false) : Tab
         data class History(val openUpdateWatchInbox: Boolean = false) : Tab
         data class Browse(val toExtensions: Boolean = false) : Tab
+        data object Chat : Tab
         data class More(val toDownloads: Boolean) : Tab
     }
 }
