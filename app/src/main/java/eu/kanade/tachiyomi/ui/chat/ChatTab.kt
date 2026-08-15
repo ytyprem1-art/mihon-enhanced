@@ -57,7 +57,10 @@ data object ChatTab : Tab {
                 }
             },
             onReplyClick = viewModel::setReplyingTo,
-            onCancelReply = { viewModel.setReplyingTo(null) }
+            onCancelReply = { viewModel.setReplyingTo(null) },
+            updatePresence = viewModel::updatePresence,
+            markAsRead = viewModel::markMessagesAsRead,
+            onTyping = viewModel::setTyping,
         )
 
         val currentMessage = selectedMessageForSourcePicker

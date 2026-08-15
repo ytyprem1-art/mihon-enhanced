@@ -21,6 +21,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -34,6 +35,9 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.CreationExtras
 import androidx.lifecycle.viewmodel.compose.viewModel
 import cafe.adriel.voyager.navigator.LocalNavigator
@@ -174,6 +178,27 @@ data class BrowseSourceScreen(
 
         // MOD START: Manganato Cloudflare Auto-Challenge
         var isWebViewSolved by remember { mutableStateOf(false) }
+        var isReturningFromWebView by rememberSaveable { mutableStateOf(false) }
+
+        val lifecycleOwner = LocalLifecycleOwner.current
+        DisposableEffect(lifecycleOwner) {
+            val observer = LifecycleEventObserver { _, event ->
+                if (event == Lifecycle.Event.ON_RESUME) {
+                    if (isReturningFromWebView) {
+                        isReturningFromWebView = false
+                        mangaLazyPagingItems.refresh()
+                    } else if (viewModel.hasAutoTriggeredCloudflare &&
+                        mangaLazyPagingItems.loadState.refresh !is LoadState.NotLoading) {
+                        // If we auto-triggered but are still stuck in loading or error, force refresh
+                        mangaLazyPagingItems.refresh()
+                    }
+                }
+            }
+            lifecycleOwner.lifecycle.addObserver(observer)
+            onDispose {
+                lifecycleOwner.lifecycle.removeObserver(observer)
+            }
+        }
 
         LaunchedEffect(state.listing) {
             val listing = state.listing
@@ -193,10 +218,10 @@ data class BrowseSourceScreen(
                             initialTitle = source.name,
                             sourceId = source.id,
                             onDismissed = {
+                                isReturningFromWebView = true
                                 if (!isWebViewSolved) {
                                     CloudflareChallengeHelper.invalidateManganatoClearance()
                                 }
-                                mangaLazyPagingItems.refresh()
                             },
                             onAutoCloseCondition = { url, html ->
                                 val isSolved = url.contains("/search/story/") &&
@@ -234,10 +259,10 @@ data class BrowseSourceScreen(
                         initialTitle = source.name,
                         sourceId = source.id,
                         onDismissed = {
+                            isReturningFromWebView = true
                             if (!isWebViewSolved) {
                                 CloudflareChallengeHelper.invalidateManganatoClearance()
                             }
-                            mangaLazyPagingItems.retry()
                         },
                         onAutoCloseCondition = { url, html ->
                             val isSolved = url.contains("/search/story/") &&
@@ -263,6 +288,9 @@ data class BrowseSourceScreen(
                     url = source.getHomeUrl(),
                     initialTitle = source.name,
                     sourceId = source.id,
+                    onDismissed = {
+                        isReturningFromWebView = true
+                    },
                 ),
             )
         }
