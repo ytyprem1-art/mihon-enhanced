@@ -55,7 +55,9 @@ data object ChatTab : Tab {
                 if (!message.mangaTitle.isNullOrBlank()) {
                     selectedMessageForSourcePicker = message
                 }
-            }
+            },
+            onReplyClick = viewModel::setReplyingTo,
+            onCancelReply = { viewModel.setReplyingTo(null) }
         )
 
         val currentMessage = selectedMessageForSourcePicker
