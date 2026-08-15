@@ -1,6 +1,7 @@
 package eu.kanade.tachiyomi.ui.chat
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -50,6 +51,7 @@ fun GlobalChatScreen(
     state: GlobalChatState,
     onSetUsername: (String) -> Unit,
     onSendMessage: (String) -> Unit,
+    onMangaClick: (ChatMessage) -> Unit,
 ) {
     Scaffold { paddingValues ->
         Box(
@@ -62,7 +64,7 @@ fun GlobalChatScreen(
                     UsernameEntry(onSetUsername)
                 }
                 is GlobalChatState.ChatRoom -> {
-                    ChatRoomContent(state, onSendMessage)
+                    ChatRoomContent(state, onSendMessage, onMangaClick)
                 }
             }
         }
@@ -106,6 +108,7 @@ private fun UsernameEntry(onSetUsername: (String) -> Unit) {
 private fun ChatRoomContent(
     state: GlobalChatState.ChatRoom,
     onSendMessage: (String) -> Unit,
+    onMangaClick: (ChatMessage) -> Unit,
 ) {
     val listState = rememberLazyListState()
 
@@ -125,7 +128,7 @@ private fun ChatRoomContent(
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             items(state.messages) { message ->
-                ChatBubble(message, isMe = message.sender == state.username)
+                ChatBubble(message, isMe = message.sender == state.username, onMangaClick)
             }
         }
 
@@ -136,7 +139,11 @@ private fun ChatRoomContent(
 }
 
 @Composable
-private fun ChatBubble(message: ChatMessage, isMe: Boolean) {
+private fun ChatBubble(
+    message: ChatMessage,
+    isMe: Boolean,
+    onMangaClick: (ChatMessage) -> Unit,
+) {
     val alignment = if (isMe) Alignment.End else Alignment.Start
     val backgroundColor = if (isMe) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.secondaryContainer
     val textColor = if (isMe) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSecondaryContainer
@@ -165,7 +172,7 @@ private fun ChatBubble(message: ChatMessage, isMe: Boolean) {
                 }
 
                 if (message.isMangaShare) {
-                    MangaShareCard(message)
+                    MangaShareCard(message, onMangaClick)
                 } else {
                     Text(
                         text = message.text,
@@ -189,11 +196,15 @@ private fun ChatBubble(message: ChatMessage, isMe: Boolean) {
 }
 
 @Composable
-private fun MangaShareCard(message: ChatMessage) {
+private fun MangaShareCard(
+    message: ChatMessage,
+    onMangaClick: (ChatMessage) -> Unit,
+) {
     Card(
         modifier = Modifier
             .width(240.dp)
-            .padding(vertical = 4.dp),
+            .padding(vertical = 4.dp)
+            .clickable { onMangaClick(message) },
     ) {
         Row(
             modifier = Modifier.padding(8.dp),

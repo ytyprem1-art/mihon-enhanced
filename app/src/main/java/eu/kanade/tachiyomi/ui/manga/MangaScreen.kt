@@ -58,6 +58,7 @@ import eu.kanade.tachiyomi.ui.category.CategoryScreen
 import eu.kanade.tachiyomi.ui.home.HomeScreen
 import eu.kanade.tachiyomi.ui.manga.notes.MangaNotesScreen
 import eu.kanade.tachiyomi.ui.mod.EnhancedPreferences
+import java.net.URI
 import eu.kanade.tachiyomi.ui.manga.track.TrackInfoDialogHomeScreen
 import eu.kanade.tachiyomi.ui.reader.ReaderActivity
 import eu.kanade.tachiyomi.ui.setting.SettingsScreen
@@ -628,12 +629,22 @@ class MangaScreen(
         }
 
         val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+        val sourceDomain = (source as? HttpSource)?.baseUrl?.let {
+            try {
+                URI(it).host?.removePrefix("www.")
+            } catch (e: Exception) {
+                null
+            }
+        }
+
         val messageData = mapOf(
             "senderName" to username,
             "text" to "Shared a manga",
             "timestamp" to com.google.firebase.firestore.FieldValue.serverTimestamp(),
             "isMangaShare" to true,
-            "mangaId" to manga.id,
+            "mangaUrl" to manga.url,
+            "sourceId" to manga.source,
+            "sourceDomain" to sourceDomain,
             "mangaTitle" to manga.title,
             "mangaCoverUrl" to manga.thumbnailUrl,
             "sourceName" to source.name,
