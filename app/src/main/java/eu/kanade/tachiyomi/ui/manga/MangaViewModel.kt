@@ -36,6 +36,7 @@ import eu.kanade.tachiyomi.data.download.model.Download
 import eu.kanade.tachiyomi.data.track.EnhancedTracker
 import eu.kanade.tachiyomi.data.track.TrackerManager
 import eu.kanade.tachiyomi.source.Source
+import eu.kanade.tachiyomi.ui.mod.EnhancedPreferences
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
 import eu.kanade.tachiyomi.ui.mod.updatewatch.worker.UpdateWatchRefreshScheduler
 import eu.kanade.tachiyomi.util.chapter.getNextUnread
@@ -1195,6 +1196,8 @@ class MangaViewModel(
         data class RemoveLinkedMember(val member: Manga, val isLast: Boolean) : Dialog
 
         data object TrackUpdateWatch : Dialog
+
+        data class ShareToChat(val manga: Manga, val source: Source) : Dialog
     }
 
     fun dismissDialog() {
@@ -1215,6 +1218,11 @@ class MangaViewModel(
 
     fun showCoverDialog() {
         updateSuccessState { it.copy(dialog = Dialog.FullCover) }
+    }
+
+    fun showShareToChatDialog() {
+        val state = successState ?: return
+        updateSuccessState { it.copy(dialog = Dialog.ShareToChat(state.manga, state.source)) }
     }
 
     fun showMigrateDialog(duplicate: Manga) {
@@ -1456,6 +1464,49 @@ class MangaViewModel(
                 snackbarHostState.showSnackbar("Failed to delete group: ${e.message}")
             }
         }
+    }
+
+    fun shareMangaToChat(manga: Manga, source: Source, caption: String) {
+        val enhancedPreferences = Injekt.get<EnhancedPreferences>()
+        val username = enhancedPreferences.globalChatUsername.get()
+
+        if (username.isBlank()) {
+            context.toast("Please set a username in Chat first")
+            return
+        }
+
+        val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+        val sourceDomain = (source as? eu.kanade.tachiyomi.source.online.HttpSource)?.baseUrl?.let {
+            try {
+                java.net.URI(it).host?.removePrefix("www.")
+            } catch (e: Exception) {
+                null
+            }
+        }
+
+        val text = caption.ifBlank { "Shared a manga: ${manga.title}" }
+
+        val messageData = mapOf(
+            "senderName" to username,
+            "senderUid" to com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid,
+            "text" to text,
+            "timestamp" to com.google.firebase.firestore.FieldValue.serverTimestamp(),
+            "isMangaShare" to true,
+            "mangaUrl" to manga.url,
+            "sourceId" to manga.source,
+            "sourceDomain" to sourceDomain,
+            "mangaTitle" to manga.title,
+            "mangaCoverUrl" to manga.thumbnailUrl,
+            "sourceName" to source.name,
+        )
+
+        db.collection("global_chat").add(messageData)
+            .addOnSuccessListener {
+                context.toast("Shared to Chat")
+            }
+            .addOnFailureListener { e ->
+                context.toast("Failed to share: ${e.message}")
+            }
     }
 
     sealed interface State {

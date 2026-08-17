@@ -49,6 +49,7 @@ import com.google.android.material.transition.platform.MaterialContainerTransfor
 import com.hippo.unifile.UniFile
 import eu.kanade.core.util.ifSourcesLoaded
 import eu.kanade.domain.base.BasePreferences
+import eu.kanade.presentation.manga.components.ShareMangaToChatDialog
 import eu.kanade.presentation.reader.DisplayRefreshHost
 import eu.kanade.presentation.reader.OrientationSelectDialog
 import eu.kanade.presentation.reader.ReaderContentOverlay
@@ -274,7 +275,8 @@ class ReaderActivity : BaseActivity() {
         }
 
         val onDismissRequest = viewModel::closeDialog
-        when (state.dialog) {
+        val dialog = state.dialog
+        when (dialog) {
             is ReaderViewModel.Dialog.Loading -> {
                 AlertDialog(
                     onDismissRequest = {},
@@ -326,6 +328,17 @@ class ReaderActivity : BaseActivity() {
                     onSetAsCover = viewModel::setAsCover,
                     onShare = viewModel::shareImage,
                     onSave = viewModel::saveImage,
+                )
+            }
+            is ReaderViewModel.Dialog.ShareToChat -> {
+                ShareMangaToChatDialog(
+                    manga = dialog.manga,
+                    sourceName = dialog.source.name,
+                    onDismissRequest = onDismissRequest,
+                    onConfirm = { caption ->
+                        viewModel.shareMangaToChat(dialog.manga, dialog.source, caption)
+                        onDismissRequest()
+                    },
                 )
             }
             null -> {}
@@ -477,6 +490,7 @@ class ReaderActivity : BaseActivity() {
             onOpenInWebView = ::openChapterInWebView.takeIf { isHttpSource },
             onOpenInBrowser = ::openChapterInBrowser.takeIf { isHttpSource },
             onShare = ::shareChapter.takeIf { isHttpSource },
+            onShareToChat = viewModel::showShareToChatDialog,
 
             chapterNavigatorType = if (!verticalNavigator) {
                 if (state.viewer is R2LPagerViewer) {
