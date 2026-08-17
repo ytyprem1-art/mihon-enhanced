@@ -61,6 +61,8 @@ data object ChatTab : Tab {
             updatePresence = viewModel::updatePresence,
             markAsRead = viewModel::markMessagesAsRead,
             onTyping = viewModel::setTyping,
+            startListeners = viewModel::startListeners,
+            stopListeners = viewModel::stopListeners,
         )
 
         val currentMessage = selectedMessageForSourcePicker
