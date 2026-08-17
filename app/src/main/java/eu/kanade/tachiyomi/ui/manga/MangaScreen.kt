@@ -45,6 +45,7 @@ import eu.kanade.presentation.manga.components.LinkedSourcesSheet
 import eu.kanade.presentation.manga.components.MangaCoverDialog
 import eu.kanade.presentation.manga.components.ScanlatorFilterDialog
 import eu.kanade.presentation.manga.components.SetIntervalDialog
+import eu.kanade.presentation.manga.components.ShareMangaToChatDialog
 import eu.kanade.presentation.manga.components.TrackUpdateWatchDialog
 import eu.kanade.presentation.util.AssistContentScreen
 import eu.kanade.presentation.util.Screen
@@ -197,7 +198,7 @@ class MangaScreen(
             onSearch = { query, global -> scope.launch { performSearch(navigator, query, global) } },
             onCoverClicked = viewModel::showCoverDialog,
             onShareClicked = { shareManga(context, viewModel.manga, viewModel.source) }.takeIf { isHttpSource },
-            onShareToChatClicked = { shareMangaToChat(context, viewModel.manga, viewModel.source) }.takeIf { isHttpSource },
+            onShareToChatClicked = viewModel::showShareToChatDialog,
             onDownloadActionClicked = viewModel::runDownloadAction.takeIf { !successState.source.isLocalOrStub() },
             onEditCategoryClicked = viewModel::showChangeCategoryDialog.takeIf { successState.manga.favorite },
             onEditFetchIntervalClicked = viewModel::showSetFetchIntervalDialog.takeIf {
@@ -586,6 +587,17 @@ class MangaScreen(
                     onConfirm = viewModel::trackUpdateWatch,
                 )
             }
+            is MangaViewModel.Dialog.ShareToChat -> {
+                ShareMangaToChatDialog(
+                    manga = dialog.manga,
+                    sourceName = dialog.source.name,
+                    onDismissRequest = onDismissRequest,
+                    onConfirm = { caption ->
+                        viewModel.shareMangaToChat(dialog.manga, dialog.source, caption)
+                        onDismissRequest()
+                    },
+                )
+            }
         }
 
         if (showScanlatorsDialog) {
@@ -644,48 +656,6 @@ class MangaScreen(
         } catch (e: Exception) {
             context.toast(e.message)
         }
-    }
-
-    private fun shareMangaToChat(context: Context, manga_: Manga?, source_: Source?) {
-        val manga = manga_ ?: return
-        val source = source_ ?: return
-        val enhancedPreferences = Injekt.get<EnhancedPreferences>()
-        val username = enhancedPreferences.globalChatUsername.get()
-
-        if (username.isBlank()) {
-            context.toast("Please set a username in Chat first")
-            return
-        }
-
-        val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
-        val sourceDomain = (source as? HttpSource)?.baseUrl?.let {
-            try {
-                URI(it).host?.removePrefix("www.")
-            } catch (e: Exception) {
-                null
-            }
-        }
-
-        val messageData = mapOf(
-            "senderName" to username,
-            "text" to "Shared a manga",
-            "timestamp" to com.google.firebase.firestore.FieldValue.serverTimestamp(),
-            "isMangaShare" to true,
-            "mangaUrl" to manga.url,
-            "sourceId" to manga.source,
-            "sourceDomain" to sourceDomain,
-            "mangaTitle" to manga.title,
-            "mangaCoverUrl" to manga.thumbnailUrl,
-            "sourceName" to source.name,
-        )
-
-        db.collection("global_chat").add(messageData)
-            .addOnSuccessListener {
-                context.toast("Shared to Chat")
-            }
-            .addOnFailureListener { e ->
-                context.toast("Failed to share: ${e.message}")
-            }
     }
 
     /**
