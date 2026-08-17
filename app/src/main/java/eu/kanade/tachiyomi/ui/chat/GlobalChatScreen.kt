@@ -351,10 +351,10 @@ private fun ColumnScope.ChatRoomContent(
             }
 
             // Look ahead to check if date changed (since it's reversed, we check the next item which is chronologically previous)
-            val prevMsg = reversedMessages.getOrNull(index + 1)
-            val prevDate = prevMsg?.let { formatDateHeader(it.timestamp) }
+            val nextMsg = reversedMessages.getOrNull(index + 1)
+            val nextDate = nextMsg?.let { formatDateHeader(it.timestamp) }
 
-            if (currentDate != prevDate) {
+            if (currentDate != nextDate) {
                 items.add(ChatDisplayItem.DateHeader(currentDate))
             }
         }
@@ -364,30 +364,9 @@ private fun ColumnScope.ChatRoomContent(
     // Initial scroll to unread divider
     LaunchedEffect(sessionFirstUnreadId) {
         if (sessionFirstUnreadId != null) {
-            val index = displayItems.indexOf(ChatDisplayItem.UnreadDivider)
+            val index = displayItems.indexOfFirst { it is ChatDisplayItem.UnreadDivider }
             if (index != -1) {
                 listState.scrollToItem(index)
-            }
-        }
-    }
-
-    // Auto-scroll to bottom on new messages
-    val currentUid = remember(state) {
-        state.onlineUsers.find { it.username == state.username }?.uid
-    }
-    LaunchedEffect(displayItems.size) {
-        if (displayItems.isNotEmpty()) {
-            val firstItem = displayItems.firstOrNull()
-            val isFromMe = if (firstItem is ChatDisplayItem.Message) {
-                firstItem.message.senderUid == currentUid || firstItem.message.sender == state.username
-            } else false
-
-            // If I sent it, always scroll. If someone else sent it, scroll only if I'm already at the bottom.
-            if (isFromMe || listState.firstVisibleItemIndex <= 1) {
-                // Ensure composition has happened so the new item exists in layout
-                kotlinx.coroutines.delay(16.milliseconds)
-                val targetIndex = if (listState.layoutInfo.reverseLayout) 0 else maxOf(0, displayItems.size - 1)
-                listState.animateScrollToItem(targetIndex)
             }
         }
     }
@@ -402,7 +381,6 @@ private fun ColumnScope.ChatRoomContent(
         ) {
             items(
                 items = displayItems,
-                key = { it.key }
             ) { item ->
                 when (item) {
                     is ChatDisplayItem.Message -> {
@@ -504,13 +482,6 @@ private fun ColumnScope.ChatRoomContent(
                 onSendMessage = {
                     onSendMessage(it)
                     inputText = ""
-                    // Force immediate scroll for local user
-                    scope.launch {
-                        // Settle frame and IME animation to avoid clipping/race conditions
-                        kotlinx.coroutines.delay(50.milliseconds)
-                        val targetIndex = if (listState.layoutInfo.reverseLayout) 0 else maxOf(0, displayItems.size - 1)
-                        listState.animateScrollToItem(targetIndex)
-                    }
                 },
                 onTyping = onTyping,
             )
