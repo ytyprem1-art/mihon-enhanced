@@ -21,6 +21,7 @@ fun ReaderTopBar(
     onOpenInWebView: (() -> Unit)?,
     onOpenInBrowser: (() -> Unit)?,
     onShare: (() -> Unit)?,
+    onShareToChat: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
     AppBar(
@@ -69,6 +70,14 @@ fun ReaderTopBar(
                         add(
                             AppBar.OverflowAction(
                                 title = stringResource(MR.strings.action_share),
+                                onClick = it,
+                            ),
+                        )
+                    }
+                    onShareToChat?.let {
+                        add(
+                            AppBar.OverflowAction(
+                                title = "Share to Chat",
                                 onClick = it,
                             ),
                         )

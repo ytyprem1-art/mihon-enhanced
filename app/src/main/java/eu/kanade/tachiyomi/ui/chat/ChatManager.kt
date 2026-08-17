@@ -70,6 +70,8 @@ class ChatManager {
                             replyToMessageId = doc.getString("replyToMessageId"),
                             replyToText = doc.getString("replyToText"),
                             replyToSenderName = doc.getString("replyToSenderName"),
+                            chapterName = doc.getString("chapterName"),
+                            chapterUrl = doc.getString("chapterUrl"),
                             readBy = readBy,
                         )
                     }.reversed() // Ascending order for UI

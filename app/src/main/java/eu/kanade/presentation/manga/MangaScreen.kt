@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.asPaddingValues
@@ -15,9 +16,12 @@ import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
@@ -26,6 +30,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.outlined.Forum
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.SmallExtendedFloatingActionButton
 import androidx.compose.material3.SnackbarHost
@@ -430,6 +436,30 @@ private fun MangaScreenSmallImpl(
                             )
                         }
 
+                        if (onShareToChatClicked != null) {
+                            item(
+                                key = MangaScreenItem.SHARE_TO_CHAT,
+                                contentType = MangaScreenItem.SHARE_TO_CHAT,
+                            ) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                FilledTonalButton(
+                                    onClick = onShareToChatClicked,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp),
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.Forum,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(20.dp),
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(text = "Share to chat")
+                                }
+                                Spacer(modifier = Modifier.height(12.dp))
+                            }
+                        }
+
                         item(
                             key = MangaScreenItem.DESCRIPTION_WITH_TAG,
                             contentType = MangaScreenItem.DESCRIPTION_WITH_TAG,
@@ -686,6 +716,26 @@ fun MangaScreenLargeImpl(
                                 updateWatchTracked = state.isUpdateWatchTracked,
                                 onUpdateWatchClicked = onUpdateWatchClicked,
                             )
+
+                            if (onShareToChatClicked != null) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                FilledTonalButton(
+                                    onClick = onShareToChatClicked,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp),
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.Forum,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(20.dp),
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(text = "Share to chat")
+                                }
+                                Spacer(modifier = Modifier.height(12.dp))
+                            }
+
                             ExpandableMangaDescription(
                                 defaultExpandState = true,
                                 description = state.manga.description,
