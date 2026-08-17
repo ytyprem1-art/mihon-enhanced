@@ -35,6 +35,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -59,10 +60,12 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -102,11 +105,34 @@ fun GlobalChatScreen(
 ) {
     val lifecycleOwner = LocalLifecycleOwner.current
 
+    // Snapshot the unread state for the current viewing session.
+    var sessionFirstUnreadId by rememberSaveable { mutableStateOf<String?>(null) }
+    var hasSnapshottedUnread by rememberSaveable { mutableStateOf(false) }
+
     DisposableEffect(Unit) {
         updatePresence(true)
-        markAsRead()
         onDispose {
             updatePresence(false)
+            // Reset session unread state when the screen is disposed (navigated away)
+            sessionFirstUnreadId = null
+            hasSnapshottedUnread = false
+        }
+    }
+
+    // Mark as read and snapshot once on entry
+    LaunchedEffect(state) {
+        val chatRoom = state as? GlobalChatState.ChatRoom ?: return@LaunchedEffect
+        if (!hasSnapshottedUnread && chatRoom.messages.isNotEmpty()) {
+            // Threshold: Only show unread divider if there are >= 3 unread messages
+            if (chatRoom.unreadCount >= 3) {
+                val currentUid = chatRoom.onlineUsers.find { it.username == chatRoom.username }?.uid
+                val firstUnread = chatRoom.messages.find {
+                    it.senderUid != currentUid && !it.readBy.containsKey(currentUid)
+                }
+                sessionFirstUnreadId = firstUnread?.id
+            }
+            hasSnapshottedUnread = true
+            markAsRead()
         }
     }
 
@@ -114,9 +140,9 @@ fun GlobalChatScreen(
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 updatePresence(true)
-                markAsRead()
             } else if (event == Lifecycle.Event.ON_PAUSE) {
                 updatePresence(false)
+                markAsRead()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -125,10 +151,12 @@ fun GlobalChatScreen(
         }
     }
 
-    // Auto-mark as read when new messages arrive while screen is active
+    // Auto-mark as read for incoming messages during the session if we are already caught up
     LaunchedEffect(state) {
         if (state is GlobalChatState.ChatRoom && lifecycleOwner.lifecycle.currentState == Lifecycle.State.RESUMED) {
-            markAsRead()
+            if (sessionFirstUnreadId == null) {
+                markAsRead()
+            }
         }
     }
 
@@ -143,7 +171,15 @@ fun GlobalChatScreen(
             }
             is GlobalChatState.ChatRoom -> {
                 PresenceHeader(users = state.onlineUsers, unreadCount = state.unreadCount)
-                ChatRoomContent(state, onSendMessage, onMangaClick, onReplyClick, onCancelReply, onTyping)
+                ChatRoomContent(
+                    state = state,
+                    onSendMessage = onSendMessage,
+                    onMangaClick = onMangaClick,
+                    onReplyClick = onReplyClick,
+                    onCancelReply = onCancelReply,
+                    onTyping = onTyping,
+                    sessionFirstUnreadId = sessionFirstUnreadId,
+                )
             }
         }
     }
@@ -272,6 +308,7 @@ private fun ColumnScope.ChatRoomContent(
     onReplyClick: (ChatMessage) -> Unit,
     onCancelReply: () -> Unit,
     onTyping: (Boolean) -> Unit,
+    sessionFirstUnreadId: String?,
 ) {
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
@@ -280,6 +317,37 @@ private fun ColumnScope.ChatRoomContent(
     // Reversed list for standard chat behavior (newest at bottom, sticks to bottom)
     val reversedMessages = remember(state.messages) {
         state.messages.asReversed()
+    }
+
+    // displayItems order: [Newest ... Oldest Unread ... Divider ... Oldest]
+    val displayItems = remember(reversedMessages, sessionFirstUnreadId) {
+        val items = mutableListOf<ChatDisplayItem>()
+        reversedMessages.forEach { msg ->
+            items.add(ChatDisplayItem.Message(msg))
+            // Place divider directly ABOVE the oldest unread message.
+            // In reversed list, this means adding it immediately AFTER that message.
+            if (msg.id == sessionFirstUnreadId) {
+                items.add(ChatDisplayItem.UnreadDivider)
+            }
+        }
+        items
+    }
+
+    // Initial scroll to unread divider
+    LaunchedEffect(sessionFirstUnreadId) {
+        if (sessionFirstUnreadId != null) {
+            val index = displayItems.indexOf(ChatDisplayItem.UnreadDivider)
+            if (index != -1) {
+                listState.scrollToItem(index)
+            }
+        }
+    }
+
+    // Auto-scroll to bottom on new incoming messages
+    LaunchedEffect(state.messages.size) {
+        if (state.messages.isNotEmpty() && listState.firstVisibleItemIndex <= 1) {
+            listState.animateScrollToItem(0)
+        }
     }
 
     LazyColumn(
@@ -291,25 +359,38 @@ private fun ColumnScope.ChatRoomContent(
         contentPadding = PaddingValues(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.Bottom),
     ) {
-        items(reversedMessages) { message ->
-            val isMe = message.senderUid == (state as? GlobalChatState.ChatRoom)?.onlineUsers?.find { it.username == state.username }?.uid
-                || message.sender == state.username
+        items(
+            items = displayItems,
+            key = { it.key }
+        ) { item ->
+            when (item) {
+                is ChatDisplayItem.Message -> {
+                    val message = item.message
+                    val isMe = message.senderUid == state.onlineUsers.find { it.username == state.username }?.uid
+                        || message.sender == state.username
 
-            ChatBubble(
-                message = message,
-                isMe = isMe,
-                onMangaClick = onMangaClick,
-                onReplyClick = onReplyClick,
-                onReplyJumpClick = { replyId ->
-                    val index = reversedMessages.indexOfFirst { it.id == replyId }
-                    if (index != -1) {
-                        scope.launch {
-                            listState.animateScrollToItem(index)
-                        }
-                    }
-                },
-                allUsers = state.onlineUsers
-            )
+                    ChatBubble(
+                        message = message,
+                        isMe = isMe,
+                        onMangaClick = onMangaClick,
+                        onReplyClick = onReplyClick,
+                        onReplyJumpClick = { replyId ->
+                            val replyIndex = displayItems.indexOfFirst {
+                                it is ChatDisplayItem.Message && it.message.id == replyId
+                            }
+                            if (replyIndex != -1) {
+                                scope.launch {
+                                    listState.animateScrollToItem(replyIndex)
+                                }
+                            }
+                        },
+                        allUsers = state.onlineUsers
+                    )
+                }
+                ChatDisplayItem.UnreadDivider -> {
+                    UnreadMessagesDivider()
+                }
+            }
         }
     }
 
@@ -340,6 +421,10 @@ private fun ColumnScope.ChatRoomContent(
                 onSendMessage = {
                     onSendMessage(it)
                     inputText = ""
+                    // Immediate scroll to bottom on send
+                    scope.launch {
+                        listState.animateScrollToItem(0)
+                    }
                 },
                 onTyping = onTyping,
             )
@@ -389,6 +474,40 @@ private fun ReplyPreview(
                 modifier = Modifier.size(16.dp),
             )
         }
+    }
+}
+
+@Composable
+private fun UnreadMessagesDivider() {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 16.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Surface(
+            color = MaterialTheme.colorScheme.secondaryContainer,
+            shape = RoundedCornerShape(16.dp),
+        ) {
+            Text(
+                text = "Unread Messages",
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
+            )
+        }
+    }
+}
+
+private sealed class ChatDisplayItem {
+    abstract val key: String
+
+    data class Message(val message: ChatMessage) : ChatDisplayItem() {
+        override val key: String = message.id
+    }
+
+    data object UnreadDivider : ChatDisplayItem() {
+        override val key: String = "unread-divider"
     }
 }
 
