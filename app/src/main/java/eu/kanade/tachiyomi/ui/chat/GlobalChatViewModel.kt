@@ -266,5 +266,7 @@ data class ChatMessage(
     val replyToMessageId: String? = null,
     val replyToText: String? = null,
     val replyToSenderName: String? = null,
+    val chapterName: String? = null,
+    val chapterUrl: String? = null,
     val readBy: Map<String, Long> = emptyMap(),
 )

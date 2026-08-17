@@ -38,6 +38,7 @@ import eu.kanade.tachiyomi.util.chapter.filterDownloaded
 import eu.kanade.tachiyomi.util.chapter.removeDuplicates
 import eu.kanade.tachiyomi.util.editCover
 import eu.kanade.tachiyomi.util.lang.byteSize
+import eu.kanade.tachiyomi.util.system.toast
 import eu.kanade.tachiyomi.util.storage.DiskUtil
 import eu.kanade.tachiyomi.util.storage.cacheImageDir
 import kotlinx.coroutines.CancellationException
@@ -792,6 +793,62 @@ class ReaderViewModel @JvmOverloads constructor(
         mutableState.update { it.copy(brightnessOverlayValue = value) }
     }
 
+    fun showShareToChatDialog() {
+        val manga = manga ?: return
+        val source = getSource() ?: return
+        mutableState.update { it.copy(dialog = Dialog.ShareToChat(manga, source)) }
+    }
+
+    fun shareMangaToChat(manga: Manga, source: eu.kanade.tachiyomi.source.Source, caption: String) {
+        val enhancedPreferences = Injekt.get<eu.kanade.tachiyomi.ui.mod.EnhancedPreferences>()
+        val username = enhancedPreferences.globalChatUsername.get()
+
+        if (username.isBlank()) {
+            Injekt.get<Application>().toast("Please set a username in Chat first")
+            return
+        }
+
+        val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+        val sourceDomain = (source as? HttpSource)?.baseUrl?.let {
+            try {
+                java.net.URI(it).host?.removePrefix("www.")
+            } catch (e: Exception) {
+                null
+            }
+        }
+
+        val text = caption.ifBlank { "Shared a manga: ${manga.title}" }
+
+        val currentChapter = getCurrentChapter()?.chapter
+
+        val messageData = mutableMapOf<String, Any?>(
+            "senderName" to username,
+            "senderUid" to com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid,
+            "text" to text,
+            "timestamp" to com.google.firebase.firestore.FieldValue.serverTimestamp(),
+            "isMangaShare" to true,
+            "mangaUrl" to manga.url,
+            "sourceId" to manga.source,
+            "sourceDomain" to sourceDomain,
+            "mangaTitle" to manga.title,
+            "mangaCoverUrl" to manga.thumbnailUrl,
+            "sourceName" to source.name,
+        )
+
+        if (currentChapter != null) {
+            messageData["chapterName"] = currentChapter.name
+            messageData["chapterUrl"] = currentChapter.url
+        }
+
+        db.collection("global_chat").add(messageData)
+            .addOnSuccessListener {
+                Injekt.get<Application>().toast("Shared to Chat")
+            }
+            .addOnFailureListener { e ->
+                Injekt.get<Application>().toast("Failed to share: ${e.message}")
+            }
+    }
+
     /**
      * Saves the image of the selected page on the pictures directory and notifies the UI of the result.
      * There's also a notification to allow sharing the image somewhere else or deleting it.
@@ -975,6 +1032,7 @@ class ReaderViewModel @JvmOverloads constructor(
         data object ReadingModeSelect : Dialog
         data object OrientationModeSelect : Dialog
         data class PageActions(val page: ReaderPage) : Dialog
+        data class ShareToChat(val manga: Manga, val source: eu.kanade.tachiyomi.source.Source) : Dialog
     }
 
     sealed interface Event {

@@ -85,6 +85,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import coil3.request.ImageRequest
 import coil3.request.crossfade
+import eu.kanade.presentation.manga.components.DotSeparatorText
 import eu.kanade.presentation.manga.components.MangaCover
 import kotlinx.coroutines.launch
 import tachiyomi.domain.manga.model.MangaCover as MangaCoverModel
@@ -710,13 +711,27 @@ private fun ChatBubble(
             ),
         ) {
             Column(modifier = Modifier.padding(8.dp)) {
-                if (!isMe) {
-                    Text(
-                        text = message.sender,
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = labelColor,
-                    )
+                if (!isMe || message.isMangaShare) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (!isMe) {
+                            Text(
+                                text = message.sender,
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = labelColor,
+                            )
+                        }
+                        if (message.isMangaShare) {
+                            if (!isMe) {
+                                DotSeparatorText()
+                            }
+                            Text(
+                                text = if (message.chapterName != null) "Shared a chapter" else "Shared a manga",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = textColor.copy(alpha = 0.6f),
+                            )
+                        }
+                    }
                 }
 
                 // Reply info
@@ -757,6 +772,16 @@ private fun ChatBubble(
 
                 if (message.isMangaShare) {
                     MangaShareCard(message, onMangaClick)
+
+                    // Render custom caption UNDER the card if present and not the default fallback
+                    if (message.text.isNotBlank() && !message.text.startsWith("Shared a manga:")) {
+                        Text(
+                            text = message.text,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = textColor,
+                            modifier = Modifier.padding(top = 4.dp, bottom = 4.dp),
+                        )
+                    }
                 } else {
                     Text(
                         text = message.text,
@@ -881,11 +906,22 @@ private fun MangaShareCard(
                     style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.Bold,
                     maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
                 )
+                if (!message.chapterName.isNullOrBlank()) {
+                    Text(
+                        text = message.chapterName,
+                        style = MaterialTheme.typography.labelSmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
                 Text(
                     text = message.sourceName ?: "Unknown Source",
                     style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
         }
