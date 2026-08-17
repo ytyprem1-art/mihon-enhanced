@@ -41,6 +41,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.RemoveRedEye
@@ -49,6 +50,7 @@ import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -87,7 +89,9 @@ import eu.kanade.presentation.manga.components.MangaCover
 import kotlinx.coroutines.launch
 import tachiyomi.domain.manga.model.MangaCover as MangaCoverModel
 import tachiyomi.presentation.core.components.material.Scaffold
+import kotlin.time.Duration.Companion.milliseconds
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
@@ -102,6 +106,8 @@ fun GlobalChatScreen(
     updatePresence: (Boolean) -> Unit,
     markAsRead: () -> Unit,
     onTyping: (Boolean) -> Unit,
+    startListeners: () -> Unit,
+    stopListeners: () -> Unit,
 ) {
     val lifecycleOwner = LocalLifecycleOwner.current
 
@@ -110,9 +116,11 @@ fun GlobalChatScreen(
     var hasSnapshottedUnread by rememberSaveable { mutableStateOf(false) }
 
     DisposableEffect(Unit) {
+        startListeners()
         updatePresence(true)
         onDispose {
             updatePresence(false)
+            stopListeners()
             // Reset session unread state when the screen is disposed (navigated away)
             sessionFirstUnreadId = null
             hasSnapshottedUnread = false
@@ -126,10 +134,19 @@ fun GlobalChatScreen(
             // Threshold: Only show unread divider if there are >= 3 unread messages
             if (chatRoom.unreadCount >= 3) {
                 val currentUid = chatRoom.onlineUsers.find { it.username == chatRoom.username }?.uid
-                val firstUnread = chatRoom.messages.find {
+                // Find the oldest unread message (first in chronologically ascending list)
+                val unreadMessages = chatRoom.messages.filter {
                     it.senderUid != currentUid && !it.readBy.containsKey(currentUid)
                 }
-                sessionFirstUnreadId = firstUnread?.id
+
+                // Smart Unread Cap: If > 30 unread, only jump to the last 30
+                val targetFirstUnread = if (unreadMessages.size > 30) {
+                    unreadMessages[unreadMessages.size - 30]
+                } else {
+                    unreadMessages.firstOrNull()
+                }
+
+                sessionFirstUnreadId = targetFirstUnread?.id
             }
             hasSnapshottedUnread = true
             markAsRead()
@@ -319,15 +336,25 @@ private fun ColumnScope.ChatRoomContent(
         state.messages.asReversed()
     }
 
-    // displayItems order: [Newest ... Oldest Unread ... Divider ... Oldest]
+    // displayItems order: [Newest ... DateHeader ... Divider ... Oldest]
     val displayItems = remember(reversedMessages, sessionFirstUnreadId) {
         val items = mutableListOf<ChatDisplayItem>()
-        reversedMessages.forEach { msg ->
+
+        reversedMessages.forEachIndexed { index, msg ->
+            val currentDate = formatDateHeader(msg.timestamp)
+
             items.add(ChatDisplayItem.Message(msg))
-            // Place divider directly ABOVE the oldest unread message.
-            // In reversed list, this means adding it immediately AFTER that message.
+
             if (msg.id == sessionFirstUnreadId) {
                 items.add(ChatDisplayItem.UnreadDivider)
+            }
+
+            // Look ahead to check if date changed (since it's reversed, we check the next item which is chronologically previous)
+            val prevMsg = reversedMessages.getOrNull(index + 1)
+            val prevDate = prevMsg?.let { formatDateHeader(it.timestamp) }
+
+            if (currentDate != prevDate) {
+                items.add(ChatDisplayItem.DateHeader(currentDate))
             }
         }
         items
@@ -343,52 +370,107 @@ private fun ColumnScope.ChatRoomContent(
         }
     }
 
-    // Auto-scroll to bottom on new incoming messages
-    LaunchedEffect(state.messages.size) {
-        if (state.messages.isNotEmpty() && listState.firstVisibleItemIndex <= 1) {
-            listState.animateScrollToItem(0)
+    // Auto-scroll to bottom on new messages
+    val currentUid = remember(state) {
+        state.onlineUsers.find { it.username == state.username }?.uid
+    }
+    LaunchedEffect(displayItems.size) {
+        if (displayItems.isNotEmpty()) {
+            val firstItem = displayItems.firstOrNull()
+            val isFromMe = if (firstItem is ChatDisplayItem.Message) {
+                firstItem.message.senderUid == currentUid || firstItem.message.sender == state.username
+            } else false
+
+            // If I sent it, always scroll. If someone else sent it, scroll only if I'm already at the bottom.
+            if (isFromMe || listState.firstVisibleItemIndex <= 1) {
+                // Ensure composition has happened so the new item exists in layout
+                kotlinx.coroutines.delay(16.milliseconds)
+                val targetIndex = if (listState.layoutInfo.reverseLayout) 0 else maxOf(0, displayItems.size - 1)
+                listState.animateScrollToItem(targetIndex)
+            }
         }
     }
 
-    LazyColumn(
-        state = listState,
-        modifier = Modifier
-            .weight(1f)
-            .fillMaxWidth(),
-        reverseLayout = true,
-        contentPadding = PaddingValues(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.Bottom),
-    ) {
-        items(
-            items = displayItems,
-            key = { it.key }
-        ) { item ->
-            when (item) {
-                is ChatDisplayItem.Message -> {
-                    val message = item.message
-                    val isMe = message.senderUid == state.onlineUsers.find { it.username == state.username }?.uid
-                        || message.sender == state.username
+    Box(modifier = Modifier.weight(1f)) {
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxSize(),
+            reverseLayout = true,
+            contentPadding = PaddingValues(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.Bottom),
+        ) {
+            items(
+                items = displayItems,
+                key = { it.key }
+            ) { item ->
+                when (item) {
+                    is ChatDisplayItem.Message -> {
+                        val message = item.message
+                        val isMe = message.senderUid == state.onlineUsers.find { it.username == state.username }?.uid
+                            || message.sender == state.username
 
-                    ChatBubble(
-                        message = message,
-                        isMe = isMe,
-                        onMangaClick = onMangaClick,
-                        onReplyClick = onReplyClick,
-                        onReplyJumpClick = { replyId ->
-                            val replyIndex = displayItems.indexOfFirst {
-                                it is ChatDisplayItem.Message && it.message.id == replyId
-                            }
-                            if (replyIndex != -1) {
-                                scope.launch {
-                                    listState.animateScrollToItem(replyIndex)
+                        ChatBubble(
+                            message = message,
+                            isMe = isMe,
+                            onMangaClick = onMangaClick,
+                            onReplyClick = onReplyClick,
+                            onReplyJumpClick = { replyId ->
+                                val replyIndex = displayItems.indexOfFirst {
+                                    it is ChatDisplayItem.Message && it.message.id == replyId
                                 }
-                            }
-                        },
-                        allUsers = state.onlineUsers
-                    )
+                                if (replyIndex != -1) {
+                                    scope.launch {
+                                        listState.animateScrollToItem(replyIndex)
+                                    }
+                                }
+                            },
+                            allUsers = state.onlineUsers
+                        )
+                    }
+                    ChatDisplayItem.UnreadDivider -> {
+                        UnreadMessagesDivider()
+                    }
+                    is ChatDisplayItem.DateHeader -> {
+                        DateDivider(item.date)
+                    }
                 }
-                ChatDisplayItem.UnreadDivider -> {
-                    UnreadMessagesDivider()
+            }
+        }
+
+        // Scroll to Bottom FAB
+        val showFab by remember {
+            derivedStateOf {
+                listState.firstVisibleItemIndex > 3
+            }
+        }
+
+        androidx.compose.animation.AnimatedVisibility(
+            visible = showFab,
+            enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.scaleIn(),
+            exit = androidx.compose.animation.fadeOut() + androidx.compose.animation.scaleOut(),
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(16.dp)
+        ) {
+            BadgedBox(
+                badge = {
+                    if (state.unreadCount > 0) {
+                        Badge { Text(state.unreadCount.toString()) }
+                    }
+                }
+            ) {
+                FloatingActionButton(
+                    onClick = {
+                        scope.launch {
+                            listState.animateScrollToItem(0)
+                        }
+                    },
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.size(48.dp),
+                    shape = CircleShape,
+                ) {
+                    Icon(Icons.Default.ArrowDownward, contentDescription = "Scroll to bottom")
                 }
             }
         }
@@ -421,9 +503,12 @@ private fun ColumnScope.ChatRoomContent(
                 onSendMessage = {
                     onSendMessage(it)
                     inputText = ""
-                    // Immediate scroll to bottom on send
+                    // Force immediate scroll for local user
                     scope.launch {
-                        listState.animateScrollToItem(0)
+                        // Settle frame and IME animation to avoid clipping/race conditions
+                        kotlinx.coroutines.delay(50.milliseconds)
+                        val targetIndex = if (listState.layoutInfo.reverseLayout) 0 else maxOf(0, displayItems.size - 1)
+                        listState.animateScrollToItem(targetIndex)
                     }
                 },
                 onTyping = onTyping,
@@ -499,6 +584,65 @@ private fun UnreadMessagesDivider() {
     }
 }
 
+@Composable
+private fun DateDivider(date: String) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Surface(
+            color = MaterialTheme.colorScheme.surfaceVariant,
+            shape = RoundedCornerShape(8.dp),
+        ) {
+            Text(
+                text = date,
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+private fun formatDateHeader(timestamp: Long): String {
+    val messageCalendar = Calendar.getInstance().apply { timeInMillis = timestamp }
+    val now = Calendar.getInstance()
+
+    return when {
+        isSameDay(messageCalendar, now) -> "Today"
+        isYesterday(messageCalendar, now) -> "Yesterday"
+        isWithinLastWeek(messageCalendar, now) -> {
+            SimpleDateFormat("EEEE", Locale.getDefault()).format(messageCalendar.time)
+        }
+        else -> {
+            SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(messageCalendar.time)
+        }
+    }
+}
+
+private fun isSameDay(cal1: Calendar, cal2: Calendar): Boolean {
+    return cal1.get(Calendar.YEAR) == cal2.get(Calendar.YEAR) &&
+        cal1.get(Calendar.DAY_OF_YEAR) == cal2.get(Calendar.DAY_OF_YEAR)
+}
+
+private fun isYesterday(cal1: Calendar, cal2: Calendar): Boolean {
+    val yesterday = Calendar.getInstance().apply {
+        timeInMillis = cal2.timeInMillis
+        add(Calendar.DAY_OF_YEAR, -1)
+    }
+    return isSameDay(cal1, yesterday)
+}
+
+private fun isWithinLastWeek(cal1: Calendar, cal2: Calendar): Boolean {
+    val lastWeek = Calendar.getInstance().apply {
+        timeInMillis = cal2.timeInMillis
+        add(Calendar.DAY_OF_YEAR, -7)
+    }
+    return cal1.after(lastWeek)
+}
+
 private sealed class ChatDisplayItem {
     abstract val key: String
 
@@ -508,6 +652,10 @@ private sealed class ChatDisplayItem {
 
     data object UnreadDivider : ChatDisplayItem() {
         override val key: String = "unread-divider"
+    }
+
+    data class DateHeader(val date: String) : ChatDisplayItem() {
+        override val key: String = "date-$date"
     }
 }
 

@@ -6,23 +6,22 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
-import com.google.firebase.firestore.Query
 import eu.kanade.tachiyomi.ui.mod.EnhancedPreferences
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import mihon.core.viewmodel.StateViewModel
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
-
 import kotlin.time.Duration.Companion.seconds
 
 class GlobalChatViewModel : StateViewModel<GlobalChatState>(GlobalChatState.NeedUsername) {
 
     private val auth = FirebaseAuth.getInstance()
     private val db = FirebaseFirestore.getInstance()
-    private var chatListener: ListenerRegistration? = null
+    private val chatManager: ChatManager = Injekt.get()
     private var presenceListener: ListenerRegistration? = null
     private val enhancedPreferences: EnhancedPreferences = Injekt.get()
 
@@ -43,6 +42,30 @@ class GlobalChatViewModel : StateViewModel<GlobalChatState>(GlobalChatState.Need
         } else {
             checkSavedUsername()
         }
+
+        // Observe global messages and unread count from shared ChatManager
+        viewModelScope.launch {
+            chatManager.messages.collectLatest { messages ->
+                mutableState.update { state ->
+                    if (state is GlobalChatState.ChatRoom) {
+                        state.copy(messages = messages)
+                    } else {
+                        state
+                    }
+                }
+            }
+        }
+        viewModelScope.launch {
+            chatManager.unreadCount.collectLatest { count ->
+                mutableState.update { state ->
+                    if (state is GlobalChatState.ChatRoom) {
+                        state.copy(unreadCount = count)
+                    } else {
+                        state
+                    }
+                }
+            }
+        }
     }
 
     private fun checkSavedUsername() {
@@ -51,11 +74,10 @@ class GlobalChatViewModel : StateViewModel<GlobalChatState>(GlobalChatState.Need
             mutableState.update {
                 GlobalChatState.ChatRoom(
                     username = savedUsername,
-                    messages = emptyList(),
+                    messages = chatManager.messages.value,
+                    unreadCount = chatManager.unreadCount.value,
                 )
             }
-            startListening()
-            startPresenceListening()
         }
     }
 
@@ -65,68 +87,15 @@ class GlobalChatViewModel : StateViewModel<GlobalChatState>(GlobalChatState.Need
         mutableState.update {
             GlobalChatState.ChatRoom(
                 username = username,
-                messages = emptyList(),
+                messages = chatManager.messages.value,
+                unreadCount = chatManager.unreadCount.value,
             )
         }
-        startListening()
-        startPresenceListening()
     }
 
-    private fun startListening() {
-        chatListener?.remove()
-        chatListener = db.collection("global_chat")
-            .orderBy("timestamp", Query.Direction.ASCENDING)
-            .addSnapshotListener { snapshots, e ->
-                if (e != null) {
-                    Log.e("GlobalChat", "Listen failed.", e)
-                    return@addSnapshotListener
-                }
+    fun startListeners() {
+        if (presenceListener != null) return
 
-                if (snapshots != null) {
-                    val messages = snapshots.documents.mapNotNull { doc ->
-                        val sender = doc.getString("senderName") ?: return@mapNotNull null
-                        val text = doc.getString("text") ?: ""
-                        val timestamp = doc.getTimestamp("timestamp")?.toDate()?.time ?: System.currentTimeMillis()
-                        val isMangaShare = doc.getBoolean("isMangaShare") ?: false
-
-                        @Suppress("UNCHECKED_CAST")
-                        val readBy = doc.get("readBy") as? Map<String, Long> ?: emptyMap()
-
-                        ChatMessage(
-                            id = doc.id,
-                            sender = sender,
-                            senderUid = doc.getString("senderUid") ?: "",
-                            text = text,
-                            timestamp = timestamp,
-                            isMangaShare = isMangaShare,
-                            mangaUrl = doc.getString("mangaUrl"),
-                            sourceId = doc.getLong("sourceId"),
-                            sourceDomain = doc.getString("sourceDomain"),
-                            mangaTitle = doc.getString("mangaTitle"),
-                            mangaCoverUrl = doc.getString("mangaCoverUrl"),
-                            sourceName = doc.getString("sourceName"),
-                            replyToMessageId = doc.getString("replyToMessageId"),
-                            replyToText = doc.getString("replyToText"),
-                            replyToSenderName = doc.getString("replyToSenderName"),
-                            readBy = readBy,
-                        )
-                    }
-                    mutableState.update { state ->
-                        if (state is GlobalChatState.ChatRoom) {
-                            val unreadCount = messages.count {
-                                it.senderUid != currentUid && !it.readBy.containsKey(currentUid)
-                            }
-                            state.copy(messages = messages, unreadCount = unreadCount)
-                        } else {
-                            state
-                        }
-                    }
-                }
-            }
-    }
-
-    private fun startPresenceListening() {
-        presenceListener?.remove()
         presenceListener = db.collection("presence")
             .addSnapshotListener { snapshots, _ ->
                 if (snapshots != null) {
@@ -150,6 +119,13 @@ class GlobalChatViewModel : StateViewModel<GlobalChatState>(GlobalChatState.Need
                     }
                 }
             }
+    }
+
+    fun stopListeners() {
+        presenceListener?.remove()
+        presenceListener = null
+        setTyping(false)
+        updatePresence(false)
     }
 
     fun updatePresence(isOnline: Boolean) {
@@ -177,7 +153,7 @@ class GlobalChatViewModel : StateViewModel<GlobalChatState>(GlobalChatState.Need
         typingJob = viewModelScope.launch {
             if (isTyping) {
                 updateTypingStatus(true)
-                delay(3.seconds) // Debounce: reset typing status after 3 seconds of inactivity
+                delay(3.seconds)
                 updateTypingStatus(false)
                 lastTypingStatus = false
             } else {
@@ -206,7 +182,9 @@ class GlobalChatViewModel : StateViewModel<GlobalChatState>(GlobalChatState.Need
             val docRef = db.collection("global_chat").document(msg.id)
             batch.update(docRef, "readBy.$uid", System.currentTimeMillis())
         }
-        batch.commit()
+        batch.commit().addOnFailureListener { e ->
+            Log.e("GlobalChat", "Batch read receipt failed", e)
+        }
     }
 
     fun setReplyingTo(message: ChatMessage?) {
@@ -240,7 +218,6 @@ class GlobalChatViewModel : StateViewModel<GlobalChatState>(GlobalChatState.Need
 
             db.collection("global_chat").add(messageData)
                 .addOnSuccessListener {
-                    Log.d("GlobalChat", "Message Sent Success")
                     setReplyingTo(null)
                     setTyping(false)
                 }
@@ -249,9 +226,7 @@ class GlobalChatViewModel : StateViewModel<GlobalChatState>(GlobalChatState.Need
     }
 
     override fun onCleared() {
-        chatListener?.remove()
-        presenceListener?.remove()
-        updatePresence(false)
+        stopListeners()
     }
 }
 
