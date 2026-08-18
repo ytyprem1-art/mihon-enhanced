@@ -153,6 +153,7 @@ android {
                 "META-INF/LICENSE",
                 "META-INF/NOTICE",
                 "META-INF/README.md",
+                "META-INF/INDEX.LIST",
             )
         }
     }
@@ -328,6 +329,12 @@ dependencies {
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.auth)
     implementation(libs.firebase.firestore)
+    implementation("com.google.android.gms:play-services-auth:21.2.0")
+
+    implementation("com.google.api-client:google-api-client-android:2.6.0")
+    implementation("com.google.apis:google-api-services-drive:v3-rev20231128-2.0.0")
+    implementation("com.google.auth:google-auth-library-oauth2-http:1.23.0")
+    implementation("com.google.http-client:google-http-client-jackson2:1.44.1")
 }
 
 androidComponents {

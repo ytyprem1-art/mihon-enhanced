@@ -8,7 +8,8 @@ import tachiyomi.core.common.util.system.logcat
 
 class TrackLoginActivity : BaseOAuthLoginActivity() {
 
-    override fun handleResult(uri: Uri) {
+    override fun handleResult(uri: Uri?) {
+        if (uri == null) return
         val data = when {
             !uri.encodedQuery.isNullOrBlank() -> uri.encodedQuery
             !uri.encodedFragment.isNullOrBlank() -> uri.encodedFragment
