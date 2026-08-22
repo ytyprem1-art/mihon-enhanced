@@ -134,7 +134,7 @@ fun GlobalChatScreen(
         if (!hasSnapshottedUnread && chatRoom.messages.isNotEmpty()) {
             // Threshold: Only show unread divider if there are >= 3 unread messages
             if (chatRoom.unreadCount >= 3) {
-                val currentUid = chatRoom.onlineUsers.find { it.username == chatRoom.username }?.uid
+                val currentUid = chatRoom.currentUid
                 // Find the oldest unread message (first in chronologically ascending list)
                 val unreadMessages = chatRoom.messages.filter {
                     it.senderUid != currentUid && !it.readBy.containsKey(currentUid)
@@ -385,8 +385,7 @@ private fun ColumnScope.ChatRoomContent(
                 when (item) {
                     is ChatDisplayItem.Message -> {
                         val message = item.message
-                        val isMe = message.senderUid == state.onlineUsers.find { it.username == state.username }?.uid
-                            || message.sender == state.username
+                        val isMe = message.senderUid == state.currentUid || message.sender == state.username
 
                         ChatBubble(
                             message = message,

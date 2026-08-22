@@ -70,10 +70,12 @@ class GlobalChatViewModel : StateViewModel<GlobalChatState>(GlobalChatState.Need
 
     private fun checkSavedUsername() {
         val savedUsername = enhancedPreferences.globalChatUsername.get()
-        if (savedUsername.isNotBlank()) {
+        val uid = currentUid
+        if (savedUsername.isNotBlank() && uid != null) {
             mutableState.update {
                 GlobalChatState.ChatRoom(
                     username = savedUsername,
+                    currentUid = uid,
                     messages = chatManager.messages.value,
                     unreadCount = chatManager.unreadCount.value,
                 )
@@ -82,11 +84,13 @@ class GlobalChatViewModel : StateViewModel<GlobalChatState>(GlobalChatState.Need
     }
 
     fun setUsername(username: String) {
-        if (username.isBlank()) return
+        val uid = currentUid
+        if (username.isBlank() || uid == null) return
         enhancedPreferences.globalChatUsername.set(username)
         mutableState.update {
             GlobalChatState.ChatRoom(
                 username = username,
+                currentUid = uid,
                 messages = chatManager.messages.value,
                 unreadCount = chatManager.unreadCount.value,
             )
@@ -234,6 +238,7 @@ sealed interface GlobalChatState {
     data object NeedUsername : GlobalChatState
     data class ChatRoom(
         val username: String,
+        val currentUid: String,
         val messages: List<ChatMessage>,
         val replyingTo: ChatMessage? = null,
         val onlineUsers: List<ChatUser> = emptyList(),
