@@ -25,6 +25,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -42,6 +43,7 @@ internal fun BasePreferenceWidget(
     icon: @Composable (() -> Unit)? = null,
     onClick: (() -> Unit)? = null,
     widget: @Composable (() -> Unit)? = null,
+    enabled: Boolean = true,
 ) {
     val highlighted = LocalPreferenceHighlighted.current
     val minHeight = LocalPreferenceMinHeight.current
@@ -49,8 +51,9 @@ internal fun BasePreferenceWidget(
         modifier = modifier
             .highlightBackground(highlighted)
             .sizeIn(minHeight = minHeight)
-            .clickable(enabled = onClick != null, onClick = { onClick?.invoke() })
-            .fillMaxWidth(),
+            .clickable(enabled = enabled && onClick != null, onClick = { onClick?.invoke() })
+            .fillMaxWidth()
+            .alpha(if (enabled) 1f else 0.4f),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (icon != null) {

@@ -39,6 +39,7 @@ firebase-bom = "34.17.0"
 firebase-crashlytics = "3.0.7"
 flexibleAdapter = "c8013533"
 google-services = "4.5.0"
+play-services-auth = "21.2.0"
 image-decoder = "e03b81e18a"
 injekt = "91edab2317"
 jsoup = "1.23.1"
@@ -159,6 +160,7 @@ markdown-coil = { module = "com.mikepenz:multiplatform-markdown-renderer-coil3",
 markdown-core = { module = "com.mikepenz:multiplatform-markdown-renderer", version.ref = "markdown" }
 material = { module = "com.google.android.material:material", version.ref = "material" }
 materialKolor = { module = "com.materialkolor:material-kolor", version.ref = "materialKolor" }
+playServicesAuth = { module = "com.google.android.gms:play-services-auth", version.ref = "play-services-auth" }
 mockk = { module = "io.mockk:mockk", version.ref = "mockk" }
 moko-resources = { module = "dev.icerock.moko:resources", version.ref = "moko-resources" }
 natural-comparator = { module = "com.github.gpanther:java-nat-sort", version = "natural-comparator-1.1" }

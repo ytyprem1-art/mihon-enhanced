@@ -99,3 +99,23 @@
     public <init>();
     public void destroy();
 }
+
+##---------------Begin: proguard configuration for Google API Client ----------
+-keep class com.google.api.client.** { *; }
+-keep interface com.google.api.client.** { *; }
+-keep class com.google.api.services.drive.** { *; }
+-keep class com.google.api.client.json.jackson2.** { *; }
+-dontwarn com.google.api.client.json.jackson2.**
+
+# Jackson
+-keep class com.fasterxml.jackson.** { *; }
+-dontwarn com.fasterxml.jackson.**
+
+-keepattributes Signature,RuntimeVisibleAnnotations,AnnotationDefault
+-keepclassmembers class * {
+  @com.google.api.client.util.Key <fields>;
+}
+
+-dontwarn com.google.api.client.**
+-dontwarn com.google.common.**
+##---------------End: proguard configuration for Google API Client ----------

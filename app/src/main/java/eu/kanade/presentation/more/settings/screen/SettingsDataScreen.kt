@@ -4,6 +4,7 @@ import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.util.Log
 import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -15,6 +16,8 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material3.AlertDialog
@@ -38,22 +41,30 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import com.hippo.unifile.UniFile
+import eu.kanade.domain.sync.SyncPreferences
 import eu.kanade.presentation.more.settings.Preference
 import eu.kanade.presentation.more.settings.screen.data.CreateBackupScreen
 import eu.kanade.presentation.more.settings.screen.data.RestoreBackupScreen
 import eu.kanade.presentation.more.settings.screen.data.StorageInfo
 import eu.kanade.presentation.more.settings.widget.BasePreferenceWidget
 import eu.kanade.presentation.more.settings.widget.PrefsHorizontalPadding
+import eu.kanade.presentation.more.settings.widget.SwitchPreferenceWidget
+import eu.kanade.presentation.more.settings.widget.TextPreferenceWidget
 import eu.kanade.presentation.util.relativeTimeSpanString
 import eu.kanade.tachiyomi.data.backup.create.BackupCreateJob
 import eu.kanade.tachiyomi.data.backup.restore.BackupRestoreJob
 import eu.kanade.tachiyomi.data.cache.ChapterCache
 import eu.kanade.tachiyomi.data.export.LibraryExporter
 import eu.kanade.tachiyomi.data.export.LibraryExporter.ExportOptions
+import eu.kanade.tachiyomi.data.sync.SyncManager
+import eu.kanade.tachiyomi.data.sync.service.GoogleDriveService
+import eu.kanade.tachiyomi.data.sync.service.GoogleDriveSyncService
+import eu.kanade.tachiyomi.data.sync.service.SyncJob
 import eu.kanade.tachiyomi.ui.mod.bookmarkimport.BookmarkImportScreen
 import eu.kanade.tachiyomi.util.system.DeviceUtil
 import eu.kanade.tachiyomi.util.system.toast
@@ -62,6 +73,7 @@ import kotlinx.coroutines.launch
 import logcat.LogPriority
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.storage.displayablePath
+import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.core.common.util.lang.launchNonCancellable
 import tachiyomi.core.common.util.lang.withUIContext
 import tachiyomi.core.common.util.system.logcat
@@ -76,6 +88,7 @@ import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.util.collectAsState
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
+import java.util.Date
 
 object SettingsDataScreen : SearchableSettings {
 
@@ -87,29 +100,236 @@ object SettingsDataScreen : SearchableSettings {
     override fun getTitleRes() = MR.strings.label_data_storage
 
     @Composable
-    override fun RowScope.AppBarAction() {
-        val uriHandler = LocalUriHandler.current
-        IconButton(onClick = { uriHandler.openUri(HELP_URL) }) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Outlined.HelpOutline,
-                contentDescription = stringResource(MR.strings.tracking_guide),
-            )
-        }
+    override fun Content() {
+        val handleBack = eu.kanade.presentation.util.LocalBackPress.current
+        eu.kanade.presentation.more.settings.PreferenceScaffold(
+            titleRes = getTitleRes(),
+            onBackPressed = if (handleBack != null) handleBack::invoke else null,
+            actions = { AppBarAction() },
+            itemsProvider = { getPreferences() },
+        )
     }
 
     @Composable
     override fun getPreferences(): List<Preference> {
         val backupPreferences = Injekt.get<BackupPreferences>()
         val storagePreferences = Injekt.get<StoragePreferences>()
+        val syncPreferences = Injekt.get<SyncPreferences>()
 
         return listOf(
             getStorageLocationPref(storagePreferences = storagePreferences),
             Preference.PreferenceItem.InfoPreference(stringResource(MR.strings.pref_storage_location_info)),
 
             getBackupAndRestoreGroup(backupPreferences = backupPreferences),
+            getSyncGroup(syncPreferences = syncPreferences),
             getImportGroup(),
             getDataGroup(),
             getExportGroup(),
+        )
+    }
+
+    @Composable
+    private fun getSyncGroup(
+        syncPreferences: SyncPreferences,
+    ): Preference.PreferenceGroup {
+        val context = LocalContext.current
+        val scope = rememberCoroutineScope()
+        val googleDriveService = remember { Injekt.get<GoogleDriveService>() }
+        val syncManager = remember { Injekt.get<SyncManager>() }
+        val googleDriveSyncService = remember { Injekt.get<GoogleDriveSyncService>() }
+
+        val googleDriveEmail by syncPreferences.googleDriveEmail().collectAsState()
+        val lastSync by syncPreferences.lastSyncTimestamp().collectAsState()
+
+        var showSignOutDialog by remember { mutableStateOf(false) }
+        var showDeleteDialog by remember { mutableStateOf(false) }
+        var isSyncing by remember { mutableStateOf(false) }
+
+        if (showSignOutDialog) {
+            AlertDialog(
+                onDismissRequest = { showSignOutDialog = false },
+                title = { Text("Sign out of Google Drive?") },
+                text = { Text("Mihon will no longer be able to sync your data with Google Drive.") },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            googleDriveService.signOut()
+                            Log.d("SyncServiceDebug", "UI: Sign out clicked. SETTING NONE.")
+                            syncPreferences.syncService().set(SyncPreferences.SYNC_SERVICE_NONE)
+                            showSignOutDialog = false
+                        },
+                    ) {
+                        Text(stringResource(MR.strings.action_ok))
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showSignOutDialog = false }) {
+                        Text(stringResource(MR.strings.action_cancel))
+                    }
+                },
+            )
+        }
+
+        if (showDeleteDialog) {
+            AlertDialog(
+                onDismissRequest = { showDeleteDialog = false },
+                title = { Text("Delete sync data from Google Drive?") },
+                text = { Text("This will delete all your Mihon sync data from Google Drive. Your local data will not be affected.") },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            scope.launch {
+                                val result = googleDriveSyncService.deleteSyncDataFromGoogleDrive()
+                                withUIContext {
+                                    when (result) {
+                                        GoogleDriveSyncService.DeleteSyncDataStatus.SUCCESS -> context.toast("Sync data deleted successfully")
+                                        GoogleDriveSyncService.DeleteSyncDataStatus.NO_FILES -> context.toast("No sync data found on Google Drive")
+                                        else -> context.toast("Failed to delete sync data")
+                                    }
+                                }
+                            }
+                            showDeleteDialog = false
+                        },
+                    ) {
+                        Text(stringResource(MR.strings.action_ok))
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDeleteDialog = false }) {
+                        Text(stringResource(MR.strings.action_cancel))
+                    }
+                },
+            )
+        }
+
+        return Preference.PreferenceGroup(
+            title = "Cloud Sync",
+            preferenceItems = listOf(
+                Preference.PreferenceItem.TextPreference(
+                    title = "Google Drive",
+                    subtitle = googleDriveEmail.takeIf { it.isNotBlank() } ?: "Not signed in to Google Drive",
+                    onClick = {
+                        if (googleDriveService.isSignedIn()) {
+                            showSignOutDialog = true
+                        } else {
+                            try {
+                                val intent = googleDriveService.getSignInIntent()
+                                context.startActivity(intent)
+                            } catch (e: Exception) {
+                                context.toast(e.message)
+                            }
+                        }
+                    },
+                ),
+                Preference.PreferenceItem.CustomPreference(
+                    title = "Enable cloud sync",
+                ) {
+                    val enabled by syncPreferences.cloudSyncEnabled().collectAsState()
+                    SwitchPreferenceWidget(
+                        title = "Enable cloud sync",
+                        checked = enabled,
+                        onCheckedChanged = { newValue ->
+                            val before = syncPreferences.syncService().get()
+                            Log.d("SyncServiceDebug", "UI: Enable cloud sync toggle: $newValue. Current service value=$before")
+                            scope.launch {
+                                syncPreferences.cloudSyncEnabled().set(newValue)
+                                if (newValue) {
+                                    Log.d("SyncServiceDebug", "UI: SETTING GOOGLE DRIVE")
+                                    syncPreferences.syncService().set(SyncPreferences.SYNC_SERVICE_GOOGLE_DRIVE)
+                                    val after = syncPreferences.syncService().get()
+                                    Log.d("SyncServiceDebug", "UI: Value immediately after set=$after")
+                                    SyncJob.setupTask(context)
+                                } else {
+                                    Log.d("SyncServiceDebug", "UI: SETTING NONE")
+                                    syncPreferences.syncService().set(SyncPreferences.SYNC_SERVICE_NONE)
+                                    val after = syncPreferences.syncService().get()
+                                    Log.d("SyncServiceDebug", "UI: Value immediately after set=$after")
+                                    SyncJob.setupTask(context, 0)
+                                }
+                            }
+                        },
+                        enabled = googleDriveEmail.isNotBlank(),
+                    )
+                },
+                Preference.PreferenceItem.ListPreference(
+                    preference = syncPreferences.syncInterval(),
+                    entries = mapOf(
+                        0 to stringResource(MR.strings.off),
+                        1 to "Every hour",
+                        2 to "Every 2 hours",
+                        6 to "Every 6 hours",
+                        12 to "Every 12 hours",
+                        24 to "Daily",
+                        48 to "Every 2 days",
+                        168 to "Weekly",
+                    ),
+                    title = "Sync interval",
+                    onValueChanged = {
+                        SyncJob.setupTask(context, it)
+                        true
+                    },
+                ),
+                Preference.PreferenceItem.MultiSelectListPreference(
+                    preference = syncPreferences.cloudSyncOptions(),
+                    entries = mapOf(
+                        "libraryEntries" to "Library entries",
+                        "categories" to "Categories",
+                        "chapters" to "Chapters",
+                        "tracking" to "Tracking",
+                        "history" to "History",
+                        "readEntries" to "Read entries",
+                        "appSettings" to "App settings",
+                        "extensionStores" to "Extension stores",
+                        "sourceSettings" to "Source settings",
+                        "privateSettings" to "Private settings",
+                        "modHistoryCategories" to "History categories",
+                        "modHistoryGroups" to "History groups",
+                        "modLinkedSources" to "Linked sources",
+                        "modUpdateWatch" to "Update watch",
+                    ),
+                    title = "Sync settings",
+                    subtitle = "Choose what data to sync",
+                ),
+                Preference.PreferenceItem.CustomPreference(
+                    title = "Sync now",
+                ) {
+                    val isCloudSyncEnabled by syncPreferences.cloudSyncEnabled().collectAsState()
+                    val isGoogleDriveSignedIn = googleDriveEmail.isNotBlank()
+                    val canSync = !isSyncing && isGoogleDriveSignedIn && isCloudSyncEnabled
+                    TextPreferenceWidget(
+                        title = "Sync now",
+                        subtitle = if (isSyncing) {
+                            "Syncing..."
+                        } else if (lastSync > 0L) {
+                            "Last sync: ${relativeTimeSpanString(lastSync)}"
+                        } else {
+                            "Never"
+                        },
+                        onPreferenceClick = {
+                            scope.launch {
+                                isSyncing = true
+                                try {
+                                    syncManager.syncData(showUserNotification = true, rethrowErrors = true)
+                                } catch (e: Exception) {
+                                    withUIContext { context.toast(e.message) }
+                                } finally {
+                                    isSyncing = false
+                                }
+                            }
+                        },
+                        enabled = canSync,
+                    )
+                },
+                Preference.PreferenceItem.CustomPreference(
+                    title = "Delete sync data from Google Drive",
+                ) {
+                    TextPreferenceWidget(
+                        title = "Delete sync data from Google Drive",
+                        onPreferenceClick = { showDeleteDialog = true },
+                        enabled = googleDriveEmail.isNotBlank(),
+                    )
+                },
+            ),
         )
     }
 

@@ -33,6 +33,14 @@
 
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
 
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="https" />
+        </intent>
+    </queries>
+
     <application
         android:name=".App"
         android:allowBackup="false"
@@ -198,6 +206,19 @@
                 <data android:host="myanimelist-auth" />
                 <data android:host="shikimori-auth" />
                 <data android:host="hikka-auth" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".ui.setting.track.GoogleDriveLoginActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="com.googleusercontent.apps.463318087419-f2a1ltbtq45plbg43ejfq0pelfftg11f" />
             </intent-filter>
         </activity>
 
