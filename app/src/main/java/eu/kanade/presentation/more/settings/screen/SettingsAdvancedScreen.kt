@@ -46,7 +46,6 @@ import eu.kanade.tachiyomi.network.PREF_DOH_QUAD101
 import eu.kanade.tachiyomi.network.PREF_DOH_QUAD9
 import eu.kanade.tachiyomi.network.PREF_DOH_SHECAN
 import eu.kanade.tachiyomi.ui.more.OnboardingScreen
-import eu.kanade.tachiyomi.ui.chat.PresenceManager
 import eu.kanade.tachiyomi.ui.mod.EnhancedPreferences
 import eu.kanade.tachiyomi.util.CrashLogUtil
 import eu.kanade.tachiyomi.util.system.GLUtil
@@ -86,16 +85,8 @@ object SettingsAdvancedScreen : SearchableSettings {
         val basePreferences = remember { Injekt.get<BasePreferences>() }
         val networkPreferences = remember { Injekt.get<NetworkPreferences>() }
         val libraryPreferences = remember { Injekt.get<LibraryPreferences>() }
-        val enhancedPreferences = remember { Injekt.get<EnhancedPreferences>() }
 
-        val adminGroup = if (PresenceManager.RICH_PRESENCE_ENABLED) {
-            getAdminViewGroup(enhancedPreferences)
-        } else {
-            null
-        }
-
-        return listOfNotNull(
-            adminGroup,
+        return listOf(
             Preference.PreferenceItem.TextPreference(
                 title = stringResource(MR.strings.pref_dump_crash_logs),
                 subtitle = stringResource(MR.strings.pref_dump_crash_logs_summary),
@@ -137,47 +128,6 @@ object SettingsAdvancedScreen : SearchableSettings {
             getLibraryGroup(libraryPreferences = libraryPreferences),
             getReaderGroup(basePreferences = basePreferences),
             getExtensionsGroup(basePreferences = basePreferences),
-        )
-    }
-
-    @Composable
-    private fun getAdminViewGroup(enhancedPreferences: EnhancedPreferences): Preference.PreferenceGroup {
-        val context = LocalContext.current
-        val avUnlocked by enhancedPreferences.avUnlocked.collectAsState()
-
-        return Preference.PreferenceGroup(
-            title = "AC",
-            preferenceItems = buildList {
-                if (avUnlocked) {
-                    add(
-                        Preference.PreferenceItem.SwitchPreference(
-                            preference = enhancedPreferences.avEnabled,
-                            title = "AC Status",
-                            onValueChanged = { enabled ->
-                                Injekt.get<PresenceManager>().onAvToggled(enabled)
-                                true
-                            },
-                        )
-                    )
-                }
-                add(
-                    Preference.PreferenceItem.EditTextPreference(
-                        preference = enhancedPreferences.avCode,
-                        title = "Input AC",
-                        onValueChanged = { code ->
-                            if (code == "MOD-AV-2024") {
-                                enhancedPreferences.avUnlocked.set(true)
-                            } else {
-                                context.toast("Invalid code")
-                                enhancedPreferences.avEnabled.set(false)
-                                enhancedPreferences.avUnlocked.set(false)
-                                Injekt.get<PresenceManager>().onAvToggled(false)
-                            }
-                            true
-                        },
-                    )
-                )
-            },
         )
     }
 

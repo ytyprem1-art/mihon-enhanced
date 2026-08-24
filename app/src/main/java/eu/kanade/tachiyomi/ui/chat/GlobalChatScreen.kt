@@ -107,7 +107,6 @@ fun GlobalChatScreen(
     onSetUsername: (String) -> Unit,
     onSendMessage: (String) -> Unit,
     onMangaClick: (ChatMessage) -> Unit,
-    onOpenManga: (String, Long) -> Unit,
     onReplyClick: (ChatMessage) -> Unit,
     onCancelReply: () -> Unit,
     updatePresence: (Boolean) -> Unit,
@@ -194,24 +193,10 @@ fun GlobalChatScreen(
                 UsernameEntry(onSetUsername)
             }
             is GlobalChatState.ChatRoom -> {
-                var selectedUserForProfile by remember { mutableStateOf<ChatUser?>(null) }
-
                 PresenceHeader(
                     users = state.onlineUsers,
                     unreadCount = state.unreadCount,
-                    onUserClick = { selectedUserForProfile = it }
                 )
-
-                selectedUserForProfile?.let { user ->
-                    ProfileBottomSheet(
-                        user = user,
-                        onDismissRequest = { selectedUserForProfile = null },
-                        onOpenManga = { title, sourceId ->
-                            onOpenManga(title, sourceId)
-                            selectedUserForProfile = null
-                        }
-                    )
-                }
 
                 ChatRoomContent(
                     state = state,
@@ -221,7 +206,6 @@ fun GlobalChatScreen(
                     onCancelReply = onCancelReply,
                     onTyping = onTyping,
                     sessionFirstUnreadId = sessionFirstUnreadId,
-                    onUserClick = { selectedUserForProfile = it }
                 )
             }
         }
@@ -232,7 +216,6 @@ fun GlobalChatScreen(
 private fun PresenceHeader(
     users: List<ChatUser>,
     unreadCount: Int,
-    onUserClick: (ChatUser) -> Unit
 ) {
     Column {
         Row(
@@ -259,7 +242,7 @@ private fun PresenceHeader(
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             items(users) { user ->
-                OnlineUserItem(user, onUserClick)
+                OnlineUserItem(user)
             }
         }
         HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
@@ -267,27 +250,10 @@ private fun PresenceHeader(
 }
 
 @Composable
-private fun OnlineUserItem(user: ChatUser, onUserClick: (ChatUser) -> Unit) {
-    val enhancedPreferences = remember { Injekt.get<EnhancedPreferences>() }
-    val avEnabled by enhancedPreferences.avEnabled.collectAsState()
-    val richEnabled = PresenceManager.RICH_PRESENCE_ENABLED
-
-    val now = System.currentTimeMillis()
-    val lastActivity = user.lastActiveAt ?: user.lastSeen
-    val isStale = lastActivity != 0L && (now - lastActivity > 3 * 60 * 1000)
-    val resolvedStatus = if (isStale) "OFFLINE" else (user.status ?: if (user.isOnline) "ONLINE" else "OFFLINE")
-
-    val dotColor = when (resolvedStatus) {
-        "IN_CHAT" -> Color(0xFF2196F3) // Blue
-        "READING" -> Color(0xFFFF9800) // Orange
-        "ONLINE" -> Color.Green
-        else -> Color.Gray
-    }
-
+private fun OnlineUserItem(user: ChatUser) {
     val color = remember(user.username) { getUserColor(user.username) }
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.clickable(enabled = richEnabled && avEnabled) { onUserClick(user) }
     ) {
         Box {
             Surface(
@@ -305,13 +271,12 @@ private fun OnlineUserItem(user: ChatUser, onUserClick: (ChatUser) -> Unit) {
                 }
             }
 
-            val showDot = if (richEnabled && avEnabled) true else user.isOnline && !isStale
-            if (showDot) {
+            if (user.isOnline) {
                 Box(
                     modifier = Modifier
                         .size(10.dp)
                         .clip(CircleShape)
-                        .background(if (richEnabled && avEnabled) dotColor else Color.Green)
+                        .background(Color.Green)
                         .align(Alignment.BottomEnd)
                         .border(1.dp, MaterialTheme.colorScheme.surface, CircleShape)
                 )
@@ -325,92 +290,6 @@ private fun OnlineUserItem(user: ChatUser, onUserClick: (ChatUser) -> Unit) {
             modifier = Modifier.width(40.dp),
             textAlign = TextAlign.Center
         )
-    }
-}
-
-@Composable
-private fun ProfileBottomSheet(
-    user: ChatUser,
-    onDismissRequest: () -> Unit,
-    onOpenManga: (String, Long) -> Unit
-) {
-    eu.kanade.presentation.components.AdaptiveSheet(onDismissRequest = onDismissRequest) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            val color = remember(user.username) { getUserColor(user.username) }
-            Surface(
-                modifier = Modifier.size(80.dp),
-                shape = CircleShape,
-                color = color.copy(alpha = 0.2f),
-                border = androidx.compose.foundation.BorderStroke(2.dp, color)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Text(
-                        text = user.username.take(1).uppercase(),
-                        style = MaterialTheme.typography.headlineLarge,
-                        color = color
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(text = user.username, style = MaterialTheme.typography.headlineSmall)
-
-            val now = System.currentTimeMillis()
-            val lastActivity = user.lastActiveAt ?: user.lastSeen
-            val isStale = lastActivity != 0L && (now - lastActivity > 3 * 60 * 1000)
-            val resolvedStatus = if (isStale) "OFFLINE" else (user.status ?: if (user.isOnline) "ONLINE" else "OFFLINE")
-
-            val statusText = when (resolvedStatus) {
-                "IN_CHAT" -> "In Chat"
-                "READING" -> "Reading"
-                "ONLINE" -> "Online"
-                else -> "Offline"
-            }
-
-            Text(
-                text = statusText,
-                style = MaterialTheme.typography.bodyMedium,
-                color = if (resolvedStatus == "OFFLINE") MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.primary
-            )
-
-            if (resolvedStatus == "READING" && !user.readingManga.isNullOrBlank()) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(text = user.readingManga, style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
-                if (!user.readingChapter.isNullOrBlank()) {
-                    Text(text = user.readingChapter, style = MaterialTheme.typography.bodySmall)
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-                Button(
-                    onClick = {
-                        val url = user.readingMangaId
-                        val sourceId = user.readingSourceId
-                        if (url != null && sourceId != null) {
-                            onOpenManga(url, sourceId)
-                        }
-                    },
-                    enabled = user.readingMangaId != null && user.readingSourceId != null
-                ) {
-                    Text("Buka Manga")
-                }
-            } else if (resolvedStatus == "OFFLINE") {
-                val lastTime = user.lastActiveAt ?: user.lastSeen
-                if (lastTime != 0L) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    val locale = androidx.compose.ui.text.intl.Locale.current
-                    val df = remember(locale) { SimpleDateFormat("HH:mm, dd MMM", locale.platformLocale) }
-                    Text(
-                        text = "Last active: ${df.format(Date(lastTime))}",
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.height(24.dp))
-        }
     }
 }
 
@@ -463,7 +342,6 @@ private fun ColumnScope.ChatRoomContent(
     onCancelReply: () -> Unit,
     onTyping: (Boolean) -> Unit,
     sessionFirstUnreadId: String?,
-    onUserClick: (ChatUser) -> Unit,
 ) {
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
@@ -540,7 +418,6 @@ private fun ColumnScope.ChatRoomContent(
                                 }
                             },
                             allUsers = state.onlineUsers,
-                            onUserClick = onUserClick,
                         )
                     }
                     ChatDisplayItem.UnreadDivider -> {
@@ -777,7 +654,6 @@ private fun ChatBubble(
     onReplyClick: (ChatMessage) -> Unit,
     onReplyJumpClick: (String) -> Unit,
     allUsers: List<ChatUser>,
-    onUserClick: (ChatUser) -> Unit,
 ) {
     val alignment = if (isMe) Alignment.End else Alignment.Start
     val userColor = remember(message.sender) { getUserColor(message.sender) }
@@ -941,7 +817,6 @@ private fun ChatBubble(
             readBy = message.readBy,
             allUsers = allUsers,
             onDismiss = { showReadReceipts = false },
-            onUserClick = onUserClick
         )
     }
 }
@@ -951,7 +826,6 @@ private fun ReadReceiptsDialog(
     readBy: Map<String, Long>,
     allUsers: List<ChatUser>,
     onDismiss: () -> Unit,
-    onUserClick: (ChatUser) -> Unit,
 ) {
     val locale = androidx.compose.ui.text.intl.Locale.current
     val timeFormatter = remember(locale) { SimpleDateFormat("HH:mm:ss", locale.platformLocale) }
@@ -964,7 +838,7 @@ private fun ReadReceiptsDialog(
                     val user = allUsers.find { it.uid == uid }
                     if (user != null) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            OnlineUserItem(user, onUserClick = onUserClick)
+                            OnlineUserItem(user)
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 text = timeFormatter.format(Date(timestamp)),

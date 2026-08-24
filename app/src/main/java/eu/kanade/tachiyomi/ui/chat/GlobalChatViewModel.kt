@@ -110,12 +110,6 @@ class GlobalChatViewModel : StateViewModel<GlobalChatState>(GlobalChatState.Need
                             isOnline = doc.getBoolean("isOnline") ?: false,
                             isTyping = doc.getBoolean("isTyping") ?: false,
                             lastSeen = doc.getLong("lastSeen") ?: 0L,
-                            status = doc.getString("status"),
-                            readingManga = doc.getString("readingManga"),
-                            readingMangaId = doc.getString("readingMangaId"),
-                            readingSourceId = doc.getLong("readingSourceId"),
-                            readingChapter = doc.getString("readingChapter"),
-                            lastActiveAt = doc.getTimestamp("lastActiveAt")?.toDate()?.time,
                         )
                     }
                     mutableState.update { state ->
@@ -251,12 +245,6 @@ data class ChatUser(
     val isOnline: Boolean,
     val isTyping: Boolean,
     val lastSeen: Long,
-    val status: String? = null,
-    val readingManga: String? = null,
-    val readingMangaId: String? = null,
-    val readingSourceId: Long? = null,
-    val readingChapter: String? = null,
-    val lastActiveAt: Long? = null,
 )
 
 data class ChatMessage(

@@ -230,12 +230,11 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
         SecureActivityDelegate.onApplicationStart()
         val presenceManager = Injekt.get<PresenceManager>()
         presenceManager.updateStatus(PresenceStatus.ONLINE)
-        presenceManager.startHeartbeat()
     }
 
     override fun onStop(owner: LifecycleOwner) {
         SecureActivityDelegate.onApplicationStopped()
-        Injekt.get<PresenceManager>().stopHeartbeat()
+        Injekt.get<PresenceManager>().updateStatus(PresenceStatus.OFFLINE)
     }
 
     override fun getPackageName(): String {
