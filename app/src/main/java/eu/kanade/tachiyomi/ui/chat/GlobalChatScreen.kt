@@ -31,6 +31,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -675,12 +676,18 @@ private fun ChatBubble(
                 bottomStart = if (isMe) 12.dp else 0.dp,
                 bottomEnd = if (isMe) 0.dp else 12.dp,
             ),
-            modifier = Modifier.combinedClickable(
-                onClick = {},
-                onLongClick = { onReplyClick(message) },
-            ),
+            modifier = Modifier
+                .widthIn(max = 300.dp)
+                .combinedClickable(
+                    onClick = {},
+                    onLongClick = { onReplyClick(message) },
+                ),
         ) {
-            Column(modifier = Modifier.padding(8.dp)) {
+            Column(
+                modifier = Modifier
+                    .width(IntrinsicSize.Max)
+                    .padding(8.dp),
+            ) {
                 if (!isMe || message.isMangaShare) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         if (!isMe) {
@@ -711,6 +718,7 @@ private fun ChatBubble(
                         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                         shape = RoundedCornerShape(4.dp),
                         modifier = Modifier
+                            .fillMaxWidth()
                             .padding(bottom = 4.dp)
                             .clickable { onReplyJumpClick(message.replyToMessageId) },
                     ) {
@@ -732,7 +740,7 @@ private fun ChatBubble(
                                     text = message.replyToText ?: "",
                                     style = MaterialTheme.typography.bodySmall,
                                     fontSize = 10.sp,
-                                    maxLines = 1,
+                                    maxLines = 2,
                                     overflow = TextOverflow.Ellipsis,
                                 )
                             }
