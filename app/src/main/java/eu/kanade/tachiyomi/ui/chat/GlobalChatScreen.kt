@@ -270,8 +270,11 @@ private fun PresenceHeader(
 private fun OnlineUserItem(user: ChatUser, onUserClick: (ChatUser) -> Unit) {
     val enhancedPreferences = remember { Injekt.get<EnhancedPreferences>() }
     val avEnabled by enhancedPreferences.avEnabled.collectAsState()
+    val richEnabled = PresenceManager.RICH_PRESENCE_ENABLED
 
-    val isStale = user.lastActiveAt != null && (System.currentTimeMillis() - user.lastActiveAt > 3 * 60 * 1000)
+    val now = System.currentTimeMillis()
+    val lastActivity = user.lastActiveAt ?: user.lastSeen
+    val isStale = lastActivity != 0L && (now - lastActivity > 3 * 60 * 1000)
     val resolvedStatus = if (isStale) "OFFLINE" else (user.status ?: if (user.isOnline) "ONLINE" else "OFFLINE")
 
     val dotColor = when (resolvedStatus) {
@@ -284,7 +287,7 @@ private fun OnlineUserItem(user: ChatUser, onUserClick: (ChatUser) -> Unit) {
     val color = remember(user.username) { getUserColor(user.username) }
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.clickable(enabled = avEnabled) { onUserClick(user) }
+        modifier = Modifier.clickable(enabled = richEnabled && avEnabled) { onUserClick(user) }
     ) {
         Box {
             Surface(
@@ -302,13 +305,13 @@ private fun OnlineUserItem(user: ChatUser, onUserClick: (ChatUser) -> Unit) {
                 }
             }
 
-            val showDot = if (avEnabled) true else user.isOnline && !isStale
+            val showDot = if (richEnabled && avEnabled) true else user.isOnline && !isStale
             if (showDot) {
                 Box(
                     modifier = Modifier
                         .size(10.dp)
                         .clip(CircleShape)
-                        .background(if (avEnabled) dotColor else Color.Green)
+                        .background(if (richEnabled && avEnabled) dotColor else Color.Green)
                         .align(Alignment.BottomEnd)
                         .border(1.dp, MaterialTheme.colorScheme.surface, CircleShape)
                 )
@@ -356,7 +359,9 @@ private fun ProfileBottomSheet(
             Spacer(modifier = Modifier.height(16.dp))
             Text(text = user.username, style = MaterialTheme.typography.headlineSmall)
 
-            val isStale = user.lastActiveAt != null && (System.currentTimeMillis() - user.lastActiveAt > 3 * 60 * 1000)
+            val now = System.currentTimeMillis()
+            val lastActivity = user.lastActiveAt ?: user.lastSeen
+            val isStale = lastActivity != 0L && (now - lastActivity > 3 * 60 * 1000)
             val resolvedStatus = if (isStale) "OFFLINE" else (user.status ?: if (user.isOnline) "ONLINE" else "OFFLINE")
 
             val statusText = when (resolvedStatus) {
@@ -392,14 +397,17 @@ private fun ProfileBottomSheet(
                 ) {
                     Text("Buka Manga")
                 }
-            } else if (resolvedStatus == "OFFLINE" && user.lastActiveAt != null) {
-                Spacer(modifier = Modifier.height(8.dp))
-                val locale = androidx.compose.ui.text.intl.Locale.current
-                val df = remember(locale) { SimpleDateFormat("HH:mm, dd MMM", locale.platformLocale) }
-                Text(
-                    text = "Last active: ${df.format(Date(user.lastActiveAt))}",
-                    style = MaterialTheme.typography.bodySmall
-                )
+            } else if (resolvedStatus == "OFFLINE") {
+                val lastTime = user.lastActiveAt ?: user.lastSeen
+                if (lastTime != 0L) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    val locale = androidx.compose.ui.text.intl.Locale.current
+                    val df = remember(locale) { SimpleDateFormat("HH:mm, dd MMM", locale.platformLocale) }
+                    Text(
+                        text = "Last active: ${df.format(Date(lastTime))}",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
             }
             Spacer(modifier = Modifier.height(24.dp))
         }

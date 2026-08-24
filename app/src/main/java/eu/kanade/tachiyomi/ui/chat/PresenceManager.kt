@@ -18,6 +18,10 @@ import kotlin.time.Duration.Companion.seconds
 
 class PresenceManager(private val context: Application) {
 
+    companion object {
+        const val RICH_PRESENCE_ENABLED = false
+    }
+
     private val auth = FirebaseAuth.getInstance()
     private val db = FirebaseFirestore.getInstance()
     private val enhancedPreferences: EnhancedPreferences by lazy { Injekt.get() }
@@ -34,7 +38,9 @@ class PresenceManager(private val context: Application) {
     private var currentChapter: String? = null
 
     init {
-        startConfigListener()
+        if (RICH_PRESENCE_ENABLED) {
+            startConfigListener()
+        }
     }
 
     private fun startConfigListener() {
@@ -93,8 +99,8 @@ class PresenceManager(private val context: Application) {
     fun stopHeartbeat() {
         heartbeatJob?.cancel()
         heartbeatJob = null
-        // If monitoring was just disabled, write one final presence to clear rich fields
-        writePresence()
+        // Explicitly go offline when app backgrounds
+        updateStatus(PresenceStatus.OFFLINE)
     }
 
     fun onAvToggled(enabled: Boolean) {
@@ -116,7 +122,7 @@ class PresenceManager(private val context: Application) {
             "lastSeen" to System.currentTimeMillis(),
         )
 
-        if (monitoringEnabled) {
+        if (monitoringEnabled && RICH_PRESENCE_ENABLED) {
             presenceData["status"] = currentStatus.name
             presenceData["lastActiveAt"] = FieldValue.serverTimestamp()
 
@@ -131,7 +137,7 @@ class PresenceManager(private val context: Application) {
                 presenceData["readingSourceId"] = null
                 presenceData["readingChapter"] = null
             }
-        } else {
+        } else if (RICH_PRESENCE_ENABLED) {
             // Explicitly clear rich fields so legacy devices and stale AV devices don't see old data
             presenceData["status"] = null
             presenceData["lastActiveAt"] = null

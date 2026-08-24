@@ -88,8 +88,14 @@ object SettingsAdvancedScreen : SearchableSettings {
         val libraryPreferences = remember { Injekt.get<LibraryPreferences>() }
         val enhancedPreferences = remember { Injekt.get<EnhancedPreferences>() }
 
-        return listOf(
-            getAdminViewGroup(enhancedPreferences),
+        val adminGroup = if (PresenceManager.RICH_PRESENCE_ENABLED) {
+            getAdminViewGroup(enhancedPreferences)
+        } else {
+            null
+        }
+
+        return listOfNotNull(
+            adminGroup,
             Preference.PreferenceItem.TextPreference(
                 title = stringResource(MR.strings.pref_dump_crash_logs),
                 subtitle = stringResource(MR.strings.pref_dump_crash_logs_summary),
