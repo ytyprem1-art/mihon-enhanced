@@ -65,6 +65,8 @@ import eu.kanade.tachiyomi.data.notification.NotificationReceiver
 import eu.kanade.tachiyomi.data.notification.Notifications
 import eu.kanade.tachiyomi.databinding.ReaderActivityBinding
 import eu.kanade.tachiyomi.source.online.HttpSource
+import eu.kanade.tachiyomi.ui.chat.PresenceManager
+import eu.kanade.tachiyomi.ui.chat.PresenceStatus
 import eu.kanade.tachiyomi.ui.base.activity.BaseActivity
 import eu.kanade.tachiyomi.ui.main.MainActivity
 import eu.kanade.tachiyomi.ui.reader.ReaderViewModel.SetAsCoverResult.AddToLibraryFirst
@@ -218,6 +220,12 @@ class ReaderActivity : BaseActivity() {
             .onEach(::setChapters)
             .launchIn(lifecycleScope)
 
+        viewModel.state
+            .map { it.viewerChapters?.currChapter }
+            .distinctUntilChanged()
+            .onEach { updatePresence() }
+            .launchIn(lifecycleScope)
+
         viewModel.eventFlow
             .onEach { event ->
                 when (event) {
@@ -348,6 +356,35 @@ class ReaderActivity : BaseActivity() {
     /**
      * Called when the activity is destroyed. Cleans up the viewer, configuration and any view.
      */
+    override fun onStart() {
+        super.onStart()
+        updatePresence()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        Injekt.get<PresenceManager>().updateStatus(PresenceStatus.ONLINE)
+    }
+
+    private fun updatePresence() {
+        val state = viewModel.state.value
+        val manga = state.manga ?: return
+        val chapter = state.viewerChapters?.currChapter?.chapter ?: return
+
+        val incognito = viewModel.incognitoMode
+        if (incognito) {
+            Injekt.get<PresenceManager>().updateStatus(PresenceStatus.ONLINE)
+        } else {
+            Injekt.get<PresenceManager>().updateStatus(
+                PresenceStatus.READING,
+                mangaTitle = manga.title,
+                mangaId = manga.url,
+                sourceId = manga.source,
+                chapter = chapter.name,
+            )
+        }
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         viewModel.state.value.viewer?.destroy()

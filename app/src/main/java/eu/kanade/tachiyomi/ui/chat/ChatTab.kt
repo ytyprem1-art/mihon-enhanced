@@ -56,6 +56,16 @@ data object ChatTab : Tab {
                     selectedMessageForSourcePicker = message
                 }
             },
+            onOpenManga = { title, sourceId ->
+                navigator.push(
+                    BrowseSourceScreen(
+                        sourceId = sourceId,
+                        listingQuery = title,
+                        smartJumpTitle = title,
+                        smartJumpSessionId = java.util.UUID.randomUUID().toString()
+                    )
+                )
+            },
             onReplyClick = viewModel::setReplyingTo,
             onCancelReply = { viewModel.setReplyingTo(null) },
             updatePresence = viewModel::updatePresence,

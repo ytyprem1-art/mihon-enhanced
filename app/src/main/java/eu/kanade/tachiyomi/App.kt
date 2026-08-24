@@ -46,6 +46,8 @@ import eu.kanade.tachiyomi.util.system.WebViewUtil
 import eu.kanade.tachiyomi.util.system.animatorDurationScale
 import eu.kanade.tachiyomi.util.system.cancelNotification
 import eu.kanade.tachiyomi.util.system.notify
+import eu.kanade.tachiyomi.ui.chat.PresenceManager
+import eu.kanade.tachiyomi.ui.chat.PresenceStatus
 import eu.kanade.tachiyomi.ui.mod.updatewatch.worker.UpdateWatchRefreshScheduler
 import eu.kanade.tachiyomi.ui.mod.updatewatch.worker.UpdateWatchForegroundBurst
 import kotlinx.coroutines.Dispatchers
@@ -226,10 +228,14 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
 
     override fun onStart(owner: LifecycleOwner) {
         SecureActivityDelegate.onApplicationStart()
+        val presenceManager = Injekt.get<PresenceManager>()
+        presenceManager.updateStatus(PresenceStatus.ONLINE)
+        presenceManager.startHeartbeat()
     }
 
     override fun onStop(owner: LifecycleOwner) {
         SecureActivityDelegate.onApplicationStopped()
+        Injekt.get<PresenceManager>().stopHeartbeat()
     }
 
     override fun getPackageName(): String {

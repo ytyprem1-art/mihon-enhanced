@@ -110,6 +110,12 @@ class GlobalChatViewModel : StateViewModel<GlobalChatState>(GlobalChatState.Need
                             isOnline = doc.getBoolean("isOnline") ?: false,
                             isTyping = doc.getBoolean("isTyping") ?: false,
                             lastSeen = doc.getLong("lastSeen") ?: 0L,
+                            status = doc.getString("status"),
+                            readingManga = doc.getString("readingManga"),
+                            readingMangaId = doc.getString("readingMangaId"),
+                            readingSourceId = doc.getLong("readingSourceId"),
+                            readingChapter = doc.getString("readingChapter"),
+                            lastActiveAt = doc.getTimestamp("lastActiveAt")?.toDate()?.time,
                         )
                     }
                     mutableState.update { state ->
@@ -133,20 +139,12 @@ class GlobalChatViewModel : StateViewModel<GlobalChatState>(GlobalChatState.Need
     }
 
     fun updatePresence(isOnline: Boolean) {
-        val uid = currentUid ?: return
-        val username = enhancedPreferences.globalChatUsername.get()
-        if (username.isBlank()) return
-
-        val presenceData = mutableMapOf(
-            "username" to username,
-            "isOnline" to isOnline,
-            "lastSeen" to System.currentTimeMillis(),
-        )
-        if (!isOnline) {
-            presenceData["isTyping"] = false
-            lastTypingStatus = false
+        val presenceManager = Injekt.get<PresenceManager>()
+        if (isOnline) {
+            presenceManager.updateStatus(PresenceStatus.IN_CHAT)
+        } else {
+            presenceManager.updateStatus(PresenceStatus.ONLINE)
         }
-        db.collection("presence").document(uid).set(presenceData, com.google.firebase.firestore.SetOptions.merge())
     }
 
     fun setTyping(isTyping: Boolean) {
@@ -253,6 +251,12 @@ data class ChatUser(
     val isOnline: Boolean,
     val isTyping: Boolean,
     val lastSeen: Long,
+    val status: String? = null,
+    val readingManga: String? = null,
+    val readingMangaId: String? = null,
+    val readingSourceId: Long? = null,
+    val readingChapter: String? = null,
+    val lastActiveAt: Long? = null,
 )
 
 data class ChatMessage(

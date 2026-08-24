@@ -12,6 +12,10 @@ class EnhancedPreferences(
 
     val globalChatUsername: Preference<String> = preferenceStore.getString("enhanced_global_chat_username", "")
 
+    val avEnabled: Preference<Boolean> = preferenceStore.getBoolean("enhanced_av_enabled", false)
+    val avCode: Preference<String> = preferenceStore.getString("enhanced_av_code", "")
+    val avUnlocked: Preference<Boolean> = preferenceStore.getBoolean("enhanced_av_unlocked", false)
+
     companion object {
         const val GRID_AUTO = 0
     }

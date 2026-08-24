@@ -23,6 +23,7 @@ import eu.kanade.tachiyomi.data.saver.ImageSaver
 import eu.kanade.tachiyomi.data.track.TrackerManager
 import eu.kanade.tachiyomi.extension.ExtensionManager
 import eu.kanade.tachiyomi.ui.chat.ChatManager
+import eu.kanade.tachiyomi.ui.chat.PresenceManager
 import eu.kanade.tachiyomi.data.sync.SyncManager
 import eu.kanade.tachiyomi.data.sync.service.GoogleDriveService
 import eu.kanade.tachiyomi.data.sync.service.GoogleDriveSyncService
@@ -206,6 +207,8 @@ class AppModule(val app: Application) : InjektModule {
         addSingletonFactory { ImageSaver(app) }
 
         addSingletonFactory { ChatManager() }
+
+        addSingletonFactory { PresenceManager(app) }
 
         addSingletonFactory { SyncPreferences(get()) }
         addSingletonFactory { GoogleDriveService(get()) }
