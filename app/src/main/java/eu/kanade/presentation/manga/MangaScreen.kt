@@ -71,6 +71,7 @@ import eu.kanade.presentation.manga.components.MissingChapterCountListItem
 import eu.kanade.presentation.util.formatChapterNumber
 import eu.kanade.tachiyomi.data.download.model.Download
 import eu.kanade.tachiyomi.source.getNameForMangaInfo
+import eu.kanade.tachiyomi.source.mod.MERGED_SOURCE_ID
 import eu.kanade.tachiyomi.ui.manga.ChapterList
 import eu.kanade.tachiyomi.ui.manga.MangaViewModel
 import eu.kanade.tachiyomi.util.system.copyToClipboard
@@ -140,6 +141,10 @@ fun MangaScreen(
     onInvertSelection: () -> Unit,
     onLinkedSourcesClicked: () -> Unit,
     onUpdateWatchClicked: () -> Unit,
+    // SY -->
+    onMergedSettingsClicked: () -> Unit,
+    onMergeClicked: () -> Unit,
+    // SY <--
     onOpenSource: (Long, String) -> Unit,
 ) {
     val context = LocalContext.current
@@ -187,6 +192,8 @@ fun MangaScreen(
             onInvertSelection = onInvertSelection,
             onLinkedSourcesClicked = onLinkedSourcesClicked,
             onUpdateWatchClicked = onUpdateWatchClicked,
+            onMergedSettingsClicked = onMergedSettingsClicked,
+            onMergeClicked = onMergeClicked,
             onOpenSource = onOpenSource,
         )
     } else {
@@ -227,6 +234,8 @@ fun MangaScreen(
             onInvertSelection = onInvertSelection,
             onLinkedSourcesClicked = onLinkedSourcesClicked,
             onUpdateWatchClicked = onUpdateWatchClicked,
+            onMergedSettingsClicked = onMergedSettingsClicked,
+            onMergeClicked = onMergeClicked,
             onOpenSource = onOpenSource,
         )
     }
@@ -283,6 +292,10 @@ private fun MangaScreenSmallImpl(
     onInvertSelection: () -> Unit,
     onLinkedSourcesClicked: () -> Unit,
     onUpdateWatchClicked: () -> Unit,
+    // SY -->
+    onMergedSettingsClicked: () -> Unit,
+    onMergeClicked: () -> Unit,
+    // SY <--
     onOpenSource: (Long, String) -> Unit,
 ) {
     val chapterListState = rememberLazyListState()
@@ -331,6 +344,10 @@ private fun MangaScreenSmallImpl(
                 onClickMigrate = onMigrateClicked,
                 onClickEditNotes = onEditNotesClicked,
                 onLinkedSourcesClicked = onLinkedSourcesClicked,
+                // SY -->
+                onClickMergedSettings = onMergedSettingsClicked.takeIf { state.manga.source == MERGED_SOURCE_ID },
+                onClickMerge = onMergeClicked,
+                // SY <--
                 actionModeCounter = selectedChapterCount,
                 onCancelActionMode = { onAllChapterSelected(false) },
                 onSelectAll = { onAllChapterSelected(true) },
@@ -409,7 +426,7 @@ private fun MangaScreenSmallImpl(
                                 isTabletUi = false,
                                 appBarPadding = topPadding,
                                 manga = state.manga,
-                                sourceName = remember { state.source.getNameForMangaInfo() },
+                                sourceName = remember { state.source.getNameForMangaInfo(state.mergedData?.sources) },
                                 isStubSource = remember { state.source is StubSource },
                                 onCoverClick = onCoverClicked,
                                 doSearch = onSearch,
@@ -433,6 +450,9 @@ private fun MangaScreenSmallImpl(
                                 onEditCategory = onEditCategoryClicked,
                                 updateWatchTracked = state.isUpdateWatchTracked,
                                 onUpdateWatchClicked = onUpdateWatchClicked,
+                                // SY -->
+                                onMergeClicked = onMergeClicked,
+                                // SY <--
                             )
                         }
 
@@ -577,6 +597,10 @@ fun MangaScreenLargeImpl(
     onInvertSelection: () -> Unit,
     onLinkedSourcesClicked: () -> Unit,
     onUpdateWatchClicked: () -> Unit,
+    // SY -->
+    onMergedSettingsClicked: () -> Unit,
+    onMergeClicked: () -> Unit,
+    // SY <--
     onOpenSource: (Long, String) -> Unit,
 ) {
     val layoutDirection = LocalLayoutDirection.current
@@ -618,6 +642,10 @@ fun MangaScreenLargeImpl(
                 onClickMigrate = onMigrateClicked,
                 onClickEditNotes = onEditNotesClicked,
                 onLinkedSourcesClicked = onLinkedSourcesClicked,
+                // SY -->
+                onClickMergedSettings = onMergedSettingsClicked.takeIf { state.manga.source == MERGED_SOURCE_ID },
+                onClickMerge = onMergeClicked,
+                // SY <--
                 onCancelActionMode = { onAllChapterSelected(false) },
                 actionModeCounter = selectedChapterCount,
                 onSelectAll = { onAllChapterSelected(true) },
@@ -697,7 +725,7 @@ fun MangaScreenLargeImpl(
                                 isTabletUi = true,
                                 appBarPadding = contentPadding.calculateTopPadding(),
                                 manga = state.manga,
-                                sourceName = remember { state.source.getNameForMangaInfo() },
+                                sourceName = remember { state.source.getNameForMangaInfo(state.mergedData?.sources) },
                                 isStubSource = remember { state.source is StubSource },
                                 onCoverClick = onCoverClicked,
                                 doSearch = onSearch,
@@ -715,6 +743,9 @@ fun MangaScreenLargeImpl(
                                 onEditCategory = onEditCategoryClicked,
                                 updateWatchTracked = state.isUpdateWatchTracked,
                                 onUpdateWatchClicked = onUpdateWatchClicked,
+                                // SY -->
+                                onMergeClicked = onMergeClicked,
+                                // SY <--
                             )
 
                             if (onShareToChatClicked != null) {
@@ -905,6 +936,7 @@ private fun LazyListScope.sharedChapterItems(
                     read = item.chapter.read,
                     bookmark = item.chapter.bookmark,
                     selected = item.selected,
+                    sourceName = item.sourceName,
                     downloadIndicatorEnabled = !isAnyChapterSelected && !manga.isLocal(),
                     downloadStateProvider = { item.downloadState },
                     downloadProgressProvider = { item.downloadProgress },

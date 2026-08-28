@@ -1120,4 +1120,34 @@
     <string name="mod_welcome_footer">Mihon Enhanced is an unofficial modification and is not affiliated with the official Mihon project.</string>
     <string name="mod_welcome_dont_show_again">Don\'t show this again</string>
     <string name="mod_whats_new">What\'s new in Mihon Enhanced</string>
+
+    <!-- Manga Merge -->
+    <string name="merge_unknown_entry">Unknown entry ID: %1$d</string>
+    <string name="merged_already">This entry is already merged with the current entry!</string>
+    <string name="merge_duplicate">This merged entry is a duplicate!</string>
+    <string name="searching_source">Searching source…</string>
+    <string name="could_not_find_entry">Couldn\'t find the entry in the source!</string>
+    <string name="automatic_search_error">Error performing automatic search!</string>
+    <string name="fetch_chapter_updates">Fetch chapter updates</string>
+    <string name="delete_merged_entry">Are you sure?</string>
+    <string name="delete_merged_entry_desc">This will remove the entry from the merge, using this will also delete any downloads for this entry if you have any.</string>
+    <string name="chapter_updates_merged_entry">Toggle chapter updates</string>
+    <string name="chapter_updates_merged_entry_desc">Toggling this will disable or enable chapter updates for this entry.</string>
+    <string name="download_merged_entry">Toggle new chapter downloads</string>
+    <string name="download_merged_entry_desc">Toggling this will disable or enable chapter downloads for this entry.</string>
+    <string name="merged_references_invalid">Merged references invalid</string>
+    <string name="merged_chapter_updates_error">Toggle chapter updates error</string>
+    <string name="merged_toggle_download_chapters_error">Toggle download chapters error</string>
+    <string name="allow_deduplication">Allow deduplication:</string>
+    <string name="deduplication_mode">Dedupe mode:</string>
+    <string name="deduplication_entry_info">Info entry:</string>
+    <string name="no_dedupe">No dedupe</string>
+    <string name="dedupe_priority">Dedupe by priority</string>
+    <string name="dedupe_most_chapters">Show source with most chapters</string>
+    <string name="dedupe_highest_chapter">Show source with highest chapter number</string>
+    <string name="find_in_another_source">Find in another source</string>
+    <string name="merge_with_another">Merge with another?</string>
+    <string name="merge_with_another_desc">This will merge the current entry into the original entry.</string>
+    <string name="entry_merged">Entry merged!</string>
+    <string name="failed_merge">Failed to merge: %1$s</string>
 </resources>

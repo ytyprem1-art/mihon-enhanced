@@ -49,6 +49,9 @@ class BackupManga(
 
     // History Mod
     @ProtoNumber(600) var historyCategory: Long = 0,
+
+    // SY specific values
+    @ProtoNumber(601) var mergedMangaReferences: List<BackupMergedMangaReference> = emptyList(),
 ) {
     fun getMangaImpl(): Manga {
         return Manga.create().copy(

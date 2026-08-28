@@ -63,6 +63,9 @@ fun MangaChapterListItem(
     onClick: () -> Unit,
     onDownloadClick: ((ChapterDownloadAction) -> Unit)?,
     onChapterSwipe: (LibraryPreferences.ChapterSwipeAction) -> Unit,
+    // SY -->
+    sourceName: String? = null,
+    // SY <--
     modifier: Modifier = Modifier,
 ) {
     val start = getSwipeAction(
@@ -149,7 +152,12 @@ fun MangaChapterListItem(
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                             )
-                            if (readProgress != null || scanlator != null) DotSeparatorText()
+                            if (readProgress != null ||
+                                scanlator != null/* SY --> */ ||
+                                sourceName != null/* SY <-- */
+                            ) {
+                                DotSeparatorText()
+                            }
                         }
                         if (readProgress != null) {
                             Text(
@@ -158,8 +166,18 @@ fun MangaChapterListItem(
                                 overflow = TextOverflow.Ellipsis,
                                 color = LocalContentColor.current.copy(alpha = DISABLED_ALPHA),
                             )
+                            if (scanlator != null/* SY --> */ || sourceName != null/* SY <-- */) DotSeparatorText()
+                        }
+                        // SY -->
+                        if (sourceName != null) {
+                            Text(
+                                text = sourceName,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
                             if (scanlator != null) DotSeparatorText()
                         }
+                        // SY <--
                         if (scanlator != null) {
                             Text(
                                 text = scanlator,

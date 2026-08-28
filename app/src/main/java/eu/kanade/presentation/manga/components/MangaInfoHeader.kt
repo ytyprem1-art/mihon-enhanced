@@ -36,6 +36,7 @@ import androidx.compose.material.icons.outlined.Block
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Done
 import androidx.compose.material.icons.outlined.DoneAll
+import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.Pause
 import androidx.compose.material.icons.outlined.Public
@@ -187,6 +188,9 @@ fun MangaActionRow(
     onEditCategory: (() -> Unit)?,
     updateWatchTracked: Boolean = false,
     onUpdateWatchClicked: (() -> Unit)? = null,
+    // SY -->
+    onMergeClicked: (() -> Unit)? = null,
+    // SY <--
     modifier: Modifier = Modifier,
 ) {
     val defaultActionButtonColor = MaterialTheme.colorScheme.onSurface.copy(alpha = DISABLED_ALPHA)
@@ -245,6 +249,16 @@ fun MangaActionRow(
                 onClick = onUpdateWatchClicked,
             )
         }
+        // SY -->
+        if (onMergeClicked != null) {
+            MangaActionButton(
+                title = "Merge",
+                icon = Icons.Outlined.Link,
+                color = defaultActionButtonColor,
+                onClick = onMergeClicked,
+            )
+        }
+        // SY <--
         if (onWebViewClicked != null) {
             MangaActionButton(
                 title = stringResource(MR.strings.action_web_view),

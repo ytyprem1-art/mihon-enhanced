@@ -19,42 +19,56 @@ import eu.kanade.presentation.components.TabContent
 import eu.kanade.tachiyomi.ui.browse.source.browse.BrowseSourceScreen
 import eu.kanade.tachiyomi.ui.browse.source.globalsearch.GlobalSearchScreen
 import eu.kanade.tachiyomi.ui.browse.source.linked.LinkedSourcesScreen
+import eu.kanade.tachiyomi.ui.mod.merge.SmartSearchScreen
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.i18n.stringResource
 
 @Composable
-fun Screen.sourcesTab(): TabContent {
+fun Screen.sourcesTab(
+    smartSearchConfig: eu.kanade.tachiyomi.ui.browse.source.SourcesScreen.SmartSearchConfig? = null,
+): TabContent {
     val navigator = LocalNavigator.currentOrThrow
     val viewModel = viewModel<SourcesViewModel>()
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     return TabContent(
-        titleRes = MR.strings.label_sources,
+        titleRes = if (smartSearchConfig == null) MR.strings.label_sources else MR.strings.find_in_another_source,
         actions = listOf(
             AppBar.Action(
                 title = stringResource(MR.strings.action_global_search),
                 icon = Icons.Outlined.TravelExplore,
-                onClick = { navigator.push(GlobalSearchScreen()) },
+                onClick = { navigator.push(GlobalSearchScreen(smartSearchConfig?.origTitle ?: "")) },
             ),
-            AppBar.Action(
-                title = "Linked Sources",
-                icon = Icons.Outlined.Link,
-                onClick = { navigator.push(LinkedSourcesScreen()) },
-            ),
-            AppBar.Action(
-                title = stringResource(MR.strings.action_filter),
-                icon = Icons.Outlined.FilterList,
-                onClick = { navigator.push(SourcesFilterScreen()) },
-            ),
-        ),
+        ).let {
+            if (smartSearchConfig == null) {
+                it + listOf(
+                    AppBar.Action(
+                        title = "Linked Sources",
+                        icon = Icons.Outlined.Link,
+                        onClick = { navigator.push(LinkedSourcesScreen()) },
+                    ),
+                    AppBar.Action(
+                        title = stringResource(MR.strings.action_filter),
+                        icon = Icons.Outlined.FilterList,
+                        onClick = { navigator.push(SourcesFilterScreen()) },
+                    ),
+                )
+            } else {
+                it
+            }
+        },
         content = { contentPadding, snackbarHostState ->
             SourcesScreen(
                 state = state,
                 contentPadding = contentPadding,
                 onClickItem = { source, listing ->
-                    navigator.push(BrowseSourceScreen(source.id, listing.query))
+                    if (smartSearchConfig != null) {
+                        navigator.push(SmartSearchScreen(source.id, smartSearchConfig.origTitle, smartSearchConfig.origMangaId!!))
+                    } else {
+                        navigator.push(BrowseSourceScreen(source.id, listing.query))
+                    }
                 },
                 onClickPin = viewModel::togglePin,
                 onLongClickItem = viewModel::showSourceDialog,

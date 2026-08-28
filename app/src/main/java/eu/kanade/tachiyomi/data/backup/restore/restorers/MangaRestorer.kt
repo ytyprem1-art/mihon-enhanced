@@ -9,12 +9,15 @@ import eu.kanade.tachiyomi.data.backup.models.BackupChapter
 import eu.kanade.tachiyomi.data.backup.models.BackupHistory
 import eu.kanade.tachiyomi.data.backup.models.BackupHistoryCategory
 import eu.kanade.tachiyomi.data.backup.models.BackupManga
+import eu.kanade.tachiyomi.data.backup.models.BackupMergedMangaReference
 import eu.kanade.tachiyomi.data.backup.models.BackupTracking
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import tachiyomi.data.Database
 import tachiyomi.data.MemoColumnAdapter
 import tachiyomi.data.UpdateStrategyColumnAdapter
+import tachiyomi.data.manga.MangaMapper
+import tachiyomi.data.manga.MergedMangaMapper
 import tachiyomi.domain.category.interactor.GetCategories
 import tachiyomi.domain.chapter.interactor.GetChaptersByMangaId
 import tachiyomi.domain.chapter.model.Chapter
@@ -90,6 +93,7 @@ class MangaRestorer(
                 tracks = backupManga.tracking,
                 excludedScanlators = backupManga.excludedScanlators,
                 restoreHistoryCategories = restoreHistoryCategories,
+                mergedMangaReferences = backupManga.mergedMangaReferences,
             )
             restoredManga.id
         }
@@ -294,6 +298,7 @@ class MangaRestorer(
         tracks: List<BackupTracking>,
         excludedScanlators: List<String>,
         restoreHistoryCategories: Boolean,
+        mergedMangaReferences: List<BackupMergedMangaReference>,
     ): Manga {
         restoreCategories(manga, categories, backupCategories)
         if (restoreHistoryCategories) {
@@ -303,6 +308,9 @@ class MangaRestorer(
         restoreTracking(manga, tracks)
         restoreHistory(manga.id, history)
         restoreExcludedScanlators(manga, excludedScanlators)
+        // SY -->
+        restoreMergedMangaReferencesForManga(manga.id, mergedMangaReferences)
+        // SY <--
         updateManga.awaitUpdateFetchInterval(manga, timeZone, now, currentFetchWindow)
         return manga
     }
@@ -489,4 +497,51 @@ class MangaRestorer(
         if (toInsert.isEmpty()) return
         toInsert.forEach { database.excluded_scanlatorsQueries.insert(manga.id, it) }
     }
+
+    // SY -->
+    private suspend fun restoreMergedMangaReferencesForManga(
+        mergeMangaId: Long,
+        backupMergedMangaReferences: List<BackupMergedMangaReference>,
+    ) {
+        // Get merged manga references from file and from db
+        val dbMergedMangaReferences =
+            database.mergedQueries.selectAll(MergedMangaMapper::map)
+                .awaitAsList()
+
+        // Iterate over them
+        backupMergedMangaReferences.forEach { backupMergedMangaReference ->
+            // If the backupMergedMangaReference isn't in the db,
+            // remove the id and insert a new backupMergedMangaReference
+            // Store the inserted id in the backupMergedMangaReference
+            if (dbMergedMangaReferences.none {
+                    backupMergedMangaReference.mergeUrl == it.mergeUrl &&
+                        backupMergedMangaReference.mangaUrl == it.mangaUrl
+                }
+            ) {
+                // Let the db assign the id
+                val mergedManga = database.mangasQueries.getMangaByUrlAndSource(
+                    backupMergedMangaReference.mangaUrl,
+                    backupMergedMangaReference.mangaSourceId,
+                    MangaMapper::mapManga,
+                )
+                    .awaitAsOneOrNull()
+                    ?: return@forEach
+                backupMergedMangaReference.getMergedMangaReference().run {
+                    database.mergedQueries.insert(
+                        infoManga = isInfoManga,
+                        getChapterUpdates = getChapterUpdates,
+                        chapterSortMode = chapterSortMode.toLong(),
+                        chapterPriority = chapterPriority.toLong(),
+                        downloadChapters = downloadChapters,
+                        mergeId = mergeMangaId,
+                        mergeUrl = mergeUrl,
+                        mangaId = mergedManga.id,
+                        mangaUrl = mangaUrl,
+                        mangaSource = mangaSourceId,
+                    )
+                }
+            }
+        }
+    }
+    // SY <--
 }

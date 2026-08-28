@@ -58,6 +58,7 @@ import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import eu.kanade.tachiyomi.ui.browse.source.browse.BrowseSourceScreen
 import eu.kanade.tachiyomi.ui.browse.source.globalsearch.GlobalSearchScreen
+import eu.kanade.tachiyomi.ui.mod.merge.EditMergedSettingsDialog
 import eu.kanade.tachiyomi.ui.browse.source.linked.LinkedSourceDetailsScreen
 import eu.kanade.tachiyomi.ui.browse.source.linked.LinkedSourceSearchScreen
 import eu.kanade.tachiyomi.ui.category.CategoryScreen
@@ -72,6 +73,7 @@ import eu.kanade.tachiyomi.ui.webview.WebViewScreen
 import eu.kanade.tachiyomi.util.system.copyToClipboard
 import eu.kanade.tachiyomi.util.system.toShareIntent
 import eu.kanade.tachiyomi.util.system.toast
+import tachiyomi.core.common.i18n.stringResource
 import kotlinx.coroutines.launch
 import logcat.LogPriority
 import mihon.feature.migration.config.MigrationConfigScreen
@@ -89,6 +91,9 @@ class MangaScreen(
     val fromSource: Boolean = false,
     val smartJumpSessionId: String? = null,
     val smartJumpAnchorSourceId: Long? = null,
+    // SY -->
+    private val mergeWithMangaId: Long? = null,
+    // SY <--
 ) : Screen(), AssistContentScreen {
 
     private var assistUrl: String? = null
@@ -115,6 +120,16 @@ class MangaScreen(
         )
 
         val state by viewModel.state.collectAsStateWithLifecycle()
+
+        // SY -->
+        var hasShownMergeDialog by rememberSaveable { mutableStateOf(false) }
+        LaunchedEffect(state) {
+            if (mergeWithMangaId != null && state is MangaViewModel.State.Success && !hasShownMergeDialog) {
+                viewModel.showMergeWithAnotherDialog(mergeWithMangaId)
+                hasShownMergeDialog = true
+            }
+        }
+        // SY <--
 
         var isReturningFromWebView by rememberSaveable { mutableStateOf(false) }
         val lifecycleOwner = LocalLifecycleOwner.current
@@ -218,6 +233,17 @@ class MangaScreen(
             onInvertSelection = viewModel::invertSelection,
             onLinkedSourcesClicked = { showLinkedSourcesSheet = true },
             onUpdateWatchClicked = viewModel::toggleUpdateWatch,
+            // SY -->
+            onMergedSettingsClicked = viewModel::showEditMergedSettingsDialog,
+            onMergeClicked = {
+                val title = viewModel.manga?.title ?: ""
+                navigator.push(
+                    eu.kanade.tachiyomi.ui.browse.source.SourcesScreen(
+                        eu.kanade.tachiyomi.ui.browse.source.SourcesScreen.SmartSearchConfig(title, mangaId)
+                    )
+                )
+            },
+            // SY <--
             onOpenSource = { sourceId, query ->
                 val currentSourceId = successState.source.id
 
@@ -598,6 +624,46 @@ class MangaScreen(
                     },
                 )
             }
+            // SY -->
+            is MangaViewModel.Dialog.EditMergedSettings -> {
+                EditMergedSettingsDialog(
+                    onDismissRequest = onDismissRequest,
+                    mergedData = dialog.mergedData,
+                    onDeleteClick = viewModel::deleteMerge,
+                    onPositiveClick = viewModel::updateMergeSettings,
+                )
+            }
+            is MangaViewModel.Dialog.MergeWithAnother -> {
+                androidx.compose.material3.AlertDialog(
+                    onDismissRequest = onDismissRequest,
+                    title = { androidx.compose.material3.Text(stringResource(MR.strings.merge_with_another)) },
+                    text = { androidx.compose.material3.Text(stringResource(MR.strings.merge_with_another_desc)) },
+                    confirmButton = {
+                        androidx.compose.material3.TextButton(
+                            onClick = {
+                                scope.launch {
+                                    try {
+                                        val mergedManga = viewModel.smartSearchMerge(dialog.manga, dialog.mergeWithMangaId)
+                                        navigator.replace(MangaScreen(mergedManga.id, true))
+                                        context.toast(context.stringResource(MR.strings.entry_merged))
+                                    } catch (e: Exception) {
+                                        context.toast(context.stringResource(MR.strings.failed_merge, e.message.orEmpty()))
+                                    }
+                                }
+                                onDismissRequest()
+                            },
+                        ) {
+                            androidx.compose.material3.Text(stringResource(MR.strings.action_ok))
+                        }
+                    },
+                    dismissButton = {
+                        androidx.compose.material3.TextButton(onClick = onDismissRequest) {
+                            androidx.compose.material3.Text(stringResource(MR.strings.action_cancel))
+                        }
+                    },
+                )
+            }
+            // SY <--
         }
 
         if (showScanlatorsDialog) {

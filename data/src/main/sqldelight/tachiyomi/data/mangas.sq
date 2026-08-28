@@ -259,6 +259,10 @@ UPDATE mangas SET
     memo = coalesce(:memo, memo)
 WHERE _id = :mangaId;
 
+deleteById:
+DELETE FROM mangas
+WHERE _id = :mangaId;
+
 insertNetworkManga {
     -- Insert the manga if it doesn't exist already
     INSERT INTO mangas(

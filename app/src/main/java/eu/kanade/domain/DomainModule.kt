@@ -40,6 +40,7 @@ import mihon.domain.upcoming.interactor.GetUpcomingManga
 import tachiyomi.data.category.CategoryRepositoryImpl
 import tachiyomi.data.chapter.ChapterRepositoryImpl
 import tachiyomi.data.history.HistoryRepositoryImpl
+import tachiyomi.data.manga.MangaMergeRepositoryImpl
 import tachiyomi.data.manga.MangaRepositoryImpl
 import tachiyomi.data.release.ReleaseServiceImpl
 import tachiyomi.data.source.SourceRepositoryImpl
@@ -60,6 +61,7 @@ import tachiyomi.domain.chapter.interactor.GetBookmarkedChaptersByMangaId
 import tachiyomi.domain.chapter.interactor.GetChapter
 import tachiyomi.domain.chapter.interactor.GetChapterByUrlAndMangaId
 import tachiyomi.domain.chapter.interactor.GetChaptersByMangaId
+import tachiyomi.domain.chapter.interactor.GetMergedChaptersByMangaId
 import tachiyomi.domain.chapter.interactor.SetMangaDefaultChapterFlags
 import tachiyomi.domain.chapter.interactor.ShouldUpdateDbChapter
 import tachiyomi.domain.chapter.interactor.UpdateChapter
@@ -84,6 +86,10 @@ import tachiyomi.domain.history.interactor.ManageUpdateWatchHistory
 import tachiyomi.domain.history.group.repository.HistoryGroupRepository
 import tachiyomi.data.history.HistoryGroupRepositoryImpl
 import tachiyomi.domain.history.group.interactor.ManageHistoryGroups
+import tachiyomi.domain.manga.interactor.DeleteByMergeId
+import tachiyomi.domain.manga.interactor.DeleteMangaById
+import tachiyomi.domain.manga.interactor.DeleteMergeById
+import tachiyomi.domain.manga.interactor.DeleteOrphanedMergeReferences
 import tachiyomi.domain.manga.interactor.FetchInterval
 import tachiyomi.domain.manga.interactor.GetDuplicateLibraryManga
 import tachiyomi.domain.manga.interactor.GetFavorites
@@ -91,10 +97,17 @@ import tachiyomi.domain.manga.interactor.GetLibraryManga
 import tachiyomi.domain.manga.interactor.GetManga
 import tachiyomi.domain.manga.interactor.GetMangaByUrlAndSourceId
 import tachiyomi.domain.manga.interactor.GetMangaWithChapters
+import tachiyomi.domain.manga.interactor.GetMergedManga
+import tachiyomi.domain.manga.interactor.GetMergedMangaById
+import tachiyomi.domain.manga.interactor.GetMergedMangaForDownloading
+import tachiyomi.domain.manga.interactor.GetMergedReferencesById
+import tachiyomi.domain.manga.interactor.InsertMergedReference
 import tachiyomi.domain.manga.interactor.NetworkToLocalManga
 import tachiyomi.domain.manga.interactor.ResetViewerFlags
 import tachiyomi.domain.manga.interactor.SetMangaChapterFlags
 import tachiyomi.domain.manga.interactor.UpdateMangaNotes
+import tachiyomi.domain.manga.interactor.UpdateMergedSettings
+import tachiyomi.domain.manga.repository.MangaMergeRepository
 import tachiyomi.domain.manga.repository.MangaRepository
 import tachiyomi.domain.release.interactor.GetApplicationRelease
 import tachiyomi.domain.release.service.ReleaseService
@@ -136,7 +149,9 @@ class DomainModule : InjektModule {
         addFactory { DeleteCategory(get(), get(), get()) }
 
         addSingletonFactory<MangaRepository> { MangaRepositoryImpl(get()) }
+        addSingletonFactory<MangaMergeRepository> { MangaMergeRepositoryImpl(get()) }
         addFactory { GetDuplicateLibraryManga(get()) }
+        addFactory { DeleteMangaById(get()) }
         addFactory { GetFavorites(get()) }
         addFactory { GetLibraryManga(get()) }
         addFactory { GetMangaWithChapters(get(), get()) }
@@ -155,6 +170,15 @@ class DomainModule : InjektModule {
         addFactory { SetMangaCategories(get()) }
         addFactory { GetExcludedScanlators(get()) }
         addFactory { SetExcludedScanlators(get()) }
+        addFactory { GetMergedManga(get()) }
+        addFactory { GetMergedMangaById(get()) }
+        addFactory { GetMergedReferencesById(get()) }
+        addFactory { InsertMergedReference(get()) }
+        addFactory { UpdateMergedSettings(get()) }
+        addFactory { DeleteByMergeId(get()) }
+        addFactory { DeleteMergeById(get()) }
+        addFactory { DeleteOrphanedMergeReferences(get()) }
+        addFactory { GetMergedMangaForDownloading(get()) }
         addFactory {
             MigrateMangaUseCase(
                 get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(),
@@ -177,6 +201,7 @@ class DomainModule : InjektModule {
         addSingletonFactory<ChapterRepository> { ChapterRepositoryImpl(get()) }
         addFactory { GetChapter(get()) }
         addFactory { GetChaptersByMangaId(get()) }
+        addFactory { GetMergedChaptersByMangaId(get(), get()) }
         addFactory { GetBookmarkedChaptersByMangaId(get()) }
         addFactory { GetChapterByUrlAndMangaId(get()) }
         addFactory { UpdateChapter(get()) }

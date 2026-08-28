@@ -36,7 +36,12 @@ import eu.kanade.tachiyomi.data.download.model.Download
 import eu.kanade.tachiyomi.data.track.EnhancedTracker
 import eu.kanade.tachiyomi.data.track.TrackerManager
 import eu.kanade.tachiyomi.source.Source
+import eu.kanade.tachiyomi.source.getNameForMangaInfo
 import eu.kanade.tachiyomi.ui.mod.EnhancedPreferences
+import eu.kanade.domain.manga.model.copyFrom
+import eu.kanade.domain.manga.model.toSManga
+import eu.kanade.tachiyomi.source.mod.MERGED_SOURCE_ID
+import eu.kanade.tachiyomi.ui.mod.merge.MergedMangaData
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
 import eu.kanade.tachiyomi.ui.mod.updatewatch.worker.UpdateWatchRefreshScheduler
 import eu.kanade.tachiyomi.util.chapter.getNextUnread
@@ -49,6 +54,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapConcat
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
@@ -66,11 +72,13 @@ import tachiyomi.core.common.preference.TriState
 import tachiyomi.core.common.preference.mapAsCheckboxState
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.core.common.util.lang.launchNonCancellable
+import tachiyomi.core.common.util.lang.withNonCancellableContext
 import tachiyomi.core.common.util.lang.withUIContext
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.category.interactor.GetCategories
 import tachiyomi.domain.category.interactor.SetMangaCategories
 import tachiyomi.domain.category.model.Category
+import tachiyomi.domain.chapter.interactor.GetMergedChaptersByMangaId
 import tachiyomi.domain.chapter.interactor.SetMangaDefaultChapterFlags
 import tachiyomi.domain.chapter.interactor.UpdateChapter
 import tachiyomi.domain.chapter.model.Chapter
@@ -83,11 +91,23 @@ import tachiyomi.domain.history.interactor.ManageUpdateWatch
 import tachiyomi.domain.history.model.UpdateWatch
 import tachiyomi.domain.history.repository.HistoryRepository
 import tachiyomi.domain.library.service.LibraryPreferences
+import tachiyomi.domain.manga.interactor.DeleteByMergeId
+import tachiyomi.domain.manga.interactor.DeleteMangaById
+import tachiyomi.domain.manga.interactor.DeleteMergeById
 import tachiyomi.domain.manga.interactor.GetDuplicateLibraryManga
+import tachiyomi.domain.manga.interactor.GetManga
+import tachiyomi.domain.manga.interactor.GetMangaByUrlAndSourceId
 import tachiyomi.domain.manga.interactor.GetMangaWithChapters
+import tachiyomi.domain.manga.interactor.GetMergedMangaById
+import tachiyomi.domain.manga.interactor.GetMergedReferencesById
+import tachiyomi.domain.manga.interactor.InsertMergedReference
+import tachiyomi.domain.manga.interactor.NetworkToLocalManga
 import tachiyomi.domain.manga.interactor.SetMangaChapterFlags
+import tachiyomi.domain.manga.interactor.UpdateMergedSettings
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.manga.model.MangaWithChapterCount
+import tachiyomi.domain.manga.model.MergeMangaSettingsUpdate
+import tachiyomi.domain.manga.model.MergedMangaReference
 import tachiyomi.domain.manga.model.applyFilter
 import tachiyomi.domain.manga.repository.MangaRepository
 import tachiyomi.domain.source.linked.interactor.ManageLinkedSourceGroup
@@ -133,6 +153,20 @@ class MangaViewModel(
     private val manageUpdateWatch: ManageUpdateWatch = Injekt.get(),
     private val chapterRepository: ChapterRepository = Injekt.get(),
     private val historyRepository: HistoryRepository = Injekt.get(),
+    // SY -->
+    private val getManga: GetManga = Injekt.get(),
+    private val getMangaByUrlAndSourceId: GetMangaByUrlAndSourceId = Injekt.get(),
+    private val getMergedChaptersByMangaId: GetMergedChaptersByMangaId = Injekt.get(),
+    private val getMergedMangaById: GetMergedMangaById = Injekt.get(),
+    private val getMergedReferencesById: GetMergedReferencesById = Injekt.get(),
+    private val insertMergedReference: InsertMergedReference = Injekt.get(),
+    private val updateMergedSettings: UpdateMergedSettings = Injekt.get(),
+    private val networkToLocalManga: NetworkToLocalManga = Injekt.get(),
+    private val deleteMangaById: DeleteMangaById = Injekt.get(),
+    private val deleteByMergeId: DeleteByMergeId = Injekt.get(),
+    private val deleteMergeById: DeleteMergeById = Injekt.get(),
+    private val sourceManager: SourceManager = Injekt.get(),
+    // SY <--
     val snackbarHostState: SnackbarHostState = SnackbarHostState(),
 ) : StateViewModel<MangaViewModel.State>(State.Loading) {
 
@@ -198,16 +232,48 @@ class MangaViewModel(
 
     init {
         viewModelScope.launchIO {
-            combine(
-                getMangaAndChapters.subscribe(mangaId, applyScanlatorFilter = true).distinctUntilChanged(),
-                downloadCache.changes,
-                downloadManager.queueState,
-            ) { mangaAndChapters, _, _ -> mangaAndChapters }
-                .collectLatest { (manga, chapters) ->
+            getMangaAndChapters.subscribe(mangaId, applyScanlatorFilter = true)
+                .distinctUntilChanged()
+                .combine(
+                    getMergedChaptersByMangaId.subscribe(mangaId, true, applyScanlatorFilter = true)
+                        .distinctUntilChanged(),
+                ) { (manga, chapters), mergedChapters ->
+                    if (manga.source == MERGED_SOURCE_ID) {
+                        manga to mergedChapters
+                    } else {
+                        manga to chapters
+                    }
+                }
+                .combine(
+                    combine(
+                        getMergedMangaById.subscribe(mangaId)
+                            .distinctUntilChanged(),
+                        getMergedReferencesById.subscribe(mangaId)
+                            .distinctUntilChanged(),
+                    ) { manga, references ->
+                        if (manga.isNotEmpty()) {
+                            MergedMangaData(
+                                references,
+                                manga.associateBy { it.id },
+                                references.map { it.mangaSourceId }.distinct()
+                                    .filter { it != MERGED_SOURCE_ID }
+                                    .map { sourceManager.getOrStub(it) },
+                            )
+                        } else {
+                            null
+                        }
+                    },
+                ) { (manga, chapters), mergedData ->
+                    Triple(manga, chapters, mergedData)
+                }
+                .combine(downloadCache.changes) { state, _ -> state }
+                .combine(downloadManager.queueState) { state, _ -> state }
+                .collectLatest { (manga, chapters, mergedData) ->
                     updateSuccessState {
                         it.copy(
                             manga = manga,
-                            chapters = chapters.toChapterListItems(manga),
+                            chapters = chapters.toChapterListItems(manga, mergedData),
+                            mergedData = mergedData,
                         )
                     }
                 }
@@ -307,8 +373,23 @@ class MangaViewModel(
 
         viewModelScope.launchIO {
             val manga = getMangaAndChapters.awaitManga(mangaId)
-            val chapters = getMangaAndChapters.awaitChapters(mangaId, applyScanlatorFilter = true)
-                .toChapterListItems(manga)
+            val mergedData = getMergedReferencesById.await(mangaId).takeIf { it.isNotEmpty() }?.let { references ->
+                MergedMangaData(
+                    references,
+                    getMergedMangaById.await(mangaId).associateBy { it.id },
+                    references.map { it.mangaSourceId }.distinct()
+                        .filter { it != MERGED_SOURCE_ID }
+                        .map { sourceManager.getOrStub(it) },
+                )
+            }
+            val chapters = (
+                if (manga.source == MERGED_SOURCE_ID) {
+                    getMergedChaptersByMangaId.await(mangaId, applyScanlatorFilter = true)
+                } else {
+                    getMangaAndChapters.awaitChapters(mangaId, applyScanlatorFilter = true)
+                }
+                )
+                .toChapterListItems(manga, mergedData)
 
             if (!manga.favorite) {
                 setMangaDefaultChapterFlags.await(manga)
@@ -348,6 +429,7 @@ class MangaViewModel(
                     isWideCompact = isWide,
                     dialog = null,
                     hideMissingChapters = libraryPreferences.hideMissingChapters.get(),
+                    mergedData = mergedData,
                 )
             }
 
@@ -418,6 +500,175 @@ class MangaViewModel(
     }
 
     // Manga info - start
+
+    // SY -->
+    suspend fun smartSearchMerge(manga: Manga, originalMangaId: Long): Manga {
+        val originalManga = getManga.await(originalMangaId)
+            ?: throw IllegalArgumentException(context.stringResource(MR.strings.merge_unknown_entry, originalMangaId))
+        if (originalManga.source == MERGED_SOURCE_ID) {
+            val children = getMergedReferencesById.await(originalMangaId)
+            if (children.any { it.mangaSourceId == manga.source && it.mangaUrl == manga.url }) {
+                throw IllegalArgumentException(context.stringResource(MR.strings.merged_already))
+            }
+
+            val mangaReferences = mutableListOf(
+                MergedMangaReference(
+                    id = -1,
+                    isInfoManga = false,
+                    getChapterUpdates = true,
+                    chapterSortMode = 0,
+                    chapterPriority = 0,
+                    downloadChapters = true,
+                    mergeId = originalManga.id,
+                    mergeUrl = originalManga.url,
+                    mangaId = manga.id,
+                    mangaUrl = manga.url,
+                    mangaSourceId = manga.source,
+                ),
+            )
+
+            if (children.isEmpty() || children.all { it.mangaSourceId != MERGED_SOURCE_ID }) {
+                mangaReferences += MergedMangaReference(
+                    id = -1,
+                    isInfoManga = false,
+                    getChapterUpdates = false,
+                    chapterSortMode = 0,
+                    chapterPriority = -1,
+                    downloadChapters = false,
+                    mergeId = originalManga.id,
+                    mergeUrl = originalManga.url,
+                    mangaId = originalManga.id,
+                    mangaUrl = originalManga.url,
+                    mangaSourceId = MERGED_SOURCE_ID,
+                )
+            }
+
+            insertMergedReference.awaitAll(mangaReferences)
+
+            return originalManga
+        } else {
+            if (manga.id == originalMangaId) {
+                throw IllegalArgumentException(context.stringResource(MR.strings.merged_already))
+            }
+            var newMergedManga = tachiyomi.domain.manga.model.Manga.create()
+                .copy(
+                    url = originalManga.url,
+                    source = MERGED_SOURCE_ID,
+                    title = originalManga.title,
+                    favorite = true,
+                    lastUpdate = originalManga.lastUpdate,
+                    viewerFlags = originalManga.viewerFlags,
+                    chapterFlags = originalManga.chapterFlags,
+                    dateAdded = System.currentTimeMillis(),
+                )
+                .copyFrom(originalManga.toSManga())
+
+            var existingManga = getMangaByUrlAndSourceId.await(newMergedManga.url, newMergedManga.source)
+            while (existingManga != null) {
+                if (existingManga.favorite) {
+                    throw IllegalArgumentException(context.stringResource(MR.strings.merge_duplicate))
+                } else {
+                    withNonCancellableContext {
+                        existingManga?.id?.let {
+                            deleteByMergeId.await(it)
+                            deleteMangaById.await(it)
+                        }
+                    }
+                }
+                existingManga = getMangaByUrlAndSourceId.await(newMergedManga.url, newMergedManga.source)
+            }
+
+            newMergedManga = networkToLocalManga(newMergedManga)
+
+            getCategories.await(originalMangaId)
+                .let {
+                    setMangaCategories.await(newMergedManga.id, it.map { it.id })
+                }
+
+            val originalMangaReference = MergedMangaReference(
+                id = -1,
+                isInfoManga = true,
+                getChapterUpdates = true,
+                chapterSortMode = 0,
+                chapterPriority = 0,
+                downloadChapters = true,
+                mergeId = newMergedManga.id,
+                mergeUrl = newMergedManga.url,
+                mangaId = originalManga.id,
+                mangaUrl = originalManga.url,
+                mangaSourceId = originalManga.source,
+            )
+
+            val newMangaReference = MergedMangaReference(
+                id = -1,
+                isInfoManga = false,
+                getChapterUpdates = true,
+                chapterSortMode = 0,
+                chapterPriority = 0,
+                downloadChapters = true,
+                mergeId = newMergedManga.id,
+                mergeUrl = newMergedManga.url,
+                mangaId = manga.id,
+                mangaUrl = manga.url,
+                mangaSourceId = manga.source,
+            )
+
+            val mergedMangaReference = MergedMangaReference(
+                id = -1,
+                isInfoManga = false,
+                getChapterUpdates = false,
+                chapterSortMode = 0,
+                chapterPriority = -1,
+                downloadChapters = false,
+                mergeId = newMergedManga.id,
+                mergeUrl = newMergedManga.url,
+                mangaId = newMergedManga.id,
+                mangaUrl = newMergedManga.url,
+                mangaSourceId = MERGED_SOURCE_ID,
+            )
+
+            insertMergedReference.awaitAll(listOf(originalMangaReference, newMangaReference, mergedMangaReference))
+
+            return newMergedManga
+        }
+    }
+
+    fun updateMergeSettings(mergedMangaReferences: List<MergedMangaReference>) {
+        viewModelScope.launchNonCancellable {
+            if (mergedMangaReferences.isNotEmpty()) {
+                updateMergedSettings.awaitAll(
+                    mergedMangaReferences.map {
+                        MergeMangaSettingsUpdate(
+                            id = it.id,
+                            isInfoManga = it.isInfoManga,
+                            getChapterUpdates = it.getChapterUpdates,
+                            chapterPriority = it.chapterPriority,
+                            downloadChapters = it.downloadChapters,
+                            chapterSortMode = it.chapterSortMode,
+                        )
+                    },
+                )
+            }
+        }
+    }
+
+    fun deleteMerge(reference: MergedMangaReference) {
+        viewModelScope.launchNonCancellable {
+            deleteMergeById.await(reference.id)
+        }
+    }
+
+    fun showEditMergedSettingsDialog() {
+        val successState = successState ?: return
+        val mergedData = successState.mergedData ?: return
+        updateSuccessState { it.copy(dialog = Dialog.EditMergedSettings(mergedData)) }
+    }
+
+    fun showMergeWithAnotherDialog(mergeWithMangaId: Long) {
+        val successState = successState ?: return
+        updateSuccessState { it.copy(dialog = Dialog.MergeWithAnother(successState.manga, mergeWithMangaId)) }
+    }
+    // SY <--
 
     fun toggleFavorite() {
         toggleFavorite(
@@ -548,7 +799,15 @@ class MangaViewModel(
      */
     private fun deleteDownloads() {
         val state = successState ?: return
-        downloadManager.deleteManga(state.manga, state.source)
+        // SY -->
+        if (state.source.id == MERGED_SOURCE_ID) {
+            val mergedManga = state.mergedData?.manga?.map { it.value to sourceManager.getOrStub(it.value.source) }
+            mergedManga?.forEach { (manga, source) ->
+                downloadManager.deleteManga(manga, source)
+            }
+        } else {
+            /* SY <-- */ downloadManager.deleteManga(state.manga, state.source)
+        }
     }
 
     /**
@@ -647,7 +906,10 @@ class MangaViewModel(
         }
     }
 
-    private fun List<Chapter>.toChapterListItems(manga: Manga): List<ChapterList.Item> {
+    private fun List<Chapter>.toChapterListItems(
+        manga: Manga,
+        mergedData: MergedMangaData? = null,
+    ): List<ChapterList.Item> {
         val isLocal = manga.isLocal()
         return map { chapter ->
             val activeDownload = if (isLocal) {
@@ -655,7 +917,13 @@ class MangaViewModel(
             } else {
                 downloadManager.getQueuedDownloadOrNull(chapter.id)
             }
-            val downloaded = if (isLocal) {
+
+            // SY -->
+            @Suppress("NAME_SHADOWING")
+            val manga = mergedData?.manga?.get(chapter.mangaId) ?: manga
+            val source = mergedData?.sources?.find { manga.source == it.id }?.takeIf { mergedData.sources.size > 2 }
+            // SY <--
+            val downloaded = if (manga.isLocal()) {
                 true
             } else {
                 downloadManager.isChapterDownloaded(
@@ -677,6 +945,9 @@ class MangaViewModel(
                 downloadState = downloadState,
                 downloadProgress = activeDownload?.progress ?: 0,
                 selected = chapter.id in selectedChapterIds,
+                // SY -->
+                sourceName = source?.getNameForMangaInfo(),
+                // SY <--
             )
         }
     }
@@ -1195,6 +1466,11 @@ class MangaViewModel(
         data class DeleteLinkedGroup(val group: LinkedSourceGroup) : Dialog
         data class RemoveLinkedMember(val member: Manga, val isLast: Boolean) : Dialog
 
+        // SY -->
+        data class EditMergedSettings(val mergedData: MergedMangaData) : Dialog
+        data class MergeWithAnother(val manga: Manga, val mergeWithMangaId: Long) : Dialog
+        // SY <--
+
         data object TrackUpdateWatch : Dialog
 
         data class ShareToChat(val manga: Manga, val source: Source) : Dialog
@@ -1532,6 +1808,9 @@ class MangaViewModel(
             val dialog: Dialog? = null,
             val hasPromptedToAddBefore: Boolean = false,
             val hideMissingChapters: Boolean = false,
+            // SY -->
+            val mergedData: MergedMangaData? = null,
+            // SY <--
         ) : State {
             val processedChapters by lazy {
                 chapters.applyFilters(manga).toList()
@@ -1624,6 +1903,9 @@ sealed class ChapterList {
         val downloadState: Download.State,
         val downloadProgress: Int,
         val selected: Boolean = false,
+        // SY -->
+        val sourceName: String? = null,
+        // SY <--
     ) : ChapterList() {
         val id = chapter.id
         val isDownloaded = downloadState == Download.State.DOWNLOADED

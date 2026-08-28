@@ -188,6 +188,12 @@ class MangaRepositoryImpl(
         }
     }
 
+    // SY -->
+    override suspend fun deleteManga(mangaId: Long) {
+        database.mangasQueries.deleteById(mangaId)
+    }
+    // SY <--
+
     private suspend fun partialUpdate(vararg mangaUpdates: MangaUpdate) {
         database.transaction {
             mangaUpdates.forEach { value ->

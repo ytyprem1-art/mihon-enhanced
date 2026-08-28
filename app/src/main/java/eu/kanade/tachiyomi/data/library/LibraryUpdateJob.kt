@@ -22,6 +22,7 @@ import eu.kanade.tachiyomi.data.download.DownloadManager
 import eu.kanade.tachiyomi.data.notification.Notifications
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.model.UpdateStrategy
+import eu.kanade.tachiyomi.source.mod.MERGED_SOURCE_ID
 import eu.kanade.tachiyomi.util.storage.getUriCompat
 import eu.kanade.tachiyomi.util.system.createFileInCacheDir
 import eu.kanade.tachiyomi.util.system.isConnectedToWifi
@@ -59,6 +60,7 @@ import tachiyomi.domain.library.service.LibraryPreferences.Companion.MANGA_OUTSI
 import tachiyomi.domain.manga.interactor.FetchInterval
 import tachiyomi.domain.manga.interactor.GetLibraryManga
 import tachiyomi.domain.manga.interactor.GetManga
+import tachiyomi.domain.manga.interactor.GetMergedMangaForDownloading
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.source.model.SourceNotInstalledException
 import tachiyomi.domain.source.service.SourceManager
@@ -86,6 +88,7 @@ class LibraryUpdateJob(private val context: Context, workerParams: WorkerParamet
     private val fetchInterval: FetchInterval = Injekt.get()
     private val filterChaptersForDownload: FilterChaptersForDownload = Injekt.get()
     private val updateMangaFromRemote: UpdateMangaFromRemote = Injekt.get()
+    private val getMergedMangaForDownloading: GetMergedMangaForDownloading = Injekt.get()
 
     private val notifier = LibraryUpdateNotifier(context)
 
@@ -317,9 +320,25 @@ class LibraryUpdateJob(private val context: Context, workerParams: WorkerParamet
         }
     }
 
-    private fun downloadChapters(manga: Manga, chapters: List<Chapter>) {
+    private suspend fun downloadChapters(manga: Manga, chapters: List<Chapter>) {
         // We don't want to start downloading while the library is updating, because websites
         // may don't like it and they could ban the user.
+        // SY -->
+        if (manga.source == MERGED_SOURCE_ID) {
+            val downloadingManga = getMergedMangaForDownloading.await(manga.id)
+                .associateBy { it.id }
+            chapters.groupBy { it.mangaId }
+                .forEach {
+                    downloadManager.downloadChapters(
+                        downloadingManga[it.key] ?: return@forEach,
+                        it.value,
+                        false,
+                    )
+                }
+
+            return
+        }
+        // SY <--
         downloadManager.downloadChapters(manga, chapters, false)
     }
 

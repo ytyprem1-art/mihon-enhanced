@@ -7,6 +7,7 @@ import eu.kanade.tachiyomi.data.backup.models.BackupChapter
 import eu.kanade.tachiyomi.data.backup.models.BackupHistory
 import eu.kanade.tachiyomi.data.backup.models.BackupManga
 import eu.kanade.tachiyomi.data.backup.models.backupChapterMapper
+import eu.kanade.tachiyomi.data.backup.models.backupMergedMangaReferenceMapper
 import eu.kanade.tachiyomi.data.backup.models.backupTrackMapper
 import eu.kanade.tachiyomi.ui.reader.setting.ReadingMode
 import tachiyomi.data.Database
@@ -85,6 +86,10 @@ class MangaBackupCreator(
         }
 
         mangaObject.historyCategory = manageHistoryCategory.getMangaCategory(manga.id) ?: 0L
+
+        mangaObject.mergedMangaReferences = database.mergedQueries
+            .selectByMergeId(manga.id, backupMergedMangaReferenceMapper)
+            .awaitAsList()
 
         return mangaObject
     }

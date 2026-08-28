@@ -73,6 +73,8 @@ import tachiyomi.domain.history.interactor.UpsertHistory
 import tachiyomi.domain.history.model.HistoryUpdate
 import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.domain.manga.interactor.GetManga
+import tachiyomi.domain.manga.interactor.GetMergedMangaById
+import tachiyomi.domain.manga.interactor.GetMergedReferencesById
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.source.service.SourceManager
 import tachiyomi.source.local.isLocal
@@ -104,6 +106,8 @@ class ReaderViewModel @JvmOverloads constructor(
     private val setMangaViewerFlags: SetMangaViewerFlags = Injekt.get(),
     private val getIncognitoState: GetIncognitoState = Injekt.get(),
     private val libraryPreferences: LibraryPreferences = Injekt.get(),
+    private val getMergedReferencesById: GetMergedReferencesById = Injekt.get(),
+    private val getMergedMangaById: GetMergedMangaById = Injekt.get(),
 ) : ViewModel() {
 
     private val mutableState = MutableStateFlow(State())
@@ -293,7 +297,20 @@ class ReaderViewModel @JvmOverloads constructor(
 
                 val context = Injekt.get<Application>()
                 val source = sourceManager.getOrStub(manga.source)
-                loader = ChapterLoader(context, downloadManager, downloadProvider, manga, source)
+
+                val mergedReferences = getMergedReferencesById.await(manga.id)
+                val mergedManga = getMergedMangaById.await(manga.id).associateBy { it.id }
+
+                loader = ChapterLoader(
+                    context,
+                    downloadManager,
+                    downloadProvider,
+                    manga,
+                    source,
+                    sourceManager,
+                    mergedReferences,
+                    mergedManga,
+                )
 
                 loadChapter(loader!!, chapterList.first { chapterId == it.chapter.id })
             } catch (e: Throwable) {

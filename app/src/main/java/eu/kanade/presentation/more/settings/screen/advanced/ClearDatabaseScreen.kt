@@ -47,6 +47,7 @@ import tachiyomi.core.common.util.lang.launchUI
 import tachiyomi.core.common.util.lang.toLong
 import tachiyomi.core.common.util.lang.withNonCancellableContext
 import tachiyomi.data.Database
+import eu.kanade.tachiyomi.source.mod.MERGED_SOURCE_ID
 import tachiyomi.domain.source.interactor.GetSourcesWithNonLibraryManga
 import tachiyomi.domain.source.model.Source
 import tachiyomi.domain.source.model.SourceWithCount
@@ -243,6 +244,9 @@ class ClearDatabaseViewModel : StateViewModel<ClearDatabaseViewModel.State>(Stat
         val state = state.value as? State.Ready ?: return@withNonCancellableContext
         database.mangasQueries.deleteNonLibraryManga(state.selection, keepReadManga.toLong())
         database.historyQueries.removeResettedHistory()
+        // SY -->
+        database.mergedQueries.deleteOrphaned(MERGED_SOURCE_ID)
+        // SY <--
     }
 
     fun toggleSelection(source: Source) = mutableState.update { state ->

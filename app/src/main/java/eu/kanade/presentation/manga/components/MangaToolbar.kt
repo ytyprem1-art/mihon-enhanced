@@ -6,6 +6,7 @@ import androidx.compose.material.icons.outlined.FilterList
 import androidx.compose.material.icons.outlined.FlipToBack
 import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.SelectAll
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.surfaceColorAtElevation
@@ -40,6 +41,10 @@ fun MangaToolbar(
     onClickMigrate: (() -> Unit)?,
     onClickEditNotes: () -> Unit,
     onLinkedSourcesClicked: () -> Unit,
+    // SY -->
+    onClickMergedSettings: (() -> Unit)? = null,
+    onClickMerge: (() -> Unit)? = null,
+    // SY <--
 
     // For action mode
     actionModeCounter: Int,
@@ -120,6 +125,25 @@ fun MangaToolbar(
                             onClick = onLinkedSourcesClicked,
                         ),
                     )
+                    // SY -->
+                    if (onClickMergedSettings != null) {
+                        add(
+                            AppBar.Action(
+                                title = stringResource(MR.strings.chapter_settings),
+                                icon = Icons.Outlined.Settings,
+                                onClick = onClickMergedSettings,
+                            ),
+                        )
+                    }
+                    if (onClickMerge != null) {
+                        add(
+                            AppBar.OverflowAction(
+                                title = "Merge",
+                                onClick = onClickMerge,
+                            ),
+                        )
+                    }
+                    // SY <--
                     add(
                         AppBar.OverflowAction(
                             title = stringResource(MR.strings.action_webview_refresh),

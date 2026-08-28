@@ -27,4 +27,14 @@ interface ChapterRepository {
     suspend fun getChapterByMangaIdAsFlow(mangaId: Long, applyScanlatorFilter: Boolean = false): Flow<List<Chapter>>
 
     suspend fun getChapterByUrlAndMangaId(url: String, mangaId: Long): Chapter?
+
+    // SY -->
+    suspend fun getMergedChapterByMangaId(mangaId: Long, applyScanlatorFilter: Boolean): List<Chapter>
+
+    fun getMergedChapterByMangaIdAsFlow(mangaId: Long, applyScanlatorFilter: Boolean): Flow<List<Chapter>>
+
+    suspend fun getScanlatorsByMergeId(mangaId: Long): List<String>
+
+    fun getScanlatorsByMergeIdAsFlow(mangaId: Long): Flow<List<String>>
+    // SY <--
 }
