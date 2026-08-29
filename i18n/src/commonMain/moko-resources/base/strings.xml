@@ -1153,4 +1153,5 @@
     <string name="num_sources">(%1$d sources)</string>
     <string name="expand_all">Expand all</string>
     <string name="collapse_all">Collapse all</string>
+    <string name="action_refresh">Refresh</string>
 </resources>

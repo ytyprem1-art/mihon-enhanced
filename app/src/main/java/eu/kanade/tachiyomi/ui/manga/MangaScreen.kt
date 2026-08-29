@@ -59,6 +59,7 @@ import uy.kohesive.injekt.api.get
 import eu.kanade.tachiyomi.ui.browse.source.browse.BrowseSourceScreen
 import eu.kanade.tachiyomi.ui.browse.source.globalsearch.GlobalSearchScreen
 import eu.kanade.tachiyomi.ui.mod.merge.EditMergedSettingsDialog
+import eu.kanade.tachiyomi.ui.mod.search.GlobalSourceSearchScreen
 import eu.kanade.tachiyomi.ui.browse.source.linked.LinkedSourceDetailsScreen
 import eu.kanade.tachiyomi.ui.browse.source.linked.LinkedSourceSearchScreen
 import eu.kanade.tachiyomi.ui.category.CategoryScreen
@@ -238,8 +239,9 @@ class MangaScreen(
             onMergeClicked = {
                 val title = viewModel.manga?.title ?: ""
                 navigator.push(
-                    eu.kanade.tachiyomi.ui.browse.source.SourcesScreen(
-                        eu.kanade.tachiyomi.ui.browse.source.SourcesScreen.SmartSearchConfig(title, mangaId)
+                    GlobalSourceSearchScreen(
+                        initialQuery = title,
+                        parentMangaId = mangaId,
                     )
                 )
             },
@@ -628,7 +630,7 @@ class MangaScreen(
             is MangaViewModel.Dialog.EditMergedSettings -> {
                 EditMergedSettingsDialog(
                     onDismissRequest = onDismissRequest,
-                    mergedData = dialog.mergedData,
+                    mergedData = successState.mergedData!!,
                     onDeleteClick = viewModel::deleteMerge,
                     onPositiveClick = viewModel::updateMergeSettings,
                 )
@@ -643,8 +645,10 @@ class MangaScreen(
                             onClick = {
                                 scope.launch {
                                     try {
-                                        val mergedManga = viewModel.smartSearchMerge(dialog.manga, dialog.mergeWithMangaId)
-                                        navigator.replace(MangaScreen(mergedManga.id, true))
+                                        val mergedManga = viewModel.performSmartSearchMerge(dialog.manga, dialog.mergeWithMangaId)
+                                        if (mergedManga.id != mangaId) {
+                                            navigator.replace(MangaScreen(mergedManga.id, true))
+                                        }
                                         context.toast(context.stringResource(MR.strings.entry_merged))
                                     } catch (e: Exception) {
                                         context.toast(context.stringResource(MR.strings.failed_merge, e.message.orEmpty()))
