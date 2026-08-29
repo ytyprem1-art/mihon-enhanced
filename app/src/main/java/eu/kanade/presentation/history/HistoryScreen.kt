@@ -55,7 +55,9 @@ import eu.kanade.presentation.components.relativeDateText
 import eu.kanade.presentation.history.components.HistoryItem
 import eu.kanade.presentation.theme.TachiyomiPreviewTheme
 import eu.kanade.presentation.util.isTabletUi
+import tachiyomi.presentation.core.util.collectAsState
 import eu.kanade.tachiyomi.R
+import eu.kanade.tachiyomi.ui.mod.util.SourceColorUtil
 import eu.kanade.tachiyomi.ui.history.HistoryViewModel
 import eu.kanade.tachiyomi.ui.mod.components.HistoryAppBarActions
 import eu.kanade.tachiyomi.ui.mod.components.HistorySearchExpandedActions
@@ -98,6 +100,9 @@ fun HistoryScreen(
     onClickGroup: (groupId: Long) -> Unit,
     viewModel: HistoryViewModel,
 ) {
+    val enhancedPreferences = remember { Injekt.get<eu.kanade.tachiyomi.ui.mod.EnhancedPreferences>() }
+    val useSourceColor by enhancedPreferences.enableMergeSourceColors.collectAsState()
+
     val scrollStates = rememberSaveable(
         saver = Saver<MutableMap<Long, LazyListState>, Map<Long, List<Int>>>(
             save = { map ->
@@ -399,6 +404,7 @@ fun HistoryScreen(
                     onClickRenameGroup = { group -> onDialogChange(HistoryViewModel.Dialog.RenameHistoryGroup(group)) },
                     onClickDeleteGroup = { group -> onDialogChange(HistoryViewModel.Dialog.DeleteHistoryGroup(group)) },
                     onToggleSelection = viewModel::toggleSelection,
+                    useSourceColor = useSourceColor,
                 )
             }
         }
@@ -421,6 +427,7 @@ private fun HistoryScreenContent(
     onClickRenameGroup: (tachiyomi.domain.history.group.model.HistoryGroup) -> Unit,
     onClickDeleteGroup: (tachiyomi.domain.history.group.model.HistoryGroup) -> Unit,
     onToggleSelection: (Long) -> Unit,
+    useSourceColor: Boolean,
 ) {
     FastScrollLazyColumn(
         contentPadding = contentPadding,
@@ -459,7 +466,6 @@ private fun HistoryScreenContent(
                             .fillMaxWidth()
                             .animateItem(),
                         history = value,
-                        secondaryText = item.subtitle,
                         onClickCover = { onClickCover(value) },
                         onClickResume = { onClickResume(value) },
                         onClickDelete = { onClickDelete(value) },
@@ -473,6 +479,8 @@ private fun HistoryScreenContent(
                         },
                         selectionMode = selectionMode,
                         selected = value.mangaId in selected,
+                        sourceName = item.sourceName,
+                        sourceColor = if (item.isMerged && useSourceColor) SourceColorUtil.getColorForSource(item.sourceId) else null,
                     )
                 }
 
@@ -496,6 +504,8 @@ private fun HistoryScreenContent(
                         selectionMode = selectionMode,
                         selected = value.mangaId in selected,
                         onOverflowClick = { showMenu = true },
+                        sourceName = item.sourceNames.firstOrNull(),
+                        sourceColor = if (item.isMerged && useSourceColor) SourceColorUtil.getColorForSource(value.coverData.sourceId) else null,
                         overflowContent = {
                             androidx.compose.material3.DropdownMenu(
                                 expanded = showMenu,
@@ -551,12 +561,18 @@ private fun HistoryScreenContent(
 
 sealed interface HistoryUiModel {
     data class Header(val date: LocalDate) : HistoryUiModel
-    data class Item(val item: HistoryWithRelations, val subtitle: String? = null) : HistoryUiModel
+    data class Item(
+        val item: HistoryWithRelations,
+        val sourceName: String? = null,
+        val sourceId: Long? = null,
+        val isMerged: Boolean = false,
+    ) : HistoryUiModel
     data class Group(
         val group: tachiyomi.domain.history.group.model.HistoryGroup,
         val representative: HistoryWithRelations,
         val memberCount: Int,
         val sourceNames: List<String>,
+        val isMerged: Boolean = false,
     ) : HistoryUiModel
 }
 

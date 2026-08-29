@@ -44,6 +44,29 @@ object SettingsAppearanceScreen : SearchableSettings {
         return listOf(
             getThemeGroup(uiPreferences = uiPreferences),
             getDisplayGroup(uiPreferences = uiPreferences, enhancedPreferences = enhancedPreferences),
+            getMergeColorGroup(enhancedPreferences = enhancedPreferences),
+        )
+    }
+
+    @Composable
+    private fun getMergeColorGroup(enhancedPreferences: EnhancedPreferences): Preference.PreferenceGroup {
+        return Preference.PreferenceGroup(
+            title = stringResource(MR.strings.pref_merge_colors),
+            preferenceItems = listOf(
+                Preference.PreferenceItem.InfoPreference(
+                    title = stringResource(MR.strings.pref_merge_colors_summary),
+                ),
+                Preference.PreferenceItem.SwitchPreference(
+                    preference = enhancedPreferences.enableMergeSourceColors,
+                    title = stringResource(MR.strings.pref_enable_merge_source_colors),
+                    subtitle = stringResource(MR.strings.pref_enable_merge_source_colors_summary),
+                ),
+                Preference.PreferenceItem.SwitchPreference(
+                    preference = enhancedPreferences.enableMergeChapterTitleColors,
+                    title = stringResource(MR.strings.pref_enable_merge_chapter_title_colors),
+                    subtitle = stringResource(MR.strings.pref_enable_merge_chapter_title_colors_summary),
+                ),
+            ),
         )
     }
 

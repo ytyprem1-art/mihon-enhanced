@@ -1154,4 +1154,10 @@
     <string name="expand_all">Expand all</string>
     <string name="collapse_all">Collapse all</string>
     <string name="action_refresh">Refresh</string>
+    <string name="pref_merge_colors">Merge Colors</string>
+    <string name="pref_merge_colors_summary">Customize how merged sources are displayed throughout the app.</string>
+    <string name="pref_enable_merge_source_colors">Enable source colors</string>
+    <string name="pref_enable_merge_source_colors_summary">Color merged source names using their deterministic source accent.</string>
+    <string name="pref_enable_merge_chapter_title_colors">Enable chapter title colors</string>
+    <string name="pref_enable_merge_chapter_title_colors_summary">Color merged chapter titles using the same source accent.</string>
 </resources>

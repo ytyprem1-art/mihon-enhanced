@@ -8,9 +8,7 @@ import eu.kanade.core.util.insertSeparators
 import eu.kanade.domain.manga.interactor.UpdateManga
 import eu.kanade.domain.track.interactor.AddTracks
 import eu.kanade.presentation.history.HistoryUiModel
-import eu.kanade.presentation.util.formatChapterNumber
 import eu.kanade.tachiyomi.util.lang.toLocalDate
-import eu.kanade.tachiyomi.util.lang.toTimestampString
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -153,15 +151,11 @@ class HistoryViewModel(
         val unifiedList = list.map { item ->
             val parentId = childToParentMap[item.mangaId]
             val parentManga = parentId?.let { mergedMangaMap[it] }
-            if (parentManga != null) {
-                val sourceName = sourceManager.getOrStub(item.coverData.sourceId).name
-                val readAt = item.readAt?.toTimestampString() ?: ""
-                val subtitle = if (item.chapterNumber > -1) {
-                    "${formatChapterNumber(item.chapterNumber)} • $sourceName • $readAt"
-                } else {
-                    "$sourceName • $readAt"
-                }
 
+            val sourceName = sourceManager.getOrStub(item.coverData.sourceId).name
+            val sourceId = item.coverData.sourceId
+
+            if (parentManga != null) {
                 item.copy(
                     mangaId = parentManga.id,
                     title = parentManga.title,
@@ -172,9 +166,9 @@ class HistoryViewModel(
                         url = parentManga.thumbnailUrl,
                         lastModified = parentManga.coverLastModified,
                     ),
-                ) to subtitle
+                ) to (sourceName to sourceId)
             } else {
-                item to null
+                item to (sourceName to sourceId)
             }
         }
 
@@ -186,10 +180,12 @@ class HistoryViewModel(
         val processedItems = mutableListOf<HistoryUiModel>()
         val groupedMangaHandled = mutableSetOf<Long>()
 
-        for ((item, subtitle) in groupedUnifiedList) {
+        for ((item, sourceInfo) in groupedUnifiedList) {
+            val (sourceName, sourceId) = sourceInfo
             val groupId = memberships[item.mangaId]
+            val isMerged = childToParentMap.containsValue(item.mangaId)
             if (groupId == null) {
-                processedItems.add(HistoryUiModel.Item(item, subtitle))
+                processedItems.add(HistoryUiModel.Item(item, sourceName, sourceId, isMerged))
             } else {
                 if (groupId in groupedMangaHandled) continue
 
@@ -208,6 +204,7 @@ class HistoryViewModel(
                         sourceNames = groupMembers.map {
                             sourceManager.getOrStub(it.first.coverData.sourceId).name
                         },
+                        isMerged = isMerged,
                     ),
                 )
                 groupedMangaHandled.add(groupId)

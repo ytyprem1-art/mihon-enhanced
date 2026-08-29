@@ -1,5 +1,14 @@
 # Mihon Mod Development Rules
 
+## Primary Goal
+
+Mihon Enhanced must remain easy to rebase onto future Mihon releases.
+
+Every implementation decision should prioritize minimizing future upstream merge conflicts over short-term implementation convenience.
+
+If a feature can be implemented without modifying an upstream Mihon file, that approach must always be preferred.
+
+
 ## Upstream safety
 
 - Keep all upstream Mihon files minimally modified.

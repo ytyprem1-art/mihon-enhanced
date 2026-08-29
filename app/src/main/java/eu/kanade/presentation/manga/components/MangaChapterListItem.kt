@@ -71,9 +71,16 @@ fun MangaChapterListItem(
     // SY -->
     sourceName: String? = null,
     sourceColor: Color? = null,
+    useSourceColor: Boolean = true,
+    useChapterColor: Boolean = true,
     // SY <--
     modifier: Modifier = Modifier,
 ) {
+    // SY -->
+    val finalSourceColor = if (useSourceColor) sourceColor else null
+    val finalChapterColor = if (useChapterColor) sourceColor else null
+    // SY <--
+
     val start = getSwipeAction(
         action = chapterSwipeStartAction,
         read = read,
@@ -108,18 +115,18 @@ fun MangaChapterListItem(
                 .height(IntrinsicSize.Min),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            if (sourceColor != null) {
+            if (finalSourceColor != null) {
                 Box(
                     modifier = Modifier
                         .width(3.dp)
                         .fillMaxHeight()
-                        .background(sourceColor),
+                        .background(finalSourceColor),
                 )
             }
             Column(
                 modifier = Modifier
                     .weight(1f)
-                    .padding(start = if (sourceColor != null) 13.dp else 16.dp, top = 12.dp, end = 8.dp, bottom = 12.dp),
+                    .padding(start = if (finalSourceColor != null) 13.dp else 16.dp, top = 12.dp, end = 8.dp, bottom = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 Row(
@@ -152,7 +159,7 @@ fun MangaChapterListItem(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         onTextLayout = { textHeight = it.size.height },
-                        color = LocalContentColor.current.copy(alpha = if (read) DISABLED_ALPHA else 1f),
+                        color = (finalChapterColor ?: LocalContentColor.current).copy(alpha = if (read) DISABLED_ALPHA else 1f),
                     )
                 }
 
@@ -191,7 +198,7 @@ fun MangaChapterListItem(
                                 text = sourceName,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
-                                color = sourceColor ?: LocalContentColor.current,
+                                color = finalSourceColor ?: LocalContentColor.current,
                             )
                             if (scanlator != null) DotSeparatorText()
                         }

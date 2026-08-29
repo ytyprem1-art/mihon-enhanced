@@ -19,6 +19,7 @@ import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -33,6 +34,7 @@ import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.unit.dp
 import eu.kanade.tachiyomi.source.mod.MERGED_SOURCE_ID
+import eu.kanade.presentation.manga.components.DotSeparatorText
 import eu.kanade.presentation.manga.components.MangaCover
 import eu.kanade.presentation.theme.TachiyomiPreviewTheme
 import eu.kanade.presentation.util.formatChapterNumber
@@ -59,6 +61,8 @@ fun HistoryItem(
     subtitleBadge: @Composable (() -> Unit)? = null,
     onOverflowClick: (() -> Unit)? = null,
     overflowContent: (@Composable () -> Unit)? = null,
+    sourceName: String? = null,
+    sourceColor: Color? = null,
     secondaryText: String? = null,
     titleOverride: String? = null,
 ) {
@@ -128,22 +132,40 @@ fun HistoryItem(
                     history.readAt?.toTimestampString() ?: ""
                 }
 
-                val finalSecondaryText = secondaryText ?: if (history.chapterNumber > -1) {
-                    stringResource(
-                        MR.strings.recent_manga_time,
-                        formatChapterNumber(history.chapterNumber),
-                        readAt,
-                    )
-                } else {
-                    readAt
-                }
-
-                if (finalSecondaryText.isNotEmpty()) {
+                if (secondaryText != null) {
                     Text(
-                        text = finalSecondaryText,
+                        text = secondaryText,
                         modifier = Modifier.padding(top = 4.dp),
                         style = textStyle,
                     )
+                } else {
+                    Row(
+                        modifier = Modifier.padding(top = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        if (history.chapterNumber > -1) {
+                            Text(
+                                text = "Ch. ${formatChapterNumber(history.chapterNumber)}",
+                                style = textStyle,
+                                maxLines = 1,
+                            )
+                            DotSeparatorText()
+                        }
+                        if (sourceName != null) {
+                            Text(
+                                text = sourceName,
+                                style = textStyle,
+                                color = sourceColor ?: LocalContentColor.current,
+                                maxLines = 1,
+                            )
+                            DotSeparatorText()
+                        }
+                        Text(
+                            text = readAt,
+                            style = textStyle,
+                            maxLines = 1,
+                        )
+                    }
                 }
 
                 if (subtitleBadge != null) {

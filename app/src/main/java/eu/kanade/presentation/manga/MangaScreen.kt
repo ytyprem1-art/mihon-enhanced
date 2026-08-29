@@ -86,6 +86,9 @@ import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.source.model.StubSource
 import tachiyomi.i18n.MR
+import tachiyomi.presentation.core.util.collectAsState
+import uy.kohesive.injekt.Injekt
+import uy.kohesive.injekt.api.get
 import tachiyomi.presentation.core.components.TwoPanelBox
 import tachiyomi.presentation.core.components.VerticalFastScroller
 import tachiyomi.presentation.core.components.material.PullRefresh
@@ -274,6 +277,10 @@ fun MangaScreen(
         }
     }
 
+    val enhancedPreferences = remember { Injekt.get<eu.kanade.tachiyomi.ui.mod.EnhancedPreferences>() }
+    val useSourceColor by enhancedPreferences.enableMergeSourceColors.collectAsState()
+    val useChapterColor by enhancedPreferences.enableMergeChapterTitleColors.collectAsState()
+
     if (!isTabletUi) {
         MangaScreenSmallImpl(
             state = state,
@@ -321,6 +328,10 @@ fun MangaScreen(
             anyChapterGrouped = anyChapterGrouped,
             allGroupsExpanded = allGroupsExpanded,
             onToggleAllExpand = onToggleAllExpand,
+            // Mihon Enhanced -->
+            useSourceColor = useSourceColor,
+            useChapterColor = useChapterColor,
+            // Mihon Enhanced <--
         )
     } else {
         MangaScreenLargeImpl(
@@ -369,6 +380,10 @@ fun MangaScreen(
             anyChapterGrouped = anyChapterGrouped,
             allGroupsExpanded = allGroupsExpanded,
             onToggleAllExpand = onToggleAllExpand,
+            // Mihon Enhanced -->
+            useSourceColor = useSourceColor,
+            useChapterColor = useChapterColor,
+            // Mihon Enhanced <--
         )
     }
 }
@@ -437,6 +452,9 @@ private fun MangaScreenSmallImpl(
     anyChapterGrouped: Boolean,
     allGroupsExpanded: Boolean,
     onToggleAllExpand: () -> Unit,
+    // Mihon Enhanced -->
+    useSourceColor: Boolean,
+    useChapterColor: Boolean,
     // Mihon Enhanced <--
 ) {
     val chapterListState = rememberLazyListState()
@@ -679,6 +697,8 @@ private fun MangaScreenSmallImpl(
                                     expandedChapters[num] = true
                                 }
                             },
+                            useSourceColor = useSourceColor,
+                            useChapterColor = useChapterColor,
                             // SY <--
                             onChapterClicked = onChapterClicked,
                             onDownloadChapter = onDownloadChapter,
@@ -774,6 +794,9 @@ fun MangaScreenLargeImpl(
     anyChapterGrouped: Boolean,
     allGroupsExpanded: Boolean,
     onToggleAllExpand: () -> Unit,
+    // Mihon Enhanced -->
+    useSourceColor: Boolean,
+    useChapterColor: Boolean,
     // Mihon Enhanced <--
 ) {
     val layoutDirection = LocalLayoutDirection.current
@@ -1007,6 +1030,8 @@ fun MangaScreenLargeImpl(
                                             expandedChapters[num] = true
                                         }
                                     },
+                                    useSourceColor = useSourceColor,
+                                    useChapterColor = useChapterColor,
                                     // SY <--
                                     onChapterClicked = onChapterClicked,
                                     onDownloadChapter = onDownloadChapter,
@@ -1091,6 +1116,8 @@ private fun LazyListScope.sharedChapterItems(
     // SY -->
     sourceColorMap: Map<Long, androidx.compose.ui.graphics.Color>,
     onToggleExpand: (Double) -> Unit,
+    useSourceColor: Boolean,
+    useChapterColor: Boolean,
     // SY <--
     onChapterClicked: (Chapter) -> Unit,
     onDownloadChapter: ((List<ChapterList.Item>, ChapterDownloadAction) -> Unit)?,
@@ -1167,6 +1194,8 @@ private fun LazyListScope.sharedChapterItems(
                     selected = item.selected,
                     sourceName = item.sourceName,
                     sourceColor = if (item.isGrouped) sourceColorMap[item.sourceId] else null,
+                    useSourceColor = useSourceColor,
+                    useChapterColor = useChapterColor,
                     downloadIndicatorEnabled = !isAnyChapterSelected && !manga.isLocal(),
                     downloadStateProvider = { item.downloadState },
                     downloadProgressProvider = { item.downloadProgress },
