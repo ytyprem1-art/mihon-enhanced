@@ -100,6 +100,7 @@ import tachiyomi.domain.manga.interactor.GetMangaWithChapters
 import tachiyomi.domain.manga.interactor.GetMergedManga
 import tachiyomi.domain.manga.interactor.GetMergedMangaById
 import tachiyomi.domain.manga.interactor.GetMergedMangaForDownloading
+import tachiyomi.domain.manga.interactor.GetMergedReferences
 import tachiyomi.domain.manga.interactor.GetMergedReferencesById
 import tachiyomi.domain.manga.interactor.InsertMergedReference
 import tachiyomi.domain.manga.interactor.NetworkToLocalManga
@@ -157,7 +158,7 @@ class DomainModule : InjektModule {
         addFactory { GetMangaWithChapters(get(), get()) }
         addFactory { GetMangaByUrlAndSourceId(get()) }
         addFactory { GetManga(get()) }
-        addFactory { GetNextChapters(get(), get(), get()) }
+        addFactory { GetNextChapters(get(), get(), get(), get()) }
         addFactory { GetUpcomingManga(get()) }
         addFactory { ResetViewerFlags(get()) }
         addFactory { SetMangaChapterFlags(get()) }
@@ -172,6 +173,7 @@ class DomainModule : InjektModule {
         addFactory { SetExcludedScanlators(get()) }
         addFactory { GetMergedManga(get()) }
         addFactory { GetMergedMangaById(get()) }
+        addFactory { GetMergedReferences(get()) }
         addFactory { GetMergedReferencesById(get()) }
         addFactory { InsertMergedReference(get()) }
         addFactory { UpdateMergedSettings(get()) }

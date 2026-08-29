@@ -1150,4 +1150,7 @@
     <string name="merge_with_another_desc">This will merge the current entry into the original entry.</string>
     <string name="entry_merged">Entry merged!</string>
     <string name="failed_merge">Failed to merge: %1$s</string>
+    <string name="num_sources">(%1$d sources)</string>
+    <string name="expand_all">Expand all</string>
+    <string name="collapse_all">Collapse all</string>
 </resources>

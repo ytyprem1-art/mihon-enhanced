@@ -53,6 +53,18 @@ class MangaMergeRepositoryImpl(
             .subscribeToList()
     }
 
+    override suspend fun getAllReferences(): List<MergedMangaReference> {
+        return database.mergedQueries
+            .selectAll(MergedMangaMapper::map)
+            .awaitAsList()
+    }
+
+    override suspend fun subscribeAllReferences(): Flow<List<MergedMangaReference>> {
+        return database.mergedQueries
+            .selectAll(MergedMangaMapper::map)
+            .subscribeToList()
+    }
+
     override suspend fun updateSettings(update: MergeMangaSettingsUpdate): Boolean {
         return try {
             partialUpdate(update)

@@ -1,12 +1,17 @@
 package eu.kanade.presentation.manga.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.sizeIn
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Circle
@@ -65,6 +70,7 @@ fun MangaChapterListItem(
     onChapterSwipe: (LibraryPreferences.ChapterSwipeAction) -> Unit,
     // SY -->
     sourceName: String? = null,
+    sourceColor: Color? = null,
     // SY <--
     modifier: Modifier = Modifier,
 ) {
@@ -99,10 +105,21 @@ fun MangaChapterListItem(
                     onClick = onClick,
                     onLongClick = onLongClick,
                 )
-                .padding(start = 16.dp, top = 12.dp, end = 8.dp, bottom = 12.dp),
+                .height(IntrinsicSize.Min),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
+            if (sourceColor != null) {
+                Box(
+                    modifier = Modifier
+                        .width(3.dp)
+                        .fillMaxHeight()
+                        .background(sourceColor),
+                )
+            }
             Column(
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = if (sourceColor != null) 13.dp else 16.dp, top = 12.dp, end = 8.dp, bottom = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 Row(
@@ -174,6 +191,7 @@ fun MangaChapterListItem(
                                 text = sourceName,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
+                                color = sourceColor ?: LocalContentColor.current,
                             )
                             if (scanlator != null) DotSeparatorText()
                         }
@@ -191,7 +209,7 @@ fun MangaChapterListItem(
 
             ChapterDownloadIndicator(
                 enabled = downloadIndicatorEnabled,
-                modifier = Modifier.padding(start = 4.dp),
+                modifier = Modifier.padding(start = 4.dp, end = 8.dp),
                 downloadStateProvider = downloadStateProvider,
                 downloadProgressProvider = downloadProgressProvider,
                 onClick = { onDownloadClick?.invoke(it) },

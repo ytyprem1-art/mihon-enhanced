@@ -8,7 +8,9 @@ import eu.kanade.core.util.insertSeparators
 import eu.kanade.domain.manga.interactor.UpdateManga
 import eu.kanade.domain.track.interactor.AddTracks
 import eu.kanade.presentation.history.HistoryUiModel
+import eu.kanade.presentation.util.formatChapterNumber
 import eu.kanade.tachiyomi.util.lang.toLocalDate
+import eu.kanade.tachiyomi.util.lang.toTimestampString
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -50,6 +52,8 @@ import tachiyomi.domain.history.repository.HistoryCategory
 import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.domain.manga.interactor.GetDuplicateLibraryManga
 import tachiyomi.domain.manga.interactor.GetManga
+import tachiyomi.domain.manga.interactor.GetMergedManga
+import tachiyomi.domain.manga.interactor.GetMergedReferences
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.manga.model.MangaWithChapterCount
 import tachiyomi.domain.source.service.SourceManager
@@ -62,6 +66,8 @@ class HistoryViewModel(
     private val getCategories: GetCategories = Injekt.get(),
     private val getDuplicateLibraryManga: GetDuplicateLibraryManga = Injekt.get(),
     private val getHistory: GetHistory = Injekt.get(),
+    private val getMergedManga: GetMergedManga = Injekt.get(),
+    private val getMergedReferences: GetMergedReferences = Injekt.get(),
     val getManga: GetManga = Injekt.get(),
     private val getNextChapters: GetNextChapters = Injekt.get(),
     private val libraryPreferences: LibraryPreferences = Injekt.get(),
@@ -91,27 +97,42 @@ class HistoryViewModel(
 
         // Coroutine 2: Mengambil list riwayat mentah + keanggotaan grup
         viewModelScope.launchIO {
-            _state.map { it.searchQuery }.distinctUntilChanged()
-                .flatMapLatest { query ->
-                    getHistory.subscribe(query ?: "")
+            combine(
+                _state.map { it.searchQuery }.distinctUntilChanged()
+                    .flatMapLatest { query ->
+                        getHistory.subscribe(query ?: "")
+                    },
+                manageHistoryGroups.subscribe(),
+                manageHistoryGroups.subscribeAllMemberships(),
+                getMergedReferences.subscribe(),
+                getMergedManga.subscribe(),
+            ) { historyList, groups, memberships, mergedRefs, mergedMangas ->
+                val childToParentMap = mergedRefs.mapNotNull {
+                    val mangaId = it.mangaId
+                    val mergeId = it.mergeId
+                    if (mangaId != null && mergeId != null) mangaId to mergeId else null
+                }.toMap()
+                val mergedMangaMap = mergedMangas.associateBy { it.id }
+
+                val uiModels = processHistoryList(
+                    historyList,
+                    groups,
+                    memberships,
+                    childToParentMap,
+                    mergedMangaMap,
+                )
+
+                // Update state list beserta map kategorinya
+                val mangaIds = historyList.map { it.mangaId }.distinct()
+                val localMap = mutableMapOf<Long, Long>()
+                for (mId in mangaIds) {
+                    localMap[mId] = manageHistoryCategory.getMangaCategory(mId) ?: 0L
                 }
-                .combine(manageHistoryGroups.subscribe()) { historyList, groups ->
-                    historyList to groups
-                }
-                .combine(manageHistoryGroups.subscribeAllMemberships()) { (historyList, groups), memberships ->
-                    Triple(historyList, groups, memberships)
-                }
+
+                uiModels to localMap
+            }
                 .flowOn(Dispatchers.IO)
-                .collect { (list, groups, memberships) ->
-                    val uiModels = processHistoryList(list, groups, memberships)
-
-                    // Update state list beserta map kategorinya
-                    val mangaIds = list.map { it.mangaId }.distinct()
-                    val localMap = mutableMapOf<Long, Long>()
-                    for (mId in mangaIds) {
-                        localMap[mId] = manageHistoryCategory.getMangaCategory(mId) ?: 0L
-                    }
-
+                .collect { (uiModels, localMap) ->
                     _state.update {
                         it.copy(
                             list = uiModels,
@@ -126,23 +147,58 @@ class HistoryViewModel(
         list: List<HistoryWithRelations>,
         groups: List<tachiyomi.domain.history.group.model.HistoryGroup>,
         memberships: Map<Long, Long>,
+        childToParentMap: Map<Long, Long>,
+        mergedMangaMap: Map<Long, Manga>,
     ): List<HistoryUiModel> {
+        val unifiedList = list.map { item ->
+            val parentId = childToParentMap[item.mangaId]
+            val parentManga = parentId?.let { mergedMangaMap[it] }
+            if (parentManga != null) {
+                val sourceName = sourceManager.getOrStub(item.coverData.sourceId).name
+                val readAt = item.readAt?.toTimestampString() ?: ""
+                val subtitle = if (item.chapterNumber > -1) {
+                    "${formatChapterNumber(item.chapterNumber)} • $sourceName • $readAt"
+                } else {
+                    "$sourceName • $readAt"
+                }
+
+                item.copy(
+                    mangaId = parentManga.id,
+                    title = parentManga.title,
+                    coverData = item.coverData.copy(
+                        mangaId = parentManga.id,
+                        sourceId = parentManga.source,
+                        isMangaFavorite = parentManga.favorite,
+                        url = parentManga.thumbnailUrl,
+                        lastModified = parentManga.coverLastModified,
+                    ),
+                ) to subtitle
+            } else {
+                item to null
+            }
+        }
+
+        // Now group by mangaId and take the newest one for each
+        val groupedUnifiedList = unifiedList.groupBy { it.first.mangaId }
+            .map { (_, items) -> items.maxBy { it.first.readAt?.time ?: 0L } }
+            .sortedByDescending { it.first.readAt?.time ?: 0L }
+
         val processedItems = mutableListOf<HistoryUiModel>()
         val groupedMangaHandled = mutableSetOf<Long>()
 
-        for (item in list) {
+        for ((item, subtitle) in groupedUnifiedList) {
             val groupId = memberships[item.mangaId]
             if (groupId == null) {
-                processedItems.add(HistoryUiModel.Item(item))
+                processedItems.add(HistoryUiModel.Item(item, subtitle))
             } else {
                 if (groupId in groupedMangaHandled) continue
 
                 // Find all group members in the current history list
                 val group = groups.find { it.id == groupId } ?: continue
-                val groupMembers = list.filter { memberships[it.mangaId] == groupId }
+                val groupMembers = groupedUnifiedList.filter { memberships[it.first.mangaId] == groupId }
 
                 // The list is sorted by readAt DESC, so the first one is the representative
-                val representative = groupMembers.first()
+                val (representative, _) = groupMembers.first()
 
                 processedItems.add(
                     HistoryUiModel.Group(
@@ -150,9 +206,9 @@ class HistoryViewModel(
                         representative = representative,
                         memberCount = groupMembers.size,
                         sourceNames = groupMembers.map {
-                            sourceManager.getOrStub(it.coverData.sourceId).name
-                        }
-                    )
+                            sourceManager.getOrStub(it.first.coverData.sourceId).name
+                        },
+                    ),
                 )
                 groupedMangaHandled.add(groupId)
             }
@@ -199,13 +255,19 @@ class HistoryViewModel(
 
     fun removeAllFromHistory(mangaId: Long) {
         viewModelScope.launchIO {
+            val allRefs = getMergedReferences.await()
+            val childIds = allRefs.filter { it.mergeId == mangaId }.mapNotNull { it.mangaId }
+            childIds.forEach { removeHistory.await(it) }
             removeHistory.await(mangaId)
         }
     }
 
     fun removeSelectedFromHistory(mangaIds: Set<Long>) {
         viewModelScope.launchIO {
+            val allRefs = getMergedReferences.await()
             mangaIds.forEach { mangaId ->
+                val childIds = allRefs.filter { it.mergeId == mangaId }.mapNotNull { it.mangaId }
+                childIds.forEach { removeHistory.await(it) }
                 removeHistory.await(mangaId)
             }
             _state.update { state ->

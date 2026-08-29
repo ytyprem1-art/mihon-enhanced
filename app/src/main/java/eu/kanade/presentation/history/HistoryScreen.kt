@@ -459,6 +459,7 @@ private fun HistoryScreenContent(
                             .fillMaxWidth()
                             .animateItem(),
                         history = value,
+                        secondaryText = item.subtitle,
                         onClickCover = { onClickCover(value) },
                         onClickResume = { onClickResume(value) },
                         onClickDelete = { onClickDelete(value) },
@@ -550,7 +551,7 @@ private fun HistoryScreenContent(
 
 sealed interface HistoryUiModel {
     data class Header(val date: LocalDate) : HistoryUiModel
-    data class Item(val item: HistoryWithRelations) : HistoryUiModel
+    data class Item(val item: HistoryWithRelations, val subtitle: String? = null) : HistoryUiModel
     data class Group(
         val group: tachiyomi.domain.history.group.model.HistoryGroup,
         val representative: HistoryWithRelations,

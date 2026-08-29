@@ -256,7 +256,6 @@ class MangaViewModel(
                                 references,
                                 manga.associateBy { it.id },
                                 references.map { it.mangaSourceId }.distinct()
-                                    .filter { it != MERGED_SOURCE_ID }
                                     .map { sourceManager.getOrStub(it) },
                             )
                         } else {
@@ -378,7 +377,6 @@ class MangaViewModel(
                     references,
                     getMergedMangaById.await(mangaId).associateBy { it.id },
                     references.map { it.mangaSourceId }.distinct()
-                        .filter { it != MERGED_SOURCE_ID }
                         .map { sourceManager.getOrStub(it) },
                 )
             }
@@ -947,6 +945,7 @@ class MangaViewModel(
                 selected = chapter.id in selectedChapterIds,
                 // SY -->
                 sourceName = source?.getNameForMangaInfo(),
+                sourceId = source?.id,
                 // SY <--
             )
         }
@@ -1905,9 +1904,22 @@ sealed class ChapterList {
         val selected: Boolean = false,
         // SY -->
         val sourceName: String? = null,
+        val sourceId: Long? = null,
+        val isGrouped: Boolean = false,
         // SY <--
     ) : ChapterList() {
         val id = chapter.id
         val isDownloaded = downloadState == Download.State.DOWNLOADED
     }
+
+    // SY -->
+    @Immutable
+    data class Group(
+        val chapterNumber: Double,
+        val items: List<Item>,
+        val isExpanded: Boolean,
+    ) : ChapterList() {
+        val id = "group-$chapterNumber"
+    }
+    // SY <--
 }

@@ -42,7 +42,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -62,6 +65,7 @@ import eu.kanade.presentation.manga.components.ChapterHeader
 import eu.kanade.presentation.manga.components.ExpandableMangaDescription
 import eu.kanade.presentation.manga.components.MangaActionRow
 import eu.kanade.presentation.manga.components.MangaBottomActionMenu
+import eu.kanade.presentation.manga.components.MangaChapterGroupListItem
 import eu.kanade.presentation.manga.components.MangaChapterListItem
 import eu.kanade.presentation.manga.components.MangaInfoBox
 import eu.kanade.presentation.manga.components.MangaQuickSourceSwitcher
@@ -74,6 +78,7 @@ import eu.kanade.tachiyomi.source.getNameForMangaInfo
 import eu.kanade.tachiyomi.source.mod.MERGED_SOURCE_ID
 import eu.kanade.tachiyomi.ui.manga.ChapterList
 import eu.kanade.tachiyomi.ui.manga.MangaViewModel
+import eu.kanade.tachiyomi.ui.mod.util.SourceColorUtil
 import eu.kanade.tachiyomi.util.system.copyToClipboard
 import tachiyomi.domain.chapter.model.Chapter
 import tachiyomi.domain.chapter.service.missingChaptersCount
@@ -154,6 +159,121 @@ fun MangaScreen(
         }
     }
 
+    val (_, listItem, _) = remember(state) {
+        Triple(
+            first = state.processedChapters,
+            second = state.chapterListItems,
+            third = state.isAnySelected,
+        )
+    }
+
+    val sourceColorMap = remember(listItem) {
+        val ids = listItem.filterIsInstance<ChapterList.Item>()
+            .mapNotNull { it.sourceId }
+            .distinct()
+        if (ids.size > 1) {
+            SourceColorUtil.getColorsForSources(ids)
+        } else {
+            emptyMap()
+        }
+    }
+
+    val expandedChapters = rememberSaveable(
+        saver = Saver(
+            save = { it.keys.toList() },
+            restore = {
+                mutableStateMapOf<Double, Boolean>().apply {
+                    it.forEach { num -> put(num, true) }
+                }
+            },
+        ),
+    ) {
+        mutableStateMapOf<Double, Boolean>()
+    }
+
+    val groupedListItem by remember(listItem) {
+        derivedStateOf {
+            if (state.manga.source != MERGED_SOURCE_ID) return@derivedStateOf listItem
+
+            val references = state.mergedData?.references ?: emptyList()
+            val sortDescending = state.manga.sortDescending()
+
+            val sortedItems = listItem.filterIsInstance<ChapterList.Item>()
+                .groupBy { it.chapter.chapterNumber }
+                .toList()
+                .sortedWith { a, b ->
+                    if (a.first == -1.0 && b.first == -1.0) return@sortedWith 0
+                    if (a.first == -1.0) return@sortedWith 1
+                    if (b.first == -1.0) return@sortedWith -1
+                    if (sortDescending) b.first.compareTo(a.first) else a.first.compareTo(b.first)
+                }
+                .flatMap { (_, group) ->
+                    group.sortedBy { item ->
+                        references.find { it.mangaId == item.chapter.mangaId }?.chapterPriority ?: Int.MAX_VALUE
+                    }
+                }
+
+            val result = mutableListOf<ChapterList>()
+            var i = 0
+            while (i < sortedItems.size) {
+                val current = sortedItems[i]
+                val group = mutableListOf<ChapterList.Item>()
+                group.add(current)
+                var j = i + 1
+                while (j < sortedItems.size &&
+                    sortedItems[j].chapter.chapterNumber == current.chapter.chapterNumber &&
+                    current.chapter.chapterNumber != -1.0
+                ) {
+                    group.add(sortedItems[j])
+                    j++
+                }
+
+                if (group.size > 1) {
+                    val isExpanded = expandedChapters[current.chapter.chapterNumber] ?: false
+                    result.add(
+                        ChapterList.Group(
+                            chapterNumber = current.chapter.chapterNumber,
+                            items = group,
+                            isExpanded = isExpanded,
+                        ),
+                    )
+                    if (isExpanded) {
+                        result.addAll(group.fastMap { it.copy(isGrouped = true) })
+                    }
+                    i = j
+                } else {
+                    result.add(current.copy(isGrouped = false))
+                    i++
+                }
+            }
+            result
+        }
+    }
+
+    val anyChapterGrouped by remember(groupedListItem) {
+        derivedStateOf {
+            groupedListItem.fastAny { it is ChapterList.Group }
+        }
+    }
+
+    val allGroupsExpanded by remember(groupedListItem, expandedChapters) {
+        derivedStateOf {
+            val groups = groupedListItem.filterIsInstance<ChapterList.Group>()
+            groups.isNotEmpty() && groups.all { it.isExpanded }
+        }
+    }
+
+    val onToggleAllExpand = {
+        val groups = groupedListItem.filterIsInstance<ChapterList.Group>()
+        if (allGroupsExpanded) {
+            expandedChapters.clear()
+        } else {
+            groups.forEach {
+                expandedChapters[it.chapterNumber] = true
+            }
+        }
+    }
+
     if (!isTabletUi) {
         MangaScreenSmallImpl(
             state = state,
@@ -195,6 +315,12 @@ fun MangaScreen(
             onMergedSettingsClicked = onMergedSettingsClicked,
             onMergeClicked = onMergeClicked,
             onOpenSource = onOpenSource,
+            sourceColorMap = sourceColorMap,
+            expandedChapters = expandedChapters,
+            groupedListItem = groupedListItem,
+            anyChapterGrouped = anyChapterGrouped,
+            allGroupsExpanded = allGroupsExpanded,
+            onToggleAllExpand = onToggleAllExpand,
         )
     } else {
         MangaScreenLargeImpl(
@@ -237,6 +363,12 @@ fun MangaScreen(
             onMergedSettingsClicked = onMergedSettingsClicked,
             onMergeClicked = onMergeClicked,
             onOpenSource = onOpenSource,
+            sourceColorMap = sourceColorMap,
+            expandedChapters = expandedChapters,
+            groupedListItem = groupedListItem,
+            anyChapterGrouped = anyChapterGrouped,
+            allGroupsExpanded = allGroupsExpanded,
+            onToggleAllExpand = onToggleAllExpand,
         )
     }
 }
@@ -297,15 +429,33 @@ private fun MangaScreenSmallImpl(
     onMergeClicked: () -> Unit,
     // SY <--
     onOpenSource: (Long, String) -> Unit,
+
+    // Mihon Enhanced -->
+    sourceColorMap: Map<Long, androidx.compose.ui.graphics.Color>,
+    expandedChapters: MutableMap<Double, Boolean>,
+    groupedListItem: List<ChapterList>,
+    anyChapterGrouped: Boolean,
+    allGroupsExpanded: Boolean,
+    onToggleAllExpand: () -> Unit,
+    // Mihon Enhanced <--
 ) {
     val chapterListState = rememberLazyListState()
 
-    val (chapters, listItem, isAnySelected) = remember(state) {
+    val (chapters, _, isAnySelected) = remember(state) {
         Triple(
             first = state.processedChapters,
             second = state.chapterListItems,
             third = state.isAnySelected,
         )
+    }
+
+    val displayChapterCount = remember(chapters) {
+        if (state.manga.source == MERGED_SOURCE_ID) {
+            val (recognized, unrecognized) = chapters.partition { it.chapter.chapterNumber != -1.0 }
+            recognized.map { it.chapter.chapterNumber }.distinct().size + unrecognized.size
+        } else {
+            chapters.size
+        }
     }
 
     BackHandler(enabled = isAnySelected) {
@@ -504,18 +654,32 @@ private fun MangaScreenSmallImpl(
                             }
                             ChapterHeader(
                                 enabled = !isAnySelected,
-                                chapterCount = chapters.size,
+                                chapterCount = displayChapterCount,
                                 missingChapterCount = missingChapterCount,
                                 onClick = onFilterClicked,
+                                // SY -->
+                                onClickGroupToggle = onToggleAllExpand.takeIf { anyChapterGrouped },
+                                groupToggleEnabled = allGroupsExpanded,
+                                // SY <--
                             )
                         }
 
                         sharedChapterItems(
                             manga = state.manga,
-                            chapters = listItem,
+                            chapters = groupedListItem,
                             isAnyChapterSelected = chapters.fastAny { it.selected },
                             chapterSwipeStartAction = chapterSwipeStartAction,
                             chapterSwipeEndAction = chapterSwipeEndAction,
+                            // SY -->
+                            sourceColorMap = sourceColorMap,
+                            onToggleExpand = { num ->
+                                if (expandedChapters.containsKey(num)) {
+                                    expandedChapters.remove(num)
+                                } else {
+                                    expandedChapters[num] = true
+                                }
+                            },
+                            // SY <--
                             onChapterClicked = onChapterClicked,
                             onDownloadChapter = onDownloadChapter,
                             onChapterSelected = onChapterSelected,
@@ -602,16 +766,34 @@ fun MangaScreenLargeImpl(
     onMergeClicked: () -> Unit,
     // SY <--
     onOpenSource: (Long, String) -> Unit,
+
+    // Mihon Enhanced -->
+    sourceColorMap: Map<Long, androidx.compose.ui.graphics.Color>,
+    expandedChapters: MutableMap<Double, Boolean>,
+    groupedListItem: List<ChapterList>,
+    anyChapterGrouped: Boolean,
+    allGroupsExpanded: Boolean,
+    onToggleAllExpand: () -> Unit,
+    // Mihon Enhanced <--
 ) {
     val layoutDirection = LocalLayoutDirection.current
     val density = LocalDensity.current
 
-    val (chapters, listItem, isAnySelected) = remember(state) {
+    val (chapters, _, isAnySelected) = remember(state) {
         Triple(
             first = state.processedChapters,
             second = state.chapterListItems,
             third = state.isAnySelected,
         )
+    }
+
+    val displayChapterCount = remember(chapters) {
+        if (state.manga.source == MERGED_SOURCE_ID) {
+            val (recognized, unrecognized) = chapters.partition { it.chapter.chapterNumber != -1.0 }
+            recognized.map { it.chapter.chapterNumber }.distinct().size + unrecognized.size
+        } else {
+            chapters.size
+        }
     }
 
     val insetPadding = WindowInsets.systemBars.only(WindowInsetsSides.Horizontal).asPaddingValues()
@@ -800,18 +982,32 @@ fun MangaScreenLargeImpl(
                                     }
                                     ChapterHeader(
                                         enabled = !isAnySelected,
-                                        chapterCount = chapters.size,
+                                        chapterCount = displayChapterCount,
                                         missingChapterCount = missingChapterCount,
                                         onClick = onFilterButtonClicked,
+                                        // SY -->
+                                        onClickGroupToggle = onToggleAllExpand.takeIf { anyChapterGrouped },
+                                        groupToggleEnabled = allGroupsExpanded,
+                                        // SY <--
                                     )
                                 }
 
                                 sharedChapterItems(
                                     manga = state.manga,
-                                    chapters = listItem,
+                                    chapters = groupedListItem,
                                     isAnyChapterSelected = chapters.fastAny { it.selected },
                                     chapterSwipeStartAction = chapterSwipeStartAction,
                                     chapterSwipeEndAction = chapterSwipeEndAction,
+                                    // SY -->
+                                    sourceColorMap = sourceColorMap,
+                                    onToggleExpand = { num ->
+                                        if (expandedChapters.containsKey(num)) {
+                                            expandedChapters.remove(num)
+                                        } else {
+                                            expandedChapters[num] = true
+                                        }
+                                    },
+                                    // SY <--
                                     onChapterClicked = onChapterClicked,
                                     onDownloadChapter = onDownloadChapter,
                                     onChapterSelected = onChapterSelected,
@@ -892,6 +1088,10 @@ private fun LazyListScope.sharedChapterItems(
     isAnyChapterSelected: Boolean,
     chapterSwipeStartAction: LibraryPreferences.ChapterSwipeAction,
     chapterSwipeEndAction: LibraryPreferences.ChapterSwipeAction,
+    // SY -->
+    sourceColorMap: Map<Long, androidx.compose.ui.graphics.Color>,
+    onToggleExpand: (Double) -> Unit,
+    // SY <--
     onChapterClicked: (Chapter) -> Unit,
     onDownloadChapter: ((List<ChapterList.Item>, ChapterDownloadAction) -> Unit)?,
     onChapterSelected: (ChapterList.Item, Boolean, Boolean) -> Unit,
@@ -903,9 +1103,20 @@ private fun LazyListScope.sharedChapterItems(
             when (item) {
                 is ChapterList.MissingCount -> "missing-count-${item.id}"
                 is ChapterList.Item -> "chapter-${item.id}"
+                // SY -->
+                is ChapterList.Group -> "group-${item.chapterNumber}"
+                // SY <--
             }
         },
-        contentType = { MangaScreenItem.CHAPTER },
+        contentType = {
+            when (it) {
+                is ChapterList.MissingCount -> MangaScreenItem.CHAPTER
+                is ChapterList.Item -> MangaScreenItem.CHAPTER
+                // SY -->
+                is ChapterList.Group -> MangaScreenItem.CHAPTER
+                // SY <--
+            }
+        },
     ) { item ->
         val haptic = LocalHapticFeedback.current
 
@@ -913,6 +1124,24 @@ private fun LazyListScope.sharedChapterItems(
             is ChapterList.MissingCount -> {
                 MissingChapterCountListItem(count = item.count)
             }
+            // SY -->
+            is ChapterList.Group -> {
+                MangaChapterGroupListItem(
+                    title = if (manga.displayMode == Manga.CHAPTER_DISPLAY_NUMBER) {
+                        stringResource(
+                            MR.strings.display_mode_chapter,
+                            formatChapterNumber(item.chapterNumber),
+                        )
+                    } else {
+                        "Chapter ${formatChapterNumber(item.chapterNumber)}"
+                    },
+                    sourceCount = item.items.size,
+                    isExpanded = item.isExpanded,
+                    onClick = { onToggleExpand(item.chapterNumber) },
+                    modifier = Modifier.animateItem(),
+                )
+            }
+            // SY <--
             is ChapterList.Item -> {
                 MangaChapterListItem(
                     title = if (manga.displayMode == Manga.CHAPTER_DISPLAY_NUMBER) {
@@ -937,6 +1166,7 @@ private fun LazyListScope.sharedChapterItems(
                     bookmark = item.chapter.bookmark,
                     selected = item.selected,
                     sourceName = item.sourceName,
+                    sourceColor = if (item.isGrouped) sourceColorMap[item.sourceId] else null,
                     downloadIndicatorEnabled = !isAnyChapterSelected && !manga.isLocal(),
                     downloadStateProvider = { item.downloadState },
                     downloadProgressProvider = { item.downloadProgress },
