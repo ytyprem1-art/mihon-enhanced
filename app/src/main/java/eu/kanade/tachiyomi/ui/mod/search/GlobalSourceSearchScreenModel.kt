@@ -1,5 +1,6 @@
 package eu.kanade.tachiyomi.ui.mod.search
 
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.State
@@ -12,8 +13,10 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
@@ -21,6 +24,7 @@ import logcat.LogPriority
 import mihon.core.viewmodel.StateViewModel
 import mihon.domain.manga.model.toDomainManga
 import tachiyomi.core.common.util.lang.launchIO
+import tachiyomi.core.common.util.lang.withUIContext
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.manga.interactor.GetManga
 import tachiyomi.domain.manga.interactor.GetMergedReferencesById
@@ -34,7 +38,7 @@ import java.util.concurrent.Executors
 
 class GlobalSourceSearchScreenModel(
     initialQuery: String? = null,
-    val parentMangaId: Long? = null,
+    parentMangaId: Long? = null,
     private val sourceManager: SourceManager = Injekt.get(),
     private val sourcePreferences: SourcePreferences = Injekt.get(),
     private val networkToLocalManga: NetworkToLocalManga = Injekt.get(),
@@ -42,6 +46,9 @@ class GlobalSourceSearchScreenModel(
     private val getMergedReferencesById: GetMergedReferencesById = Injekt.get(),
     private val smartSearchMerge: SmartSearchMerge = Injekt.get(),
 ) : StateViewModel<GlobalSourceSearchScreenModel.State>(State(searchQuery = initialQuery)) {
+
+    val snackbarHostState = SnackbarHostState()
+    private val activeParentIdState = MutableStateFlow(parentMangaId)
 
     private val coroutineDispatcher = Executors.newFixedThreadPool(5).asCoroutineDispatcher()
     private var searchJob: Job? = null
@@ -51,14 +58,16 @@ class GlobalSourceSearchScreenModel(
             search()
         }
 
-        if (parentMangaId != null) {
-            viewModelScope.launchIO {
-                getMergedReferencesById.subscribe(parentMangaId)
-                    .collectLatest { refs ->
-                        val mergedIds = refs.mapNotNull { it.mangaId }.toSet()
-                        mutableState.update { it.copy(mergedMangaIds = mergedIds) }
-                    }
-            }
+        viewModelScope.launchIO {
+            activeParentIdState
+                .filterNotNull()
+                .flatMapLatest { id ->
+                    getMergedReferencesById.subscribe(id)
+                }
+                .collectLatest { refs ->
+                    val mergedIds = refs.mapNotNull { it.mangaId }.toSet()
+                    mutableState.update { it.copy(mergedMangaIds = mergedIds) }
+                }
         }
     }
 
@@ -85,15 +94,28 @@ class GlobalSourceSearchScreenModel(
         mutableState.update { it.copy(dialog = null) }
     }
 
-    fun performMerge(manga: Manga) {
-        val parentId = parentMangaId ?: return
+    fun performMerge(
+        manga: Manga,
+        onFirstMergeCreated: ((oldParentId: Long, newMergedMangaId: Long) -> Unit)? = null,
+    ) {
+        val parentId = activeParentIdState.value ?: return
         viewModelScope.launchIO {
             try {
-                smartSearchMerge.await(manga, parentId)
+                val resultManga = smartSearchMerge.await(manga, parentId)
+                val previousParentId = activeParentIdState.value
+                activeParentIdState.value = resultManga.id
                 dismissDialog()
+                if (previousParentId != null && resultManga.id != previousParentId) {
+                    withUIContext {
+                        onFirstMergeCreated?.invoke(previousParentId, resultManga.id)
+                    }
+                }
             } catch (e: Exception) {
                 logcat(LogPriority.ERROR, e)
-                // TODO: show error event
+                dismissDialog()
+                snackbarHostState.showSnackbar(
+                    message = e.message ?: "Failed to merge manga",
+                )
             }
         }
     }

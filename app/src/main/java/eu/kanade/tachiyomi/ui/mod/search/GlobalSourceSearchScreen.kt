@@ -27,6 +27,7 @@ import eu.kanade.presentation.components.SearchToolbar
 import eu.kanade.presentation.library.components.MangaListItem
 import eu.kanade.presentation.util.Screen
 import eu.kanade.tachiyomi.source.CatalogueSource
+import eu.kanade.tachiyomi.ui.manga.MangaScreen
 import eu.kanade.tachiyomi.util.system.LocaleHelper
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.manga.model.asMangaCover
@@ -56,12 +57,16 @@ class GlobalSourceSearchScreen(
                     scrollBehavior = scrollBehavior,
                 )
             },
+            snackbarHost = { androidx.compose.material3.SnackbarHost(screenModel.snackbarHostState) },
         ) { paddingValues ->
             GlobalSourceSearchContent(
                 items = state.items,
                 mergedMangaIds = state.mergedMangaIds,
                 contentPadding = paddingValues,
                 getManga = { screenModel.getManga(it) },
+                onClickItem = { manga ->
+                    navigator.push(MangaScreen(manga.id, true))
+                },
                 onAdd = screenModel::showMergeConfirmation,
             )
 
@@ -73,7 +78,21 @@ class GlobalSourceSearchScreen(
                         text = { Text(stringResource(MR.strings.merge_with_another_desc)) },
                         confirmButton = {
                             TextButton(
-                                onClick = { screenModel.performMerge(dialog.manga) },
+                                onClick = {
+                                    screenModel.performMerge(dialog.manga) { oldParentId, newMergedMangaId ->
+                                        val currentItems = navigator.items
+                                        val newItems = currentItems.map { screen ->
+                                            if (screen is MangaScreen && screen.mangaId == oldParentId) {
+                                                MangaScreen(newMergedMangaId, true)
+                                            } else {
+                                                screen
+                                            }
+                                        }
+                                        if (newItems != currentItems) {
+                                            navigator.replaceAll(newItems)
+                                        }
+                                    }
+                                },
                             ) {
                                 Text(stringResource(MR.strings.action_ok))
                             }
@@ -97,6 +116,7 @@ private fun GlobalSourceSearchContent(
     mergedMangaIds: Set<Long>,
     contentPadding: PaddingValues,
     getManga: @Composable (Manga) -> State<Manga>,
+    onClickItem: (Manga) -> Unit,
     onAdd: (Manga) -> Unit,
 ) {
     LazyColumn(
@@ -154,8 +174,8 @@ private fun GlobalSourceSearchContent(
                                 }
                             }
                         },
-                        onClick = {},
-                        onLongClick = {},
+                        onClick = { onClickItem(mangaState) },
+                        onLongClick = { onClickItem(mangaState) },
                     )
                 }
             }

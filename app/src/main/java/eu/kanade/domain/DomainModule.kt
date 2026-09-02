@@ -166,7 +166,7 @@ class DomainModule : InjektModule {
         addFactory { FetchInterval(get()) }
         addFactory { SetMangaDefaultChapterFlags(get(), get(), get()) }
         addFactory { SetMangaViewerFlags(get()) }
-        addFactory { SmartSearchMerge(get(), get(), get(), get()) }
+        addFactory { SmartSearchMerge(get(), get(), get(), get(), get(), get(), get(), get(), get()) }
         addFactory { NetworkToLocalManga(get()) }
         addFactory { UpdateManga(get(), get()) }
         addFactory { UpdateMangaNotes(get()) }

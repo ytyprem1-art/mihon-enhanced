@@ -88,7 +88,7 @@ import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.i18n.stringResource
 
 class MangaScreen(
-    private val mangaId: Long,
+    val mangaId: Long,
     val fromSource: Boolean = false,
     val smartJumpSessionId: String? = null,
     val smartJumpAnchorSourceId: Long? = null,
