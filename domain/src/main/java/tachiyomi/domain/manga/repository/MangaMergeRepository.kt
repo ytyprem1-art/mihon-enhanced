@@ -14,6 +14,8 @@ interface MangaMergeRepository {
 
     suspend fun subscribeMergedMangaById(id: Long): Flow<List<Manga>>
 
+    suspend fun getReferenceById(id: Long): MergedMangaReference?
+
     suspend fun getReferencesById(id: Long): List<MergedMangaReference>
 
     suspend fun subscribeReferencesById(id: Long): Flow<List<MergedMangaReference>>

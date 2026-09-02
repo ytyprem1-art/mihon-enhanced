@@ -628,10 +628,17 @@ class MangaScreen(
             }
             // SY -->
             is MangaViewModel.Dialog.EditMergedSettings -> {
+                val mergedData = successState.mergedData ?: return
                 EditMergedSettingsDialog(
                     onDismissRequest = onDismissRequest,
-                    mergedData = successState.mergedData!!,
-                    onDeleteClick = viewModel::deleteMerge,
+                    mergedData = mergedData,
+                    onDeleteClick = { ref ->
+                        viewModel.deleteMerge(ref) {
+                            if (navigator.canPop) {
+                                navigator.pop()
+                            }
+                        }
+                    },
                     onPositiveClick = viewModel::updateMergeSettings,
                 )
             }

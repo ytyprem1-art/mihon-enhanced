@@ -180,7 +180,7 @@ class DomainModule : InjektModule {
         addFactory { InsertMergedReference(get()) }
         addFactory { UpdateMergedSettings(get()) }
         addFactory { DeleteByMergeId(get()) }
-        addFactory { DeleteMergeById(get()) }
+        addFactory { DeleteMergeById(get(), get()) }
         addFactory { DeleteOrphanedMergeReferences(get()) }
         addFactory { GetMergedMangaForDownloading(get()) }
         addFactory {

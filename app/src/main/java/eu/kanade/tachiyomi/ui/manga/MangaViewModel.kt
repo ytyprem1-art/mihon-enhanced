@@ -94,6 +94,7 @@ import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.domain.manga.interactor.DeleteByMergeId
 import tachiyomi.domain.manga.interactor.DeleteMangaById
 import tachiyomi.domain.manga.interactor.DeleteMergeById
+import tachiyomi.domain.manga.interactor.DeleteMergeResult
 import tachiyomi.domain.manga.interactor.GetDuplicateLibraryManga
 import tachiyomi.domain.manga.interactor.GetManga
 import tachiyomi.domain.manga.interactor.GetMangaByUrlAndSourceId
@@ -269,6 +270,7 @@ class MangaViewModel(
                 }
                 .combine(downloadCache.changes) { state, _ -> state }
                 .combine(downloadManager.queueState) { state, _ -> state }
+                .catch { error -> logcat(LogPriority.ERROR, error) }
                 .collectLatest { (manga, chapters, mergedData) ->
                     val finalMergedData = if (manga.source == MERGED_SOURCE_ID) {
                         mergedData?.copy(chapters = chapters)
@@ -526,9 +528,18 @@ class MangaViewModel(
         }
     }
 
-    fun deleteMerge(reference: MergedMangaReference) {
+    fun deleteMerge(
+        reference: MergedMangaReference,
+        onParentDeleted: (() -> Unit)? = null,
+    ) {
         viewModelScope.launchNonCancellable {
-            deleteMergeById.await(reference.id)
+            val result = deleteMergeById.await(reference.id)
+            if (result is DeleteMergeResult.ParentDeleted) {
+                withUIContext {
+                    dismissDialog()
+                    onParentDeleted?.invoke()
+                }
+            }
         }
     }
 
