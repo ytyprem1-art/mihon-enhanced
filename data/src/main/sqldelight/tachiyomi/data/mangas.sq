@@ -123,6 +123,12 @@ FROM mangas
 WHERE favorite = 1
 AND source = :sourceId;
 
+getFavoriteUrlsBySourceId:
+SELECT url
+FROM mangas
+WHERE favorite = 1
+AND source = :sourceId;
+
 getDuplicateLibraryManga:
 WITH
 track_dupes AS (

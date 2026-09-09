@@ -4,10 +4,12 @@ import androidx.paging.PagingState
 import eu.kanade.tachiyomi.source.Source
 import eu.kanade.tachiyomi.source.model.FilterList
 import eu.kanade.tachiyomi.source.model.MangasPage
+import kotlinx.coroutines.flow.first
 import mihon.domain.manga.model.toDomainManga
 import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.domain.manga.interactor.NetworkToLocalManga
 import tachiyomi.domain.manga.model.Manga
+import tachiyomi.domain.manga.repository.MangaRepository
 import tachiyomi.domain.source.repository.SourcePagingSource
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
@@ -41,9 +43,20 @@ abstract class BaseSourcePagingSource(
     protected val source: Source,
     protected open val libraryOnly: Boolean = false,
     private val networkToLocalManga: NetworkToLocalManga = Injekt.get(),
+    private val mangaRepository: MangaRepository = Injekt.get(),
 ) : SourcePagingSource() {
 
     private val seenManga = hashSetOf<String>()
+    private var favoriteUrls: Set<String>? = null
+
+    private suspend fun getFavoriteUrls(): Set<String> {
+        return favoriteUrls ?: withIOContext {
+            mangaRepository.getFavoriteUrlsBySourceId(source.id)
+                .first()
+                .toHashSet()
+                .also { favoriteUrls = it }
+        }
+    }
 
     abstract suspend fun requestNextPage(currentPage: Int): MangasPage
 
@@ -56,6 +69,8 @@ abstract class BaseSourcePagingSource(
         val maxFetches = if (libraryOnly) 20 else 1
 
         return try {
+            val favUrls = if (libraryOnly) getFavoriteUrls() else emptySet()
+
             while (accumulated.size < params.loadSize && hasNextPage && fetchCount < maxFetches) {
                 val mangasPage = withIOContext {
                     requestNextPage(currentRemotePage.toInt())
@@ -65,10 +80,17 @@ abstract class BaseSourcePagingSource(
                 fetchCount++
                 lastFetchedRemotePage = currentRemotePage
 
-                val manga = mangasPage.mangas
+                val domainManga = mangasPage.mangas
                     .map { it.toDomainManga(source.id) }
                     .filter { seenManga.add(it.url) }
-                    .let { networkToLocalManga(it) }
+
+                val toHydrate = if (libraryOnly) {
+                    domainManga.filter { it.url in favUrls }
+                } else {
+                    domainManga
+                }
+
+                val manga = networkToLocalManga(toHydrate)
                     .filter { !libraryOnly || it.favorite }
 
                 accumulated.addAll(manga)
