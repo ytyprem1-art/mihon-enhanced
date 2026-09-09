@@ -28,7 +28,10 @@ class SourcePopularPagingSource(source: Source) : BaseSourcePagingSource(source)
     }
 }
 
-class SourceLatestPagingSource(source: Source) : BaseSourcePagingSource(source) {
+class SourceLatestPagingSource(
+    source: Source,
+    libraryOnly: Boolean = false,
+) : BaseSourcePagingSource(source, libraryOnly) {
     override suspend fun requestNextPage(currentPage: Int): MangasPage {
         return source.getLatestUpdates(currentPage)
     }
@@ -36,6 +39,7 @@ class SourceLatestPagingSource(source: Source) : BaseSourcePagingSource(source) 
 
 abstract class BaseSourcePagingSource(
     protected val source: Source,
+    protected open val libraryOnly: Boolean = false,
     private val networkToLocalManga: NetworkToLocalManga = Injekt.get(),
 ) : SourcePagingSource() {
 
@@ -44,24 +48,45 @@ abstract class BaseSourcePagingSource(
     abstract suspend fun requestNextPage(currentPage: Int): MangasPage
 
     override suspend fun load(params: LoadParams<Long>): LoadResult<Long, Manga> {
-        val page = params.key ?: 1
+        var currentRemotePage = params.key ?: 1
+        var lastFetchedRemotePage = currentRemotePage
+        val accumulated = mutableListOf<Manga>()
+        var hasNextPage = true
+        var fetchCount = 0
+        val maxFetches = if (libraryOnly) 5 else 1
 
         return try {
-            val mangasPage = withIOContext {
-                requestNextPage(page.toInt())
-                    .takeIf { it.mangas.isNotEmpty() }
-                    ?: throw NoResultsException()
+            while (accumulated.size < params.loadSize && hasNextPage && fetchCount < maxFetches) {
+                val mangasPage = withIOContext {
+                    requestNextPage(currentRemotePage.toInt())
+                        .takeIf { it.mangas.isNotEmpty() }
+                        ?: throw NoResultsException()
+                }
+                fetchCount++
+                lastFetchedRemotePage = currentRemotePage
+
+                val manga = mangasPage.mangas
+                    .map { it.toDomainManga(source.id) }
+                    .filter { seenManga.add(it.url) }
+                    .let { networkToLocalManga(it) }
+                    .filter { !libraryOnly || it.favorite }
+
+                accumulated.addAll(manga)
+                hasNextPage = mangasPage.hasNextPage
+
+                if (accumulated.size < params.loadSize && hasNextPage) {
+                    currentRemotePage++
+                }
             }
 
-            val manga = mangasPage.mangas
-                .map { it.toDomainManga(source.id) }
-                .filter { seenManga.add(it.url) }
-                .let { networkToLocalManga(it) }
+            if (accumulated.isEmpty()) {
+                throw NoResultsException()
+            }
 
             LoadResult.Page(
-                data = manga,
+                data = accumulated,
                 prevKey = null,
-                nextKey = if (mangasPage.hasNextPage) page + 1 else null,
+                nextKey = if (hasNextPage) lastFetchedRemotePage + 1 else null,
             )
         } catch (e: Exception) {
             LoadResult.Error(e)

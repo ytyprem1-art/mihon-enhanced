@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.CollectionsBookmark
 import androidx.compose.material.icons.outlined.Favorite
 import androidx.compose.material.icons.outlined.FilterList
 import androidx.compose.material.icons.outlined.NewReleases
@@ -360,6 +361,24 @@ data class BrowseSourceScreen(
                                 },
                                 label = {
                                     Text(text = stringResource(MR.strings.latest))
+                                },
+                            )
+                            FilterChip(
+                                selected = state.listing == Listing.LatestLibrary,
+                                onClick = {
+                                    viewModel.resetFilters()
+                                    viewModel.setListing(Listing.LatestLibrary)
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Outlined.CollectionsBookmark,
+                                        contentDescription = null,
+                                        modifier = Modifier
+                                            .size(FilterChipDefaults.IconSize),
+                                    )
+                                },
+                                label = {
+                                    Text(text = "Latest Library")
                                 },
                             )
                         }

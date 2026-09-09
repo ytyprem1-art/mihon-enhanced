@@ -336,6 +336,7 @@ class BrowseSourceViewModel(
     sealed class Listing(open val query: String?, open val filters: FilterList) {
         data object Popular : Listing(query = GetRemoteManga.QUERY_POPULAR, filters = FilterList())
         data object Latest : Listing(query = GetRemoteManga.QUERY_LATEST, filters = FilterList())
+        data object LatestLibrary : Listing(query = GetRemoteManga.QUERY_LATEST_LIBRARY, filters = FilterList())
         data class Search(
             override val query: String?,
             override val filters: FilterList,
@@ -346,6 +347,7 @@ class BrowseSourceViewModel(
                 return when (query) {
                     GetRemoteManga.QUERY_POPULAR -> Popular
                     GetRemoteManga.QUERY_LATEST -> Latest
+                    GetRemoteManga.QUERY_LATEST_LIBRARY -> LatestLibrary
                     else -> Search(query = query, filters = FilterList()) // filters are filled in later
                 }
             }

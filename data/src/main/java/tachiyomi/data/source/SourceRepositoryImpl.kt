@@ -83,8 +83,8 @@ class SourceRepositoryImpl(
         return SourcePopularPagingSource(sourceManager.getOrStub(sourceId))
     }
 
-    override fun getLatest(sourceId: Long): SourcePagingSource {
-        return SourceLatestPagingSource(sourceManager.getOrStub(sourceId))
+    override fun getLatest(sourceId: Long, libraryOnly: Boolean): SourcePagingSource {
+        return SourceLatestPagingSource(sourceManager.getOrStub(sourceId), libraryOnly)
     }
 
     private fun mapSourceToDomainSource(source: Source): DomainSource = DomainSource(
