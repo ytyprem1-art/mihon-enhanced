@@ -53,7 +53,7 @@ abstract class BaseSourcePagingSource(
         val accumulated = mutableListOf<Manga>()
         var hasNextPage = true
         var fetchCount = 0
-        val maxFetches = if (libraryOnly) 5 else 1
+        val maxFetches = if (libraryOnly) 20 else 1
 
         return try {
             while (accumulated.size < params.loadSize && hasNextPage && fetchCount < maxFetches) {
