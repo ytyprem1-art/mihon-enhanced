@@ -1,12 +1,14 @@
 package eu.kanade.tachiyomi.ui.mod.panelshare
 
-import androidx.compose.foundation.Canvas
+import android.Manifest
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -22,39 +24,32 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import eu.kanade.tachiyomi.util.system.toast
 import kotlinx.coroutines.launch
-import kotlin.math.abs
-import kotlin.math.min
-import kotlin.math.max
 
 @Composable
 fun PanelShareHost(controller: PanelShareController) {
@@ -62,172 +57,176 @@ fun PanelShareHost(controller: PanelShareController) {
     val session = controller.session ?: return
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    val galleryPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) scope.launch { controller.export(session, context, true) }
+        else context.toast("Storage permission is needed to save to gallery")
+    }
     val panel = session.panel
-    if (panel == null) {
-        CropPanelDialog(
-            session = session,
-            onDismiss = controller::dismiss,
-            onConfirm = { scope.launch { controller.crop(session) } },
+    if (session.preview == null) {
+        CropPanelDialog(session, controller::dismiss, { scope.launch { controller.crop(session) } })
+    } else if (panel == null) {
+        AlertDialog(
+            onDismissRequest = { if (!session.busy) controller.dismiss() },
+            title = { Text("Crop & Share") },
+            text = {
+                Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(session.context.mangaTitle, style = MaterialTheme.typography.titleMedium)
+                    Text("${session.context.chapterName} · ${session.context.sourceName}")
+                    val bitmap = requireNotNull(session.preview)
+                    Image(bitmap.asImageBitmap(), "Export preview", Modifier.fillMaxWidth().heightIn(max = 320.dp), contentScale = ContentScale.Fit)
+                    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        CropEnhancement.entries.forEach { preset ->
+                            FilterChip(
+                                selected = session.preset == preset,
+                                onClick = { scope.launch { controller.enhance(session, preset) } },
+                                enabled = !session.busy,
+                                label = { Text(preset.label) },
+                            )
+                        }
+                    }
+                    val dimensions = session.document.dimensions(session.selection)
+                    Text("${dimensions.first} × ${dimensions.second} · Original-resolution PNG")
+                    Text("Local enhancement adjusts sharpness and color. It does not add resolution.", style = MaterialTheme.typography.bodySmall)
+                    Button(
+                        onClick = {
+                            if (Build.VERSION.SDK_INT < 29) galleryPermission.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                            else scope.launch { controller.export(session, context, true) }
+                        },
+                        enabled = !session.busy, modifier = Modifier.fillMaxWidth(),
+                    ) { Text("Save to gallery") }
+                    session.savedImage?.let { uri ->
+                        Text("Saved in Pictures/Mihon/Crops", style = MaterialTheme.typography.bodySmall)
+                        TextButton(onClick = {
+                            try {
+                                context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
+                                    setDataAndType(uri, "image/png")
+                                    addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                })
+                            } catch (_: android.content.ActivityNotFoundException) { context.toast("No image viewer is installed") }
+                        }, enabled = !session.busy) { Text("Open saved image") }
+                    }
+                    TextButton(
+                        onClick = { scope.launch { controller.export(session, context, false) } },
+                        enabled = !session.busy, modifier = Modifier.fillMaxWidth(),
+                    ) { Text("Share image · Original quality") }
+                    TextButton(
+                        onClick = { scope.launch { controller.prepareChat(session) } },
+                        enabled = !session.busy, modifier = Modifier.fillMaxWidth(),
+                    ) { Text("Global Chat · Compressed") }
+                    TextButton(onClick = {
+                        session.preview = null; session.originalPreview = null; session.error = null
+                    }, enabled = !session.busy) { Text("Adjust crop") }
+                    session.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                    if (session.busy) CircularProgressIndicator()
+                }
+            },
+            confirmButton = { TextButton(onClick = controller::dismiss, enabled = !session.busy) { Text("Close") } },
         )
     } else {
         val preview = remember(panel) { PanelImages.decode(panel.bytes).asImageBitmap() }
         AlertDialog(
-            onDismissRequest = { if (!session.busy) controller.dismiss() },
+            onDismissRequest = { if (!session.busy) session.panel = null },
             title = { Text("Share to Global Chat") },
             text = {
-                Column(
-                    modifier = Modifier.verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
+                Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(session.context.mangaTitle, style = MaterialTheme.typography.titleMedium)
                     Text("${session.context.chapterName} · ${session.context.sourceName}")
-                    Image(
-                        bitmap = preview,
-                        contentDescription = "Cropped panel preview",
-                        contentScale = ContentScale.Fit,
-                        modifier = Modifier.fillMaxWidth().heightIn(max = 260.dp),
-                    )
+                    Image(preview, "Compressed chat preview", Modifier.fillMaxWidth().heightIn(max = 260.dp), contentScale = ContentScale.Fit)
                     Text("${panel.width} × ${panel.height} · ${(panel.bytes.size + 999) / 1000} KB")
-                    TextButton(
-                        onClick = { session.panel = null; session.error = null },
-                        enabled = !session.busy,
-                    ) { Text("Crop again") }
                     OutlinedTextField(
                         value = session.caption,
                         onValueChange = { if (it.length <= 200) session.caption = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("Add a message… (optional)") },
-                        supportingText = { Text("${session.caption.length}/200") },
-                        maxLines = 4,
-                        enabled = !session.busy,
+                        modifier = Modifier.fillMaxWidth(), placeholder = { Text("Add a message… (optional)") },
+                        supportingText = { Text("${session.caption.length}/200") }, maxLines = 4, enabled = !session.busy,
                     )
                     session.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                     if (session.busy) CircularProgressIndicator()
                 }
             },
             confirmButton = {
-                Button(
-                    enabled = !session.busy,
-                    onClick = {
-                        scope.launch {
-                            if (controller.send(session)) {
-                                controller.dismiss()
-                                context.toast("Shared to Chat")
-                            }
-                        }
-                    },
-                ) { Text(if (session.busy) "Sending…" else "Share") }
+                Button(enabled = !session.busy, onClick = {
+                    scope.launch {
+                        if (controller.send(session)) { controller.dismiss(); context.toast("Shared to Chat") }
+                    }
+                }) { Text(if (session.busy) "Sending…" else "Share") }
             },
-            dismissButton = {
-                TextButton(onClick = controller::dismiss, enabled = !session.busy) { Text("Cancel") }
-            },
+            dismissButton = { TextButton(onClick = { session.panel = null }, enabled = !session.busy) { Text("Back") } },
         )
     }
 }
 
 @Composable
 private fun CropPanelDialog(session: PanelShareSession, onDismiss: () -> Unit, onConfirm: () -> Unit) {
+    val scope = rememberCoroutineScope()
+    val document = session.document
+    val context = LocalContext.current
+    val metrics = remember(context) {
+        android.util.DisplayMetrics().also {
+            @Suppress("DEPRECATION")
+            (context.getSystemService(android.content.Context.WINDOW_SERVICE) as android.view.WindowManager).defaultDisplay.getRealMetrics(it)
+        }
+    }
+    // Wallpaper is portrait even when editing on a landscape tablet.
+    val deviceRatio = minOf(metrics.widthPixels, metrics.heightPixels).toDouble() / maxOf(metrics.widthPixels, metrics.heightPixels)
     Dialog(
         onDismissRequest = { if (!session.busy) onDismiss() },
         properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
     ) {
         Column(Modifier.fillMaxSize().background(Color.Black).safeDrawingPadding()) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onDismiss, enabled = !session.busy) {
-                    Icon(Icons.Default.Close, "Cancel crop", tint = Color.White)
-                }
+            Row(Modifier.fillMaxWidth().background(Color(0xFF1B1B20)), verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onDismiss, enabled = !session.busy) { Icon(Icons.Default.Close, "Cancel crop", tint = Color.White) }
                 Text("Crop & Share", color = Color.White, modifier = Modifier.weight(1f))
-                IconButton(onClick = onConfirm, enabled = !session.busy) {
+                IconButton(onClick = onConfirm, enabled = !session.busy && document.pages.isNotEmpty()) {
                     Icon(Icons.Default.Check, "Use selected panel", tint = Color.White)
                 }
             }
-            Text(
-                "Drag to select a panel. Drag the corners to resize, or the box to move.",
-                color = Color.White,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-            )
-            BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
-                val viewport = session.viewport
-                val bitmap = remember(viewport) { viewport.asImageBitmap() }
-                val width = constraints.maxWidth.toFloat()
-                val height = constraints.maxHeight.toFloat()
-                val scale = min(width / viewport.width, height / viewport.height)
-                val imageWidth = viewport.width * scale
-                val imageHeight = viewport.height * scale
-                val image = Rect(
-                    (width - imageWidth) / 2f,
-                    (height - imageHeight) / 2f,
-                    (width + imageWidth) / 2f,
-                    (height + imageHeight) / 2f,
-                )
-                var mode by remember { mutableIntStateOf(-1) }
-                var anchor by remember { mutableStateOf(Offset.Zero) }
-                Image(bitmap, "Reader viewport", Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
-                Canvas(
-                    Modifier.fillMaxSize().pointerInput(viewport, image, session.busy) {
-                        if (session.busy) return@pointerInput
-                        fun normalized(p: Offset) = Offset(
-                            ((p.x - image.left) / image.width).coerceIn(0f, 1f),
-                            ((p.y - image.top) / image.height).coerceIn(0f, 1f),
-                        )
-                        detectDragGestures(
-                            onDragStart = { start ->
-                                val p = normalized(start)
-                                val s = session.selection
-                                val corners = listOf(
-                                    Offset(s.left, s.top), Offset(s.right, s.top),
-                                    Offset(s.right, s.bottom), Offset(s.left, s.bottom),
-                                )
-                                mode = corners.indexOfFirst {
-                                    abs(it.x - p.x) * image.width < 36.dp.toPx() &&
-                                        abs(it.y - p.y) * image.height < 36.dp.toPx()
-                                }
-                                if (mode < 0) {
-                                    mode = if (p.x in s.left..s.right && p.y in s.top..s.bottom) 4 else 5
-                                    if (mode == 5) {
-                                        anchor = p
-                                        session.selection = PanelSelection(p.x, p.y, p.x, p.y)
-                                    }
-                                }
-                            },
-                            onDrag = { change, amount ->
-                                change.consume()
-                                val p = normalized(change.position)
-                                val s = session.selection
-                                session.selection = when (mode) {
-                                    5 -> PanelSelection(min(anchor.x, p.x), min(anchor.y, p.y), max(anchor.x, p.x), max(anchor.y, p.y))
-                                    0 -> s.copy(left = p.x.coerceAtMost(s.right - 0.01f).coerceAtLeast(0f), top = p.y.coerceAtMost(s.bottom - 0.01f).coerceAtLeast(0f))
-                                    1 -> s.copy(right = p.x.coerceAtLeast(s.left + 0.01f).coerceAtMost(1f), top = p.y.coerceAtMost(s.bottom - 0.01f).coerceAtLeast(0f))
-                                    2 -> s.copy(right = p.x.coerceAtLeast(s.left + 0.01f).coerceAtMost(1f), bottom = p.y.coerceAtLeast(s.top + 0.01f).coerceAtMost(1f))
-                                    3 -> s.copy(left = p.x.coerceAtMost(s.right - 0.01f).coerceAtLeast(0f), bottom = p.y.coerceAtLeast(s.top + 0.01f).coerceAtMost(1f))
-                                    else -> {
-                                        val dx = (amount.x / image.width).coerceIn(-s.left, 1f - s.right)
-                                        val dy = (amount.y / image.height).coerceIn(-s.top, 1f - s.bottom)
-                                        PanelSelection(s.left + dx, s.top + dy, s.right + dx, s.bottom + dy)
-                                    }
-                                }
-                            },
-                        )
-                    },
-                ) {
-                    val s = session.selection
-                    val box = Rect(
-                        image.left + s.left * image.width, image.top + s.top * image.height,
-                        image.left + s.right * image.width, image.top + s.bottom * image.height,
+            Row(Modifier.fillMaxWidth().background(Color(0xFF1B1B20)).horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                CropTemplate.entries.forEach { template ->
+                    FilterChip(
+                        selected = session.template == template,
+                        onClick = { session.template = template },
+                        enabled = !session.busy && document.pages.isNotEmpty(),
+                        label = { Text(template.label, color = Color.White) },
                     )
-                    val shade = Color.Black.copy(alpha = 0.6f)
-                    drawRect(shade, size = Size(size.width, box.top))
-                    drawRect(shade, Offset(0f, box.bottom), Size(size.width, size.height - box.bottom))
-                    drawRect(shade, Offset(0f, box.top), Size(box.left, box.height))
-                    drawRect(shade, Offset(box.right, box.top), Size(size.width - box.right, box.height))
-                    drawRect(Color.White, box.topLeft, box.size, style = Stroke(2.dp.toPx()))
-                    listOf(box.topLeft, box.topRight, box.bottomRight, box.bottomLeft).forEach {
-                        drawCircle(Color.White, 6.dp.toPx(), it)
-                    }
                 }
-                if (session.busy) CircularProgressIndicator(Modifier.align(Alignment.Center))
             }
-            session.error?.let { Text(it, color = Color.White, modifier = Modifier.padding(16.dp)) }
+            Text(
+                if (session.template == CropTemplate.Custom) "Swipe to scroll · Drag the 6 handles to resize · Pinch to zoom"
+                else "Fixed wallpaper frame. Drag the image to position it; pinch to zoom.",
+                color = Color(0xFFD1D1DA), modifier = Modifier.fillMaxWidth().background(Color(0xFF1B1B20)).padding(12.dp),
+            )
+            Box(Modifier.weight(1f).fillMaxWidth()) {
+                AndroidView(
+                    factory = { OriginalCropView(it) },
+                    modifier = Modifier.fillMaxSize().clipToBounds(),
+                    update = { view ->
+                        view.onSelection = { session.selection = it }
+                        view.onNeedNext = { scope.launch { document.loadNext() } }
+                        view.onError = { session.error = it }
+                        view.isEnabled = !session.busy
+                        view.update(document, session.selection, session.template, deviceRatio)
+                        // Read the observable list so newly loaded strips trigger a redraw.
+                        document.pages.size
+                    },
+                )
+                if (session.busy || document.loading) CircularProgressIndicator(Modifier.align(Alignment.Center))
+            }
+            Surface(color = Color(0xFF1B1B20), contentColor = Color.White) {
+                Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    val dimensions = if (document.pages.isNotEmpty()) document.dimensions(session.selection) else null
+                    Text(
+                        if (dimensions != null) "${dimensions.first} × ${dimensions.second}" else "Loading image…",
+                        modifier = Modifier.weight(1f), style = MaterialTheme.typography.labelLarge,
+                    )
+                    Text(if (document.loading) "Loading…" else if (session.template == CropTemplate.Custom) "Custom crop" else "Wallpaper", style = MaterialTheme.typography.labelMedium)
+                }
+            }
+            (session.error ?: document.error)?.let { error ->
+                Row(Modifier.fillMaxWidth().background(Color(0xFF1B1B20)).padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(error, color = Color.White, modifier = Modifier.weight(1f))
+                    if (document.error != null) TextButton(onClick = { scope.launch { document.loadNext() } }) { Text("Retry") }
+                }
+            }
         }
     }
 }
