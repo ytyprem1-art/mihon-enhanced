@@ -69,6 +69,9 @@ import eu.kanade.tachiyomi.ui.chat.PresenceManager
 import eu.kanade.tachiyomi.ui.chat.PresenceStatus
 import eu.kanade.tachiyomi.ui.base.activity.BaseActivity
 import eu.kanade.tachiyomi.ui.main.MainActivity
+import eu.kanade.tachiyomi.ui.mod.panelshare.startReader
+import eu.kanade.tachiyomi.ui.mod.panelshare.PanelShareController
+import eu.kanade.tachiyomi.ui.mod.panelshare.PanelShareHost
 import eu.kanade.tachiyomi.ui.reader.ReaderViewModel.SetAsCoverResult.AddToLibraryFirst
 import eu.kanade.tachiyomi.ui.reader.ReaderViewModel.SetAsCoverResult.Error
 import eu.kanade.tachiyomi.ui.reader.ReaderViewModel.SetAsCoverResult.Success
@@ -137,6 +140,7 @@ class ReaderActivity : BaseActivity() {
     private var menuToggleToast: Toast? = null
     private var readingModeToast: Toast? = null
     private val displayRefreshHost = DisplayRefreshHost()
+    private val panelShare = PanelShareController()
 
     private val windowInsetsController by lazy { WindowInsetsControllerCompat(window, window.decorView) }
 
@@ -283,6 +287,7 @@ class ReaderActivity : BaseActivity() {
         }
 
         val onDismissRequest = viewModel::closeDialog
+        PanelShareHost(panelShare)
         val dialog = state.dialog
         when (dialog) {
             is ReaderViewModel.Dialog.Loading -> {
@@ -528,6 +533,7 @@ class ReaderActivity : BaseActivity() {
             onOpenInBrowser = ::openChapterInBrowser.takeIf { isHttpSource },
             onShare = ::shareChapter.takeIf { isHttpSource },
             onShareToChat = viewModel::showShareToChatDialog,
+            onCropAndShare = { panelShare.startReader(this@ReaderActivity) { setMenuVisibility(false) } },
 
             chapterNavigatorType = if (!verticalNavigator) {
                 if (state.viewer is R2LPagerViewer) {

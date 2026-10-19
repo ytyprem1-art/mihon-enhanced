@@ -98,6 +98,7 @@ class GlobalChatViewModel : StateViewModel<GlobalChatState>(GlobalChatState.Need
     }
 
     fun startListeners() {
+        chatManager.resetHistoryPaging()
         if (presenceListener != null) return
 
         presenceListener = db.collection("presence")
@@ -212,7 +213,7 @@ class GlobalChatViewModel : StateViewModel<GlobalChatState>(GlobalChatState.Need
                 messageData["replyToSenderName"] = reply.sender
             }
 
-            db.collection("global_chat").add(messageData)
+            eu.kanade.tachiyomi.ui.mod.panelshare.ChatPanelStore.send(messageData)
                 .addOnSuccessListener {
                     setReplyingTo(null)
                     setTyping(false)
@@ -266,4 +267,5 @@ data class ChatMessage(
     val chapterName: String? = null,
     val chapterUrl: String? = null,
     val readBy: Map<String, Long> = emptyMap(),
+    val hasPanel: Boolean = false,
 )

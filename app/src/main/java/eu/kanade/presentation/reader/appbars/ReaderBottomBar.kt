@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.CropFree
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
@@ -27,6 +28,7 @@ fun ReaderBottomBar(
     onClickCropBorder: () -> Unit,
     onClickSettings: () -> Unit,
     modifier: Modifier = Modifier,
+    onCropAndShare: (() -> Unit)? = null,
 ) {
     Row(
         modifier = modifier
@@ -53,6 +55,12 @@ fun ReaderBottomBar(
                 painter = painterResource(if (cropEnabled) R.drawable.ic_crop_24dp else R.drawable.ic_crop_off_24dp),
                 contentDescription = stringResource(MR.strings.pref_crop_borders),
             )
+        }
+
+        onCropAndShare?.let { action ->
+            IconButton(onClick = action) {
+                Icon(Icons.Outlined.CropFree, contentDescription = "Crop & Share to Chat")
+            }
         }
 
         IconButton(onClick = onClickSettings) {

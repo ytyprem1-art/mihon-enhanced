@@ -1,0 +1,77 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function hasPanel(data) {
+      return 'hasPanel' in data && data.hasPanel == true;
+    }
+
+    match /global_chat/{messageId} {
+      allow read: if isAuthenticated();
+
+      allow create: if isAuthenticated()
+        && request.resource.data.senderUid == request.auth.uid
+        && request.resource.data.senderName is string
+        && request.resource.data.text is string
+        && request.resource.data.isMangaShare is bool
+        && request.resource.data.timestamp == request.time
+        && (!hasPanel(request.resource.data) || (
+          request.resource.data.isMangaShare == true
+          && request.resource.data.text.size() <= 200
+          && request.resource.data.panelWidth is int
+          && request.resource.data.panelWidth > 0
+          && request.resource.data.panelWidth <= 800
+          && request.resource.data.panelHeight is int
+          && request.resource.data.panelHeight > 0
+          && request.resource.data.panelHeight <= 800
+          && getAfter(/databases/$(database)/documents/global_chat_panels/$(messageId)).data.senderUid == request.auth.uid
+        ));
+
+      allow update: if isAuthenticated()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readBy'])
+        && (
+          ('readBy' in resource.data && resource.data.readBy is map)
+            ? request.resource.data.readBy.diff(resource.data.readBy).affectedKeys().hasOnly([request.auth.uid])
+            : request.resource.data.readBy.keys().hasOnly([request.auth.uid])
+        );
+
+      // Clients retain the newest 200 messages. Rules cannot count an ordered query.
+      // Only authenticated chat clients may delete, and a panel must be deleted in the same batch.
+      allow delete: if isAuthenticated()
+        && (!hasPanel(resource.data)
+          || !existsAfter(/databases/$(database)/documents/global_chat_panels/$(messageId)));
+    }
+
+    match /global_chat_panels/{messageId} {
+      allow read: if isAuthenticated()
+        && hasPanel(get(/databases/$(database)/documents/global_chat/$(messageId)).data);
+
+      allow create: if isAuthenticated()
+        && request.resource.data.keys().hasOnly(['senderUid', 'data'])
+        && request.resource.data.senderUid == request.auth.uid
+        && request.resource.data.data is bytes
+        && request.resource.data.data.size() > 0
+        && request.resource.data.data.size() <= 150000
+        && hasPanel(getAfter(/databases/$(database)/documents/global_chat/$(messageId)).data)
+        && getAfter(/databases/$(database)/documents/global_chat/$(messageId)).data.senderUid == request.auth.uid;
+
+      allow update: if false;
+      allow delete: if isAuthenticated()
+        && !existsAfter(/databases/$(database)/documents/global_chat/$(messageId));
+    }
+
+    match /presence/{userId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isOwner(userId);
+      allow delete: if false;
+    }
+  }
+}

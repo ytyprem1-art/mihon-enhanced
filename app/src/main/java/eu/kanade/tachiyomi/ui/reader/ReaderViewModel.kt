@@ -825,7 +825,6 @@ class ReaderViewModel @JvmOverloads constructor(
             return
         }
 
-        val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
         val sourceDomain = (source as? HttpSource)?.baseUrl?.let {
             try {
                 java.net.URI(it).host?.removePrefix("www.")
@@ -857,7 +856,7 @@ class ReaderViewModel @JvmOverloads constructor(
             messageData["chapterUrl"] = currentChapter.url
         }
 
-        db.collection("global_chat").add(messageData)
+        eu.kanade.tachiyomi.ui.mod.panelshare.ChatPanelStore.send(messageData)
             .addOnSuccessListener {
                 Injekt.get<Application>().toast("Shared to Chat")
             }

@@ -5,15 +5,29 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.Query
+import com.google.firebase.firestore.MetadataChanges
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import eu.kanade.tachiyomi.ui.mod.panelshare.ChatPanelStore
+import eu.kanade.tachiyomi.ui.mod.panelshare.ChatHistoryPaging
 
 class ChatManager {
 
     private val auth = FirebaseAuth.getInstance()
     private val db = FirebaseFirestore.getInstance()
     private var chatListener: ListenerRegistration? = null
+    private var listenerGeneration = 0
+    val historyPaging = ChatHistoryPaging()
+
+    fun loadOlderMessages() {
+        val uid = auth.currentUser?.uid ?: return
+        if (historyPaging.requestMore()) startListening(uid)
+    }
+
+    fun resetHistoryPaging() {
+        if (historyPaging.reset()) auth.currentUser?.uid?.let(::startListening)
+    }
 
     private val _messages = MutableStateFlow<List<ChatMessage>>(emptyList())
     val messages = _messages.asStateFlow()
@@ -34,17 +48,24 @@ class ChatManager {
 
     private fun startListening(uid: String) {
         chatListener?.remove()
-        // Strict limit to 50 messages to reduce read operations
+        val generation = ++listenerGeneration
+        // Start at 50; expand the live query only when the user scrolls to older messages.
         chatListener = db.collection("global_chat")
             .orderBy("timestamp", Query.Direction.DESCENDING)
-            .limit(50)
-            .addSnapshotListener { snapshots, e ->
+            .limit(historyPaging.limit)
+            .addSnapshotListener(MetadataChanges.INCLUDE) { snapshots, e ->
+                if (generation != listenerGeneration) return@addSnapshotListener
                 if (e != null) {
                     Log.e("ChatManager", "Listen failed.", e)
+                    historyPaging.onError()
                     return@addSnapshotListener
                 }
 
                 if (snapshots != null) {
+                    historyPaging.onSnapshot(snapshots.size(), snapshots.metadata.isFromCache)
+                    if (!snapshots.metadata.isFromCache && !snapshots.metadata.hasPendingWrites()) {
+                        snapshots.documents.firstOrNull()?.let { ChatPanelStore.onMessagesChanged(it.id) }
+                    }
                     val messageList = snapshots.documents.mapNotNull { doc ->
                         val sender = doc.getString("senderName") ?: return@mapNotNull null
                         val text = doc.getString("text") ?: ""
@@ -73,6 +94,7 @@ class ChatManager {
                             chapterName = doc.getString("chapterName"),
                             chapterUrl = doc.getString("chapterUrl"),
                             readBy = readBy,
+                            hasPanel = doc.getBoolean("hasPanel") ?: false,
                         )
                     }.reversed() // Ascending order for UI
 
@@ -87,8 +109,10 @@ class ChatManager {
     }
 
     private fun stopListening() {
+        listenerGeneration++
         chatListener?.remove()
         chatListener = null
+        historyPaging.clear()
         _messages.update { emptyList() }
         _unreadCount.update { 0 }
     }

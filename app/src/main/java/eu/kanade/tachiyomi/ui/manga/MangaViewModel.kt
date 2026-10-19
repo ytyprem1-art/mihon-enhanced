@@ -1646,7 +1646,6 @@ class MangaViewModel(
             return
         }
 
-        val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
         val sourceDomain = (source as? eu.kanade.tachiyomi.source.online.HttpSource)?.baseUrl?.let {
             try {
                 java.net.URI(it).host?.removePrefix("www.")
@@ -1671,7 +1670,7 @@ class MangaViewModel(
             "sourceName" to source.name,
         )
 
-        db.collection("global_chat").add(messageData)
+        eu.kanade.tachiyomi.ui.mod.panelshare.ChatPanelStore.send(messageData)
             .addOnSuccessListener {
                 context.toast("Shared to Chat")
             }

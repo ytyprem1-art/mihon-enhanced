@@ -198,6 +198,8 @@ fun GlobalChatScreen(
                     unreadCount = state.unreadCount,
                 )
 
+                eu.kanade.tachiyomi.ui.mod.panelshare.ChatRetentionNotice()
+
                 ChatRoomContent(
                     state = state,
                     onSendMessage = onSendMessage,
@@ -427,6 +429,9 @@ private fun ColumnScope.ChatRoomContent(
                         DateDivider(item.date)
                     }
                 }
+            }
+            item(key = eu.kanade.tachiyomi.ui.mod.panelshare.CHAT_HISTORY_LOADER_KEY) {
+                eu.kanade.tachiyomi.ui.mod.panelshare.ChatHistoryLoader(listState)
             }
         }
 
@@ -717,7 +722,7 @@ private fun ChatBubble(
                                 DotSeparatorText()
                             }
                             Text(
-                                text = if (message.chapterName != null) "Shared a chapter" else "Shared a manga",
+                                text = if (message.hasPanel) "Shared a panel" else if (message.chapterName != null) "Shared a chapter" else "Shared a manga",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = textColor.copy(alpha = 0.6f),
                             )
@@ -763,7 +768,11 @@ private fun ChatBubble(
                 }
 
                 if (message.isMangaShare) {
-                    MangaShareCard(message, onMangaClick)
+                    if (message.hasPanel) {
+                        eu.kanade.tachiyomi.ui.mod.panelshare.ChatPanelCard(message, onMangaClick)
+                    } else {
+                        MangaShareCard(message, onMangaClick)
+                    }
 
                     // Render custom caption UNDER the card if present and not the default fallback
                     if (message.text.isNotBlank() && !message.text.startsWith("Shared a manga:")) {
