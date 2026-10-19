@@ -77,16 +77,31 @@ fun PanelShareHost(controller: PanelShareController) {
                     Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         CropEnhancement.entries.forEach { preset ->
                             FilterChip(
-                                selected = session.preset == preset,
+                                selected = !session.useUpscale && session.preset == preset,
                                 onClick = { scope.launch { controller.enhance(session, preset) } },
                                 enabled = !session.busy,
                                 label = { Text(preset.label) },
                             )
                         }
                     }
-                    val dimensions = session.document.dimensions(session.selection)
-                    Text("${dimensions.first} × ${dimensions.second} · Original-resolution PNG")
-                    Text("Local enhancement adjusts sharpness and color. It does not add resolution.", style = MaterialTheme.typography.bodySmall)
+                    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        listOf(2, 4).forEach { scale ->
+                            FilterChip(
+                                selected = session.useUpscale && session.upscaleResult?.scale == scale,
+                                onClick = { scope.launch { controller.upscale(session, context, scale) } },
+                                enabled = !session.busy,
+                                label = { Text("ImgUpscale ${scale}×") },
+                            )
+                        }
+                    }
+                    val upscale = session.upscaleResult?.takeIf { session.useUpscale }
+                    val dimensions = upscale?.let { it.width to it.height } ?: session.document.dimensions(session.selection)
+                    Text("${dimensions.first} × ${dimensions.second} · ${if (upscale != null) "ImgUpscaler ${upscale.scale}×" else "Original-resolution PNG"}")
+                    Text(
+                        if (upscale != null) "Input ${upscale.inputWidth} × ${upscale.inputHeight}. Select Original to compare."
+                        else "ImgUpscale uploads this crop to imgupscaler.com. Online input is limited to 2048 px per side; local saves keep original resolution.",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
                     Button(
                         onClick = {
                             if (Build.VERSION.SDK_INT < 29) galleryPermission.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
@@ -99,7 +114,7 @@ fun PanelShareHost(controller: PanelShareController) {
                         TextButton(onClick = {
                             try {
                                 context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
-                                    setDataAndType(uri, "image/png")
+                                    setDataAndType(uri, session.savedMimeType)
                                     addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
                                 })
                             } catch (_: android.content.ActivityNotFoundException) { context.toast("No image viewer is installed") }
@@ -108,7 +123,7 @@ fun PanelShareHost(controller: PanelShareController) {
                     TextButton(
                         onClick = { scope.launch { controller.export(session, context, false) } },
                         enabled = !session.busy, modifier = Modifier.fillMaxWidth(),
-                    ) { Text("Share image · Original quality") }
+                    ) { Text(if (session.useUpscale) "Share image · Upscaled" else "Share image · Original quality") }
                     TextButton(
                         onClick = { scope.launch { controller.prepareChat(session) } },
                         enabled = !session.busy, modifier = Modifier.fillMaxWidth(),
@@ -117,6 +132,10 @@ fun PanelShareHost(controller: PanelShareController) {
                         session.preview = null; session.originalPreview = null; session.error = null
                     }, enabled = !session.busy) { Text("Adjust crop") }
                     session.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                    session.upscaleStatus?.let { status ->
+                        Text(status)
+                        TextButton(onClick = { controller.cancelUpscale(session) }) { Text("Cancel upscale") }
+                    }
                     if (session.busy) CircularProgressIndicator()
                 }
             },

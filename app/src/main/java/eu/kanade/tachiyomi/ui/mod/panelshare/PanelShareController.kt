@@ -22,6 +22,8 @@ import eu.kanade.tachiyomi.data.saver.Location
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import uy.kohesive.injekt.Injekt
@@ -48,6 +50,12 @@ class PanelShareSession(val document: OriginalCropDocument, val context: PanelCo
     var panel by mutableStateOf<CompressedPanel?>(null)
     var caption by mutableStateOf("")
     var savedImage by mutableStateOf<android.net.Uri?>(null)
+    var savedMimeType = "image/png"
+    var upscaleResult by mutableStateOf<ImgUpscaleResult?>(null)
+    val upscaleCache = mutableMapOf<Int, ImgUpscaleResult>()
+    var useUpscale by mutableStateOf(false)
+    var upscaleStatus by mutableStateOf<String?>(null)
+    var upscaleJob: Job? = null
     var busy by mutableStateOf(false)
     var error by mutableStateOf<String?>(null)
 }
@@ -89,6 +97,8 @@ class PanelShareController {
     fun dismiss() {
         initialLoad?.cancel()
         initialLoad = null
+        session?.upscaleJob?.cancel()
+        session?.upscaleCache?.values?.forEach { it.file.delete() }
         session?.document?.close()
         session = null
     }
@@ -98,6 +108,11 @@ class PanelShareController {
         current.originalPreview = original
         current.preset = CropEnhancement.Original
         current.preview = original
+        current.upscaleCache.values.forEach { it.file.delete() }
+        current.upscaleCache.clear()
+        current.upscaleResult = null
+        current.useUpscale = false
+        current.savedImage = null
     }
 
     suspend fun enhance(current: PanelShareSession, preset: CropEnhancement) = action(current) {
@@ -107,6 +122,50 @@ class PanelShareController {
         }
         current.preview = result
         current.preset = preset
+        current.useUpscale = false
+        current.savedImage = null
+    }
+
+    suspend fun upscale(current: PanelShareSession, context: Context, scale: Int) = action(current) {
+        ImgUpscaleProtocol.requireScale(scale)
+        current.upscaleJob = currentCoroutineContext()[Job]
+        val directory = File(context.cacheDir, "imgupscale").apply { mkdirs() }
+        withContext(Dispatchers.IO) {
+            directory.listFiles()?.filter { System.currentTimeMillis() - it.lastModified() > 86_400_000L }?.forEach { it.delete() }
+        }
+        val upload = File(directory, "input-${UUID.randomUUID()}.jpg")
+        val output = File(directory, "result-${UUID.randomUUID()}.image")
+        var accepted = false
+        try {
+            val cached = current.upscaleCache[scale]
+            val result = if (cached != null && cached.scale == scale && cached.file.isFile) cached else {
+                current.upscaleStatus = "Preparing original crop…"
+                val input = current.document.render(current.selection, ImgUpscaleProtocol.MAX_INPUT_SIDE)
+                try {
+                    withContext(Dispatchers.IO) {
+                        upload.outputStream().use { check(input.compress(Bitmap.CompressFormat.JPEG, 95, it)) }
+                    }
+                } finally { input.recycle() }
+                ImgUpscaleClient().upscale(upload, output, scale) { status -> current.upscaleStatus = status }
+            }
+            val preview = withContext(Dispatchers.Default) { ImgUpscaleClient.preview(result) }
+            currentCoroutineContext().ensureActive()
+            current.upscaleCache[scale] = result
+            current.upscaleResult = result
+            current.useUpscale = true
+            current.preview = preview
+            current.savedImage = null
+            accepted = true
+        } finally {
+            upload.delete()
+            if (!accepted) output.delete()
+            current.upscaleStatus = null
+            current.upscaleJob = null
+        }
+    }
+
+    fun cancelUpscale(current: PanelShareSession) {
+        current.upscaleJob?.cancel()
     }
 
     suspend fun prepareChat(current: PanelShareSession) = action(current) {
@@ -119,6 +178,24 @@ class PanelShareController {
     }
 
     suspend fun export(current: PanelShareSession, context: Context, gallery: Boolean) = action(current) {
+        val upscale = current.upscaleResult?.takeIf { current.useUpscale }
+        if (upscale != null) {
+            require(upscale.file.isFile) { "Upscaled image is no longer cached. Please upscale again." }
+            val extension = when (upscale.mimeType) { "image/png" -> "png"; "image/webp" -> "webp"; else -> "jpg" }
+            val output = File(context.cacheImageDir.apply { mkdirs() }, "panel-export-${UUID.randomUUID()}.$extension")
+            withContext(Dispatchers.IO) { upscale.file.copyTo(output) }
+            if (gallery) {
+                current.savedImage = withContext(Dispatchers.IO) {
+                    ImageSaver(context).save(Image.Page(output::inputStream, "Panel-${System.currentTimeMillis()}", Location.Pictures.create("Crops")))
+                }
+                current.savedMimeType = upscale.mimeType
+                context.toast("Saved in Pictures/Mihon/Crops · ${upscale.width} × ${upscale.height}")
+                output.delete()
+            } else {
+                context.startActivity(output.getUriCompat(context).toShareIntent(context, upscale.mimeType))
+            }
+            return@action
+        }
         val bitmap = current.document.render(current.selection)
         try {
             bitmap.applyCropEnhancement(current.preset)
@@ -134,6 +211,7 @@ class PanelShareController {
                 current.savedImage = withContext(Dispatchers.IO) {
                     ImageSaver(context).save(Image.Page(output::inputStream, "Panel-${System.currentTimeMillis()}", Location.Pictures.create("Crops")))
                 }
+                current.savedMimeType = "image/png"
                 context.toast("Saved in Pictures/Mihon/Crops · ${bitmap.width} × ${bitmap.height}")
                 output.delete()
             } else {
