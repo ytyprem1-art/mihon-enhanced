@@ -1,6 +1,8 @@
 package eu.kanade.domain
 
 import eu.kanade.domain.chapter.interactor.GetAvailableScanlators
+import eu.kanade.tachiyomi.ui.mod.historycategory.AutoCategorizingHistoryRepository
+import eu.kanade.tachiyomi.ui.mod.historycategory.HistorySourceLinks
 import eu.kanade.domain.chapter.interactor.SetReadStatus
 import eu.kanade.domain.chapter.interactor.SyncChaptersWithSource
 import eu.kanade.domain.download.interactor.DeleteDownload
@@ -215,7 +217,10 @@ class DomainModule : InjektModule {
         addFactory { GetAvailableScanlators(get()) }
         addFactory { FilterChaptersForDownload(get(), get(), get()) }
 
-        addSingletonFactory<HistoryRepository> { HistoryRepositoryImpl(get()) }
+        addSingletonFactory { HistorySourceLinks(get()) }
+        addSingletonFactory<HistoryRepository> {
+            AutoCategorizingHistoryRepository(HistoryRepositoryImpl(get()), get(), get(), get(), get())
+        }
         addSingletonFactory<UpdateWatchRepository> { UpdateWatchRepositoryImpl(get()) }
         addSingletonFactory<UpdateWatchInboxRepository> { UpdateWatchInboxRepositoryImpl(get()) }
         addSingletonFactory<UpdateWatchHistoryRepository> { UpdateWatchHistoryRepositoryImpl(get()) }

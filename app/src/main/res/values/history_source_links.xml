@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="history_sources_link">Link sources</string>
+    <string name="history_sources_title">Link sources · %1$s</string>
+    <string name="history_sources_description">New reading history from selected sources goes directly here. Existing history and manual moves stay unchanged.</string>
+    <string name="history_sources_search">Search installed sources</string>
+    <string name="history_sources_empty">No installed sources found.</string>
+    <string name="history_sources_other_category">Linked to %1$s</string>
+</resources>

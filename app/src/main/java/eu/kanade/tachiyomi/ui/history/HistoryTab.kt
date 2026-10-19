@@ -40,6 +40,7 @@ import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.ui.category.CategoryScreen
 import eu.kanade.tachiyomi.ui.browse.source.linked.LinkedSourcesScreen
 import eu.kanade.tachiyomi.ui.mod.historygroup.HistoryGroupDetailScreen
+import eu.kanade.tachiyomi.ui.mod.historycategory.HistorySourceLinksDialog
 import eu.kanade.tachiyomi.ui.main.MainActivity
 import eu.kanade.tachiyomi.ui.manga.MangaScreen
 import eu.kanade.tachiyomi.ui.reader.ReaderActivity
@@ -137,6 +138,17 @@ data object HistoryTab : Tab {
                 )
             }
 
+            is HistoryViewModel.Dialog.LinkHistorySources -> {
+                HistorySourceLinksDialog(
+                    category = dialog.category,
+                    categories = state.historyCategories,
+                    sources = viewModel.historyLinkSources,
+                    links = viewModel.getHistorySourceLinks(),
+                    onSave = { viewModel.saveHistorySourceLinks(dialog.category.id, it) },
+                    onDismissRequest = onDismissRequest,
+                )
+            }
+
             is HistoryViewModel.Dialog.ManageHistoryCategory -> {
                 androidx.compose.material3.AlertDialog(
                     onDismissRequest = onDismissRequest,
@@ -165,6 +177,12 @@ data object HistoryTab : Tab {
                                     Spacer(modifier = Modifier.width(8.dp))
                                     androidx.compose.material3.Text(androidStringResource(R.string.history_categories_rename))
                                 }
+                            }
+                            androidx.compose.material3.TextButton(
+                                onClick = { viewModel.setDialog(HistoryViewModel.Dialog.LinkHistorySources(dialog.category)) },
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                androidx.compose.material3.Text(androidStringResource(R.string.history_sources_link), modifier = Modifier.fillMaxWidth())
                             }
                             Row(modifier = Modifier.fillMaxWidth()) {
                                 androidx.compose.material3.OutlinedButton(

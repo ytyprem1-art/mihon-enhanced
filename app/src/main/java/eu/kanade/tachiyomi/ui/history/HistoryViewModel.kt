@@ -8,6 +8,7 @@ import eu.kanade.core.util.insertSeparators
 import eu.kanade.domain.manga.interactor.UpdateManga
 import eu.kanade.domain.track.interactor.AddTracks
 import eu.kanade.presentation.history.HistoryUiModel
+import eu.kanade.tachiyomi.ui.mod.historycategory.HistorySourceLinks
 import eu.kanade.tachiyomi.util.lang.toLocalDate
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
@@ -76,6 +77,7 @@ class HistoryViewModel(
     private val manageHistoryGroups: ManageHistoryGroups = Injekt.get(),
     val snackbarHostState: SnackbarHostState = SnackbarHostState(),
     private val sourceManager: SourceManager = Injekt.get(),
+    private val historySourceLinks: HistorySourceLinks = Injekt.get(),
 ) : ViewModel() {
 
     private val _events: Channel<Event> = Channel(Channel.UNLIMITED)
@@ -83,6 +85,15 @@ class HistoryViewModel(
 
     private val _state = MutableStateFlow(State())
     val state: StateFlow<State> = _state.asStateFlow()
+
+    val historyLinkSources get() = sourceManager.sources
+
+    fun getHistorySourceLinks() = historySourceLinks.snapshot()
+
+    fun saveHistorySourceLinks(categoryId: Long, sourceIds: Set<Long>) {
+        historySourceLinks.save(categoryId, sourceIds)
+        setDialog(null)
+    }
 
     init {
         // Coroutine 1: Daftar kategori untuk Tab Row
@@ -466,6 +477,7 @@ class HistoryViewModel(
     fun deleteHistoryCategory(id: Long) {
         viewModelScope.launch {
             manageHistoryCategory.delete(id)
+            historySourceLinks.removeCategory(id)
             val updatedCategories = manageHistoryCategory.subscribe().first()
             _state.update { currentState ->
                 val newSelectedId = if (currentState.selectedCategoryId == id) 0L else currentState.selectedCategoryId
@@ -593,6 +605,7 @@ class HistoryViewModel(
         data class DeleteSelected(val mangaIds: Set<Long>) : Dialog
         data object CreateHistoryCategory : Dialog
         data class ManageHistoryCategory(val category: HistoryCategory) : Dialog
+        data class LinkHistorySources(val category: HistoryCategory) : Dialog
         data class RenameHistoryCategory(val category: HistoryCategory) : Dialog
         data class DeleteHistoryCategory(val category: HistoryCategory) : Dialog
         data class ChangeHistoryCategory(

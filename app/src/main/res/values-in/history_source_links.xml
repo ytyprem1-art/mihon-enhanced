@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="history_sources_link">Hubungkan sumber</string>
+    <string name="history_sources_title">Hubungkan sumber · %1$s</string>
+    <string name="history_sources_description">Riwayat bacaan baru dari sumber yang dipilih langsung masuk ke sini. Riwayat lama dan hasil pemindahan manual tetap di tempatnya.</string>
+    <string name="history_sources_search">Cari sumber terpasang</string>
+    <string name="history_sources_empty">Tidak ada sumber terpasang yang ditemukan.</string>
+    <string name="history_sources_other_category">Terhubung ke %1$s</string>
+</resources>
