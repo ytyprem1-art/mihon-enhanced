@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import com.hippo.unifile.UniFile
 import eu.kanade.tachiyomi.BuildConfig
+import eu.kanade.tachiyomi.ui.mod.personalfavorites.PersonalFavoriteBackup
 import eu.kanade.tachiyomi.data.backup.BackupFileValidator
 import eu.kanade.tachiyomi.data.backup.create.creators.CategoriesBackupCreator
 import eu.kanade.tachiyomi.data.backup.create.creators.ExtensionStoresBackupCreator
@@ -101,7 +102,15 @@ class BackupCreator(
             }
 
             val nonFavoriteManga = if (options.readEntries) mangaRepository.getReadMangaNotInLibrary() else emptyList()
-            val backupManga = backupMangas(getFavorites.await() + nonFavoriteManga, options)
+            val personalFavoriteManga = if (options.modPersonalFavorites && options.libraryEntries) {
+                PersonalFavoriteBackup.mangaRecords(mangaRepository)
+            } else {
+                emptyList()
+            }
+            val backupManga = backupMangas(
+                (getFavorites.await() + nonFavoriteManga + personalFavoriteManga).distinctBy { it.source to it.url },
+                options,
+            )
 
             val backupUpdateWatch = mutableListOf<BackupUpdateWatch>()
             manageUpdateWatch.getAll().forEach {
@@ -160,6 +169,7 @@ class BackupCreator(
             }
 
             val backup = Backup(
+                personalFavorites = PersonalFavoriteBackup.snapshot(options.modPersonalFavorites),
                 backupManga = backupManga,
                 backupCategories = backupCategories(options),
                 backupSources = backupSources(backupManga),

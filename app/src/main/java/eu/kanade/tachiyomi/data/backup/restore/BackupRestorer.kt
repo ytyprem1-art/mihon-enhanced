@@ -2,6 +2,7 @@ package eu.kanade.tachiyomi.data.backup.restore
 
 import android.content.Context
 import android.net.Uri
+import eu.kanade.tachiyomi.ui.mod.personalfavorites.PersonalFavoriteBackup
 import eu.kanade.tachiyomi.data.backup.BackupDecoder
 import eu.kanade.tachiyomi.data.backup.BackupNotifier
 import eu.kanade.tachiyomi.data.backup.models.BackupCategory
@@ -159,6 +160,8 @@ class BackupRestorer(
             if (options.extensionStores) {
                 restoreExtensionStores(backup.backupExtensionStores)
             }
+
+            PersonalFavoriteBackup.restore(backup.personalFavorites, options.modPersonalFavorites)
 
             // TODO: optionally trigger online library + tracker update
         }

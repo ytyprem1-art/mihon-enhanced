@@ -19,6 +19,8 @@ import androidx.paging.compose.LazyPagingItems
 import eu.kanade.presentation.library.components.CommonMangaItemDefaults
 import eu.kanade.presentation.library.components.MangaComfortableGridItem
 import eu.kanade.tachiyomi.ui.mod.helper.TitleMatchHelper
+import eu.kanade.tachiyomi.ui.mod.browselibrarystyle.browseLibraryAppearance
+import eu.kanade.tachiyomi.ui.mod.browselibrarystyle.browseLibraryOutline
 import kotlinx.coroutines.flow.StateFlow
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.manga.model.MangaCover
@@ -70,6 +72,7 @@ private fun BrowseSourceComfortableGridItem(
     onLongClick: () -> Unit = onClick,
     smartJumpTitle: String? = null,
 ) {
+    val appearance = browseLibraryAppearance()
     MangaComfortableGridItem(
         title = manga.title,
         coverData = MangaCover(
@@ -79,7 +82,8 @@ private fun BrowseSourceComfortableGridItem(
             url = manga.thumbnailUrl,
             lastModified = manga.coverLastModified,
         ),
-        coverAlpha = if (manga.favorite) CommonMangaItemDefaults.BrowseFavoriteCoverAlpha else 1f,
+        coverAlpha = appearance.coverAlpha(manga.favorite),
+        coverModifier = browseLibraryOutline(manga.favorite, appearance),
         coverBadgeStart = {
             InLibraryBadge(enabled = manga.favorite)
             if (smartJumpTitle != null) {

@@ -500,6 +500,7 @@ private fun MangaScreenSmallImpl(
                 label = "Top Bar Background",
             )
             MangaToolbar(
+                personalFavoriteManga = state.manga,
                 title = state.manga.title,
                 hasFilters = state.filterActive,
                 navigateUp = navigateUp,
@@ -836,6 +837,7 @@ fun MangaScreenLargeImpl(
                 chapters.count { it.selected }
             }
             MangaToolbar(
+                personalFavoriteManga = state.manga,
                 modifier = Modifier.onSizeChanged { topBarHeight = it.height },
                 title = state.manga.title,
                 hasFilters = state.filterActive,

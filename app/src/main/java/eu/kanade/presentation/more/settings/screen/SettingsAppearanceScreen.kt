@@ -19,6 +19,7 @@ import eu.kanade.presentation.more.settings.screen.appearance.AppLanguageScreen
 import eu.kanade.presentation.more.settings.widget.AppThemeModePreferenceWidget
 import eu.kanade.presentation.more.settings.widget.AppThemePreferenceWidget
 import eu.kanade.tachiyomi.ui.mod.EnhancedPreferences
+import eu.kanade.tachiyomi.ui.mod.browselibrarystyle.browseLibraryAppearanceSettings
 import eu.kanade.tachiyomi.util.system.toast
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toJavaLocalDateTime
@@ -44,6 +45,7 @@ object SettingsAppearanceScreen : SearchableSettings {
         return listOf(
             getThemeGroup(uiPreferences = uiPreferences),
             getDisplayGroup(uiPreferences = uiPreferences, enhancedPreferences = enhancedPreferences),
+            browseLibraryAppearanceSettings(),
             getMergeColorGroup(enhancedPreferences = enhancedPreferences),
         )
     }

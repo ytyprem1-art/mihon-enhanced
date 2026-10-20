@@ -23,12 +23,15 @@ import eu.kanade.presentation.components.AppBarActions
 import eu.kanade.presentation.components.AppBarTitle
 import eu.kanade.presentation.components.DownloadDropdownMenu
 import eu.kanade.presentation.manga.DownloadAction
+import eu.kanade.tachiyomi.ui.mod.personalfavorites.personalFavoriteAction
+import tachiyomi.domain.manga.model.Manga
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.theme.active
 
 @Composable
 fun MangaToolbar(
+    personalFavoriteManga: Manga,
     title: String,
     hasFilters: Boolean,
     navigateUp: () -> Unit,
@@ -57,6 +60,7 @@ fun MangaToolbar(
     modifier: Modifier = Modifier,
 ) {
     val isActionMode = actionModeCounter > 0
+    val favoriteAction = personalFavoriteAction(personalFavoriteManga)
     AppBar(
         titleContent = {
             if (isActionMode) {
@@ -144,6 +148,7 @@ fun MangaToolbar(
                         )
                     }
                     // SY <--
+                    add(favoriteAction)
                     add(
                         AppBar.OverflowAction(
                             title = stringResource(MR.strings.action_webview_refresh),

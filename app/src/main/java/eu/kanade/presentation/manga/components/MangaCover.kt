@@ -14,6 +14,7 @@ import androidx.compose.ui.semantics.Role
 import coil3.compose.AsyncImage
 import eu.kanade.presentation.util.rememberResourceBitmapPainter
 import eu.kanade.tachiyomi.R
+import eu.kanade.tachiyomi.ui.mod.personalfavorites.PersonalFavoriteCover
 
 enum class MangaCover(val ratio: Float) {
     Square(1f / 1f),
@@ -27,15 +28,15 @@ enum class MangaCover(val ratio: Float) {
         contentDescription: String = "",
         shape: Shape = MaterialTheme.shapes.extraSmall,
         onClick: (() -> Unit)? = null,
+        showPersonalFavorite: Boolean = true,
     ) {
+        PersonalFavoriteCover(data, modifier.aspectRatio(ratio).clip(shape), showPersonalFavorite) {
         AsyncImage(
             model = data,
             placeholder = ColorPainter(CoverPlaceholderColor),
             error = rememberResourceBitmapPainter(id = R.drawable.cover_error),
             contentDescription = contentDescription,
-            modifier = modifier
-                .aspectRatio(ratio)
-                .clip(shape)
+            modifier = Modifier.matchParentSize()
                 .then(
                     if (onClick != null) {
                         Modifier.clickable(
@@ -48,6 +49,7 @@ enum class MangaCover(val ratio: Float) {
                 ),
             contentScale = ContentScale.Crop,
         )
+        }
     }
 }
 

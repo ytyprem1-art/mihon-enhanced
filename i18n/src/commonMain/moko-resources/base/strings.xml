@@ -1079,6 +1079,9 @@
     <string name="mod_history_groups">History groups</string>
     <string name="mod_linked_sources">Linked sources</string>
     <string name="mod_update_watch">Update Watch</string>
+    <string name="mod_personal_favorites">Personal favorites</string>
+    <string name="mod_personal_favorite_add">Mark as personal favorite</string>
+    <string name="mod_personal_favorite_remove">Remove personal favorite</string>
     <string name="mod_update_watch_summary">Tracked manga, auto refresh, inbox, history</string>
 
     <string name="pref_grid_columns">Grid columns</string>

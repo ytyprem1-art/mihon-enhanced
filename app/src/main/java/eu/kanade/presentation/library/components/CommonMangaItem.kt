@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import eu.kanade.presentation.manga.components.MangaCover
+import eu.kanade.tachiyomi.ui.mod.personalfavorites.PersonalFavoriteGridBadges
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.components.BadgeGroup
 import tachiyomi.presentation.core.i18n.stringResource
@@ -77,6 +78,7 @@ fun MangaCompactGridItem(
     title: String? = null,
     onClickContinueReading: (() -> Unit)? = null,
     coverAlpha: Float = 1f,
+    coverModifier: Modifier = Modifier,
     coverBadgeStart: @Composable (RowScope.() -> Unit)? = null,
     coverBadgeEnd: @Composable (RowScope.() -> Unit)? = null,
 ) {
@@ -86,12 +88,15 @@ fun MangaCompactGridItem(
         onLongClick = onLongClick,
     ) {
         MangaGridCover(
+            modifier = coverModifier,
+            coverData = coverData,
             cover = {
                 MangaCover.Book(
                     modifier = Modifier
                         .fillMaxWidth()
                         .alpha(if (isSelected) GRID_SELECTED_COVER_ALPHA else coverAlpha),
                     data = coverData,
+                    showPersonalFavorite = false,
                 )
             },
             badgesStart = coverBadgeStart,
@@ -182,6 +187,7 @@ fun MangaComfortableGridItem(
     isSelected: Boolean = false,
     titleMaxLines: Int = 2,
     coverAlpha: Float = 1f,
+    coverModifier: Modifier = Modifier,
     coverBadgeStart: (@Composable RowScope.() -> Unit)? = null,
     coverBadgeEnd: (@Composable RowScope.() -> Unit)? = null,
     onClickContinueReading: (() -> Unit)? = null,
@@ -193,12 +199,15 @@ fun MangaComfortableGridItem(
     ) {
         Column {
             MangaGridCover(
+                modifier = coverModifier,
+                coverData = coverData,
                 cover = {
                     MangaCover.Book(
                         modifier = Modifier
                             .fillMaxWidth()
                             .alpha(if (isSelected) GRID_SELECTED_COVER_ALPHA else coverAlpha),
                         data = coverData,
+                        showPersonalFavorite = false,
                     )
                 },
                 badgesStart = coverBadgeStart,
@@ -232,6 +241,7 @@ fun MangaComfortableGridItem(
  */
 @Composable
 private fun MangaGridCover(
+    coverData: MangaCoverModel,
     modifier: Modifier = Modifier,
     cover: @Composable BoxScope.() -> Unit = {},
     badgesStart: (@Composable RowScope.() -> Unit)? = null,
@@ -245,14 +255,11 @@ private fun MangaGridCover(
     ) {
         cover()
         content?.invoke(this)
-        if (badgesStart != null) {
-            BadgeGroup(
-                modifier = Modifier
-                    .padding(4.dp)
-                    .align(Alignment.TopStart),
-                content = badgesStart,
-            )
-        }
+        PersonalFavoriteGridBadges(
+            data = coverData,
+            modifier = Modifier.padding(4.dp).align(Alignment.TopStart),
+            badges = badgesStart,
+        )
 
         if (badgesEnd != null) {
             BadgeGroup(
@@ -337,6 +344,7 @@ fun MangaListItem(
     badge: @Composable (RowScope.() -> Unit),
     isSelected: Boolean = false,
     coverAlpha: Float = 1f,
+    coverModifier: Modifier = Modifier,
     onClickContinueReading: (() -> Unit)? = null,
 ) {
     Row(
@@ -353,7 +361,8 @@ fun MangaListItem(
         MangaCover.Square(
             modifier = Modifier
                 .fillMaxHeight()
-                .alpha(coverAlpha),
+                .alpha(coverAlpha)
+                .then(coverModifier),
             data = coverData,
         )
         Text(
