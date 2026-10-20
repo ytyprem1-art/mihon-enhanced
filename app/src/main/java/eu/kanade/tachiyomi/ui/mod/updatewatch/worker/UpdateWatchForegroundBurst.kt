@@ -1,5 +1,6 @@
 package eu.kanade.tachiyomi.ui.mod.updatewatch.worker
 
+import eu.kanade.tachiyomi.ui.mod.util.dateUploadMillis
 import android.content.Context
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
@@ -88,13 +89,13 @@ object UpdateWatchForegroundBurst : DefaultLifecycleObserver {
 
                     val manga = getManga.await(tracking.mangaId) ?: continue
                     val chapters = chapterRepository.getChapterByMangaId(manga.id)
-                    val latestChapter = chapters.filter { it.dateUpload > 0 }.maxByOrNull { it.dateUpload } ?: continue
+                    val latestChapter = chapters.filter { it.dateUploadMillis > 0 }.maxByOrNull { it.dateUploadMillis } ?: continue
 
                     val eligibility = UpdateWatchRefreshHelper.getEligibility(
                         enabled = true,
                         expectedIntervalDays = tracking.expectedIntervalDays,
                         refreshProfile = tracking.refreshProfile,
-                        latestChapterUploadDate = latestChapter.dateUpload,
+                        latestChapterUploadDate = latestChapter.dateUploadMillis,
                         lastCheckAt = tracking.lastBackgroundCheckAt,
                         now = startTime,
                     )
@@ -206,15 +207,15 @@ object UpdateWatchForegroundBurst : DefaultLifecycleObserver {
 
         return try {
             val oldChapters = chapterRepository.getChapterByMangaId(manga.id)
-            val oldLatest = oldChapters.filter { it.dateUpload > 0 }.maxByOrNull { it.dateUpload }
+            val oldLatest = oldChapters.filter { it.dateUploadMillis > 0 }.maxByOrNull { it.dateUploadMillis }
 
             val refreshResult = updateMangaFromRemote(manga, fetchChapters = true)
 
             if (refreshResult.isSuccess) {
                 val newChapters = refreshResult.getOrThrow().newChapters
                 val currentChapters = chapterRepository.getChapterByMangaId(manga.id)
-                val newLatest = currentChapters.filter { it.dateUpload > 0 }
-                    .maxByOrNull { it.dateUpload }
+                val newLatest = currentChapters.filter { it.dateUploadMillis > 0 }
+                    .maxByOrNull { it.dateUploadMillis }
 
                 UpdateWatchPostRefreshHandler.handleRefreshResult(
                     manga = manga,
@@ -259,7 +260,7 @@ object UpdateWatchForegroundBurst : DefaultLifecycleObserver {
     ) {
         val chapterRepository = Injekt.get<ChapterRepository>()
         val releaseDate = chapterRepository.getChapterByMangaId(candidate.mangaId)
-            .filter { it.dateUpload > 0 }.maxByOrNull { it.dateUpload }?.dateUpload ?: 0L
+            .filter { it.dateUploadMillis > 0 }.maxByOrNull { it.dateUploadMillis }?.dateUploadMillis ?: 0L
 
         val eligibility = UpdateWatchRefreshHelper.getEligibility(
             enabled = true,
@@ -294,7 +295,7 @@ object UpdateWatchForegroundBurst : DefaultLifecycleObserver {
         }
     }
 
-    private fun notifySourceFailure(sourceId: Long, status: RefreshStatus) {
+    private suspend fun notifySourceFailure(sourceId: Long, status: RefreshStatus) {
         val sourceManager = Injekt.get<SourceManager>()
         val sourceName = sourceManager.getOrStub(sourceId).name
         val title = "Auto Refresh paused for $sourceName"

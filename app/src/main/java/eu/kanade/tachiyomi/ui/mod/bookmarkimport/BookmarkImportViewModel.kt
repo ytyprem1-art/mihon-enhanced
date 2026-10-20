@@ -17,7 +17,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import logcat.LogPriority
-import mihon.core.viewmodel.StateViewModel
 import mihon.domain.manga.model.toDomainManga
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.chapter.interactor.GetChaptersByMangaId
@@ -30,7 +29,10 @@ import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import java.util.UUID
 
-class BookmarkImportViewModel : StateViewModel<BookmarkImportViewModel.State>(State()) {
+class BookmarkImportViewModel : androidx.lifecycle.ViewModel() {
+    private val mutableState = kotlinx.coroutines.flow.MutableStateFlow<BookmarkImportViewModel.State>(State())
+    val state: kotlinx.coroutines.flow.StateFlow<BookmarkImportViewModel.State> = mutableState
+
 
     private val sourceManager: SourceManager = Injekt.get()
     private val mangaRepository: MangaRepository = Injekt.get()
@@ -80,11 +82,13 @@ class BookmarkImportViewModel : StateViewModel<BookmarkImportViewModel.State>(St
     )
 
     init {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
         val manganato = sourceManager.getOnlineSources().find { it.name == "Manganato" && it.lang == "en" }
         if (manganato != null) {
             mutableState.update { it.copy(resolvedSourceInfo = "Source: ${manganato.name} (ID: ${manganato.id}) [${manganato::class.java.name}]") }
         } else {
             mutableState.update { it.copy(resolvedSourceInfo = "Manganato (EN) source not found or disabled") }
+        }
         }
         loadSession()
     }
@@ -405,7 +409,7 @@ class BookmarkImportViewModel : StateViewModel<BookmarkImportViewModel.State>(St
 
                     if (!localManga.favorite) {
                         updateManga.awaitUpdateFavorite(localManga.id, true)
-                        localManga = localManga.copy(favorite = true)
+                        localManga = localManga.copy(favoriteAt = kotlin.time.Clock.System.now())
                     }
 
                     // 3. Sync Chapters

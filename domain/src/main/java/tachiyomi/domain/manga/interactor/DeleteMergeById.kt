@@ -9,6 +9,7 @@ sealed interface DeleteMergeResult {
     data object ParentDeleted : DeleteMergeResult
 }
 
+@dev.zacsweers.metro.Inject
 class DeleteMergeById(
     private val mangaMergeRepository: MangaMergeRepository,
     private val mangaRepository: MangaRepository,

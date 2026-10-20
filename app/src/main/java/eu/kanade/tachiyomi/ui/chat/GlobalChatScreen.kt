@@ -888,7 +888,7 @@ private fun MangaShareCard(
                         sourceId = message.sourceId,
                         isMangaFavorite = false,
                         url = message.mangaCoverUrl,
-                        lastModified = 0L,
+                        lastModified = null,
                     )
                 } else {
                     message.mangaCoverUrl

@@ -29,7 +29,6 @@ import eu.kanade.tachiyomi.ui.mod.updatewatch.worker.UpdateWatchDiagnosticsManag
 import eu.kanade.tachiyomi.ui.mod.updatewatch.worker.UpdateWatchSchedulerDiagnostic
 import eu.kanade.tachiyomi.util.system.copyToClipboard
 import kotlinx.coroutines.flow.update
-import mihon.core.viewmodel.StateViewModel
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.components.material.Scaffold
 import tachiyomi.presentation.core.components.material.padding
@@ -373,7 +372,10 @@ class UpdateWatchDiagnosticsScreen : Screen() {
     }
 }
 
-class UpdateWatchDiagnosticsViewModel : StateViewModel<UpdateWatchDiagnosticsViewModel.State>(State()) {
+class UpdateWatchDiagnosticsViewModel : androidx.lifecycle.ViewModel() {
+    private val mutableState = kotlinx.coroutines.flow.MutableStateFlow<UpdateWatchDiagnosticsViewModel.State>(State())
+    val state: kotlinx.coroutines.flow.StateFlow<UpdateWatchDiagnosticsViewModel.State> = mutableState
+
     data class State(
         val diagnostics: List<UpdateWatchSchedulerDiagnostic> = emptyList(),
         val selection: Set<String> = emptySet(),

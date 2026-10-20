@@ -9,7 +9,9 @@ import eu.kanade.tachiyomi.ui.mod.EnhancedPreferences
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 
-class PresenceManager(private val context: Application) {
+@dev.zacsweers.metro.Inject
+@dev.zacsweers.metro.SingleIn(dev.zacsweers.metro.AppScope::class)
+class PresenceManager(private val context: android.content.Context) {
 
     private val auth = FirebaseAuth.getInstance()
     private val db = FirebaseFirestore.getInstance()

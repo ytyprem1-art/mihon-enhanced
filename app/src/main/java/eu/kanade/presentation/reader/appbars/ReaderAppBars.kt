@@ -76,6 +76,7 @@ fun ReaderAppBars(
     onClickCropBorder: () -> Unit,
     onClickSettings: () -> Unit,
     onCropAndShare: (() -> Unit)? = null,
+    onOpenComments: (() -> Unit)? = null,
 ) {
     val backgroundColor = MaterialTheme.colorScheme
         .surfaceColorAtElevation(3.dp)
@@ -177,6 +178,7 @@ fun ReaderAppBars(
                     onClickCropBorder = onClickCropBorder,
                     onClickSettings = onClickSettings,
                     onCropAndShare = onCropAndShare,
+                    onOpenComments = onOpenComments,
                 )
             }
         }

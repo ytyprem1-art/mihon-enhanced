@@ -1,10 +1,10 @@
 package eu.kanade.tachiyomi.ui.setting.track
 
+import kotlinx.coroutines.launch
 import android.net.Uri
 import android.widget.Toast
 import androidx.lifecycle.lifecycleScope
 import eu.kanade.tachiyomi.data.sync.service.GoogleDriveService
-import tachiyomi.core.common.util.lang.launchIO
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 
@@ -29,7 +29,7 @@ class GoogleDriveLoginActivity : BaseOAuthLoginActivity() {
         when {
             code != null -> {
                 // Authorization successful, exchange code for tokens after validating state/PKCE.
-                lifecycleScope.launchIO {
+                lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
                     googleDriveService.handleAuthorizationCode(
                         authorizationCode = code,
                         authorizationState = state,

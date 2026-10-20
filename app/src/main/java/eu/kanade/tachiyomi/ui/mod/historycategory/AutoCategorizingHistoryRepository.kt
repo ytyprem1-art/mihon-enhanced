@@ -12,8 +12,11 @@ import tachiyomi.domain.history.repository.HistoryCategoryRepository
 import tachiyomi.domain.history.repository.HistoryRepository
 import tachiyomi.domain.manga.repository.MangaRepository
 
+@dev.zacsweers.metro.Inject
+@dev.zacsweers.metro.SingleIn(dev.zacsweers.metro.AppScope::class)
+@dev.zacsweers.metro.ContributesBinding(dev.zacsweers.metro.AppScope::class)
 class AutoCategorizingHistoryRepository(
-    private val delegate: HistoryRepository,
+    private val delegate: tachiyomi.data.history.HistoryRepositoryImpl,
     private val chapters: ChapterRepository,
     private val mangas: MangaRepository,
     private val categories: HistoryCategoryRepository,

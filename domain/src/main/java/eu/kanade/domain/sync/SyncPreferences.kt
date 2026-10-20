@@ -8,6 +8,8 @@ import java.util.UUID
  * Preferences class for managing sync-related settings including
  * Google Drive authentication tokens and sync configuration.
  */
+@dev.zacsweers.metro.Inject
+@dev.zacsweers.metro.SingleIn(dev.zacsweers.metro.AppScope::class)
 class SyncPreferences(
     private val preferenceStore: PreferenceStore,
 ) {

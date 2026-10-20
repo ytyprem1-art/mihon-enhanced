@@ -1,5 +1,6 @@
 package eu.kanade.tachiyomi.ui.mod.updatewatch.components
 
+import eu.kanade.tachiyomi.ui.mod.util.dateUploadMillis
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -271,7 +272,7 @@ private fun UpdateWatchInboxRow(
                 )
 
                 if (enriched.latestChapter != null) {
-                    val releaseTimeText = formatReleaseTime(enriched.latestChapter.dateUpload)
+                    val releaseTimeText = formatReleaseTime(enriched.latestChapter.dateUploadMillis)
                     Text(
                         text = "Latest release: $releaseTimeText",
                         style = MaterialTheme.typography.labelSmall,

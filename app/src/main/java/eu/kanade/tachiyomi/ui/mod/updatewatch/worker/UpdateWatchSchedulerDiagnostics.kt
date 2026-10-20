@@ -56,6 +56,8 @@ data class MangaDiagnosticDetail(
     val nextEligibleAt: Long?
 )
 
+@dev.zacsweers.metro.Inject
+@dev.zacsweers.metro.SingleIn(dev.zacsweers.metro.AppScope::class)
 class UpdateWatchDiagnosticsPreferences(val preferenceStore: PreferenceStore) {
     val diagnosticsJson: Preference<String> = preferenceStore.getString(
         Preference.appStateKey("update_watch_scheduler_diagnostics"),

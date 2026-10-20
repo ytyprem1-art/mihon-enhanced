@@ -40,9 +40,18 @@ class UpdateWatchNotifier(private val context: Context) {
         }
 
         try {
-            notificationManager.notify(Notifications.ID_NEW_CHAPTERS, builder.build())
+            notificationManager.notify(NOTIFICATION_TAG, Notifications.ID_NEW_CHAPTERS, builder.build())
         } catch (e: SecurityException) {
             // Permission not granted, ignore
+        }
+    }
+
+    fun updateAfterDismiss(items: List<UpdateWatchInboxItem>, enabled: Boolean) {
+        val updates = items.filter { it.type == UpdateWatchInboxItem.TYPE_UPDATE }
+        if (!enabled || updates.isEmpty()) {
+            notificationManager.cancel(NOTIFICATION_TAG, Notifications.ID_NEW_CHAPTERS)
+        } else {
+            showUpdateNotification(updates)
         }
     }
 
@@ -55,6 +64,7 @@ class UpdateWatchNotifier(private val context: Context) {
     }
 
     companion object {
+        private const val NOTIFICATION_TAG = "update_watch"
         const val SHORTCUT_UPDATE_WATCH = "eu.kanade.tachiyomi.SHOW_UPDATE_WATCH"
     }
 }

@@ -595,6 +595,7 @@ private fun MangaScreenSmallImpl(
                                 isTabletUi = false,
                                 appBarPadding = topPadding,
                                 manga = state.manga,
+                                source = state.source,
                                 sourceName = remember(state.source, state.mergedData?.sources) {
                                     state.source.getNameForMangaInfo(state.mergedData?.sources)
                                 },
@@ -934,6 +935,7 @@ fun MangaScreenLargeImpl(
                                 isTabletUi = true,
                                 appBarPadding = contentPadding.calculateTopPadding(),
                                 manga = state.manga,
+                                source = state.source,
                                 sourceName = remember(state.source, state.mergedData?.sources) {
                                     state.source.getNameForMangaInfo(state.mergedData?.sources)
                                 },

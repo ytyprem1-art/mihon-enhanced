@@ -25,6 +25,8 @@ import java.util.zip.GZIPOutputStream
  * Service class for synchronizing backup data with Google Drive.
  * Handles push and pull operations for the app's sync data.
  */
+@dev.zacsweers.metro.Inject
+@dev.zacsweers.metro.SingleIn(dev.zacsweers.metro.AppScope::class)
 class GoogleDriveSyncService(context: Context) : SyncService(
     context,
     Json {

@@ -1,5 +1,6 @@
 package eu.kanade.tachiyomi.ui.browse.source.linked
 
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.viewModelScope
 import eu.kanade.core.preference.asState
@@ -14,21 +15,22 @@ import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.source.service.SourceManager
 import tachiyomi.domain.source.linked.interactor.ManageLinkedSourceGroup
 import tachiyomi.domain.source.linked.model.LinkedSourceGroup
-import mihon.core.viewmodel.StateViewModel
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
-import tachiyomi.core.common.util.lang.launchIO
 
 class LinkedSourcesViewModel(
     private val manageLinkedSourceGroup: ManageLinkedSourceGroup = Injekt.get(),
     private val sourceManager: SourceManager = Injekt.get(),
     private val libraryPreferences: LibraryPreferences = Injekt.get(),
-) : StateViewModel<LinkedSourcesViewModel.State>(State()) {
+) : androidx.lifecycle.ViewModel() {
+    private val mutableState = kotlinx.coroutines.flow.MutableStateFlow<LinkedSourcesViewModel.State>(State())
+    val state: kotlinx.coroutines.flow.StateFlow<LinkedSourcesViewModel.State> = mutableState
+
 
     val sortMode by libraryPreferences.linkedSourceGroupSort.asState(viewModelScope)
 
     init {
-        viewModelScope.launchIO {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             val groupsFlow = manageLinkedSourceGroup.subscribe()
                 .distinctUntilChanged()
                 .flatMapLatest { groups ->
@@ -82,19 +84,19 @@ class LinkedSourcesViewModel(
     }
 
     fun createGroup(name: String) {
-        viewModelScope.launchIO {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             manageLinkedSourceGroup.create(name)
         }
     }
 
     fun renameGroup(id: Long, name: String) {
-        viewModelScope.launchIO {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             manageLinkedSourceGroup.rename(id, name)
         }
     }
 
     fun deleteGroup(id: Long) {
-        viewModelScope.launchIO {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             manageLinkedSourceGroup.delete(id)
         }
     }

@@ -6,6 +6,7 @@ import tachiyomi.domain.category.interactor.SetMangaCategories
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.manga.model.MergedMangaReference
 
+@dev.zacsweers.metro.Inject
 class SmartSearchMerge(
     private val getManga: GetManga,
     private val getMangaByUrlAndSourceId: GetMangaByUrlAndSourceId,
@@ -77,12 +78,11 @@ class SmartSearchMerge(
                 genre = originalManga.genre,
                 status = originalManga.status,
                 thumbnailUrl = originalManga.thumbnailUrl,
-                favorite = true,
+                favoriteAt = kotlin.time.Clock.System.now(),
                 lastUpdate = originalManga.lastUpdate,
                 viewerFlags = originalManga.viewerFlags,
                 chapterFlags = originalManga.chapterFlags,
                 coverLastModified = originalManga.coverLastModified,
-                dateAdded = System.currentTimeMillis(),
             )
 
             var existingManga = getMangaByUrlAndSourceId.await(mergedManga.url, mergedManga.source)

@@ -1,5 +1,6 @@
 package eu.kanade.tachiyomi.ui.mod.updatewatch.worker
 
+import eu.kanade.tachiyomi.ui.mod.util.dateUploadMillis
 import android.app.ActivityManager
 import android.app.Application
 import android.content.Context
@@ -66,8 +67,8 @@ object UpdateWatchRefreshScheduler {
 
         val latestChapterDates = trackedManga.associate { tracking ->
             val chapters = chapterRepository.getChapterByMangaId(tracking.mangaId)
-            val latest = chapters.filter { it.dateUpload > 0 }.maxByOrNull { it.dateUpload }
-            tracking.mangaId to (latest?.dateUpload ?: 0L)
+            val latest = chapters.filter { it.dateUploadMillis > 0 }.maxByOrNull { it.dateUploadMillis }
+            tracking.mangaId to (latest?.dateUploadMillis ?: 0L)
         }
 
         val now = System.currentTimeMillis()

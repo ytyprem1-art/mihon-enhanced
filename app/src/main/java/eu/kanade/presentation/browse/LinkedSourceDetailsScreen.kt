@@ -92,7 +92,7 @@ fun LinkedSourceDetailsScreen(
                             modifier = Modifier.padding(horizontal = MaterialTheme.padding.medium, vertical = 8.dp)
                         ) {
                             trackingMembers.forEach { member ->
-                                val sourceName = sourceManager.getOrStub(member.manga.source).name
+                                val sourceName = eu.kanade.tachiyomi.ui.mod.components.rememberSourceName(member.manga.source)
                                 val statusText = if (member.isPaused) " (Paused)" else ""
                                 Text(
                                     text = "Tracking: $sourceName$statusText",

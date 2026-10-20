@@ -10,6 +10,9 @@ import tachiyomi.data.subscribeToOneOrNull
 import tachiyomi.domain.source.linked.model.LinkedSourceGroup
 import tachiyomi.domain.source.linked.repository.LinkedSourceRepository
 
+@dev.zacsweers.metro.SingleIn(dev.zacsweers.metro.AppScope::class)
+@dev.zacsweers.metro.ContributesBinding(dev.zacsweers.metro.AppScope::class)
+@dev.zacsweers.metro.Inject
 class LinkedSourceRepositoryImpl(
     private val database: Database,
 ) : LinkedSourceRepository {

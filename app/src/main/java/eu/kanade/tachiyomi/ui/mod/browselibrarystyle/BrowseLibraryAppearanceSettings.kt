@@ -21,7 +21,7 @@ fun browseLibraryAppearanceSettings(): Preference.PreferenceGroup {
                 preference = preferences.outlineColor,
                 title = "Library outline color",
                 entries = linkedMapOf(0 to "Follow app theme", 1 to "Blue", 2 to "Green"),
-                enabled = style == 1,
+                visible = style == 1,
             ),
             Preference.PreferenceItem.ListPreference(
                 preference = preferences.badgeStyle,

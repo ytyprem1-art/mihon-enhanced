@@ -1,5 +1,6 @@
 package eu.kanade.tachiyomi.ui.mod.updatewatch.worker
 
+import eu.kanade.tachiyomi.ui.mod.util.dateUploadMillis
 import android.content.Context
 import tachiyomi.domain.chapter.model.Chapter
 import tachiyomi.domain.history.interactor.ManageUpdateWatch
@@ -44,11 +45,11 @@ object UpdateWatchPostRefreshHandler {
                 latestChapterId = currentLatestChapter.id,
                 latestChapterNumber = currentLatestChapter.chapterNumber,
                 chapterIds = newChapters.map { it.id }.ifEmpty { listOf(currentLatestChapter.id) },
-                latestChapterUploadAt = currentLatestChapter.dateUpload,
+                latestChapterUploadAt = currentLatestChapter.dateUploadMillis,
             )
-            manageUpdateWatchInbox.insertOrMerge(item)
             manageUpdateWatch.resetStaleMilestone(manga.id)
-            onInboxItemCreated(item)
+            val accepted = manageUpdateWatchInbox.insertOrMerge(item) ?: return
+            onInboxItemCreated(accepted)
         }
     }
 
@@ -64,10 +65,12 @@ object UpdateWatchPostRefreshHandler {
         } else "Ch. ${formatChapterNumber(currentLatestChapter.chapterNumber)}"
     }
 
-    fun showNotificationIfEnabled(context: Context, items: List<UpdateWatchInboxItem>) {
+    suspend fun showNotificationIfEnabled(context: Context, items: List<UpdateWatchInboxItem>) {
         val libraryPreferences: LibraryPreferences = Injekt.get()
-        if (items.isNotEmpty() && libraryPreferences.notifyTrackedUpdates.get()) {
-            UpdateWatchNotifier(context).showUpdateNotification(items)
+        Injekt.get<ManageUpdateWatchInbox>().deliverUndismissed(items) { accepted ->
+            if (accepted.isNotEmpty() && libraryPreferences.notifyTrackedUpdates.get()) {
+                UpdateWatchNotifier(context).showUpdateNotification(accepted)
+            }
         }
     }
 

@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.first
 import tachiyomi.domain.history.group.model.HistoryGroup
 import tachiyomi.domain.history.group.repository.HistoryGroupRepository
 
+@dev.zacsweers.metro.Inject
 class ManageHistoryGroups(
     private val repository: HistoryGroupRepository,
 ) {

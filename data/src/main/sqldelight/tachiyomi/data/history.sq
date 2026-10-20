@@ -1,105 +1,96 @@
-import java.util.Date;
+import kotlin.time.Instant;
 
 CREATE TABLE history(
-    _id INTEGER NOT NULL PRIMARY KEY,
+    id INTEGER NOT NULL PRIMARY KEY,
+    manga_id INTEGER NOT NULL,
     chapter_id INTEGER NOT NULL UNIQUE,
-    last_read INTEGER AS Date,
-    time_read INTEGER NOT NULL,
-    FOREIGN KEY(chapter_id) REFERENCES chapters (_id)
+    read_at INTEGER AS Instant,
+    read_duration INTEGER NOT NULL,
+    FOREIGN KEY(manga_id) REFERENCES manga (id)
+    ON DELETE CASCADE,
+    FOREIGN KEY(chapter_id) REFERENCES chapter (id)
     ON DELETE CASCADE
 );
 
-CREATE INDEX history_history_chapter_id_index ON history(chapter_id);
-CREATE INDEX idx_history_last_read ON history(last_read);
+CREATE INDEX history_manga_id_index ON history(manga_id);
+CREATE INDEX history_read_at_index ON history(read_at);
 
 getHistoryByMangaId:
-SELECT
-H._id,
-H.chapter_id,
-H.last_read,
-H.time_read
-FROM history H
-JOIN chapters C
-ON H.chapter_id = C._id
-WHERE C.manga_id = :mangaId AND C._id = H.chapter_id;
-
-getHistoryByChapterUrlAndMangaId:
-SELECT
-H._id,
-H.chapter_id,
-H.last_read,
-H.time_read
-FROM history H
-JOIN chapters C
-ON H.chapter_id = C._id
-WHERE C.url = :chapterUrl AND C.manga_id = :mangaId AND C._id = H.chapter_id
-ORDER BY H._id ASC
-LIMIT 1;
-
-getHistoryByChapterId:
-SELECT *
+SELECT id, chapter_id, read_at, read_duration
 FROM history
-WHERE chapter_id = :chapterId;
-
-deleteHistoryByChapterId:
-DELETE FROM history
-WHERE chapter_id = :chapterId;
+WHERE manga_id = :mangaId;
 
 resetHistoryById:
 UPDATE history
-SET last_read = 0
-WHERE _id = :historyId;
+SET read_at = NULL
+WHERE id = :id;
 
 resetHistoryByMangaId:
 UPDATE history
-SET last_read = 0
-WHERE _id IN (
-    SELECT H._id
-    FROM mangas M
-    INNER JOIN chapters C
-    ON M._id = C.manga_id
-    INNER JOIN history H
-    ON C._id = H.chapter_id
-    WHERE M._id = :mangaId
-);
+SET read_at = NULL
+WHERE manga_id = :mangaId;
 
 removeAllHistory:
 DELETE FROM history;
 
 removeResettedHistory:
 DELETE FROM history
-WHERE last_read = 0;
+WHERE read_at IS NULL;
 
 upsert:
-INSERT INTO history(chapter_id, last_read, time_read)
-VALUES (:chapterId, :readAt, :time_read)
-ON CONFLICT(chapter_id)
-DO UPDATE
-SET
-    last_read = :readAt,
-    time_read = time_read + :time_read
-WHERE chapter_id = :chapterId;
+INSERT INTO history(manga_id, chapter_id, read_at, read_duration)
+SELECT manga_id, id, :readAt, :readDuration
+FROM chapter
+WHERE id = :chapterId
+ON CONFLICT(chapter_id) DO UPDATE SET
+    read_at = excluded.read_at,
+    read_duration = read_duration + excluded.read_duration;
 
 getReadDuration:
-SELECT coalesce(sum(time_read), 0)
+SELECT coalesce(sum(read_duration), 0)
 FROM history;
+
+getHistoryByChapterId:
+SELECT id, chapter_id, read_at, read_duration
+FROM history
+WHERE chapter_id = :chapterId;
+
+
+deleteHistoryByChapterId:
+DELETE FROM history
+WHERE chapter_id = :chapterId;
+
 
 getLatestHistoryByMangaId:
 SELECT
-H._id AS historyId,
-M._id AS mangaId,
-C._id AS chapterId,
-M.title,
-M.thumbnail_url AS thumbnailUrl,
-M.source AS sourceId,
-M.favorite AS isFavorite,
-M.cover_last_modified AS coverLastModified,
-C.chapter_number AS chapterNumber,
-H.last_read AS readAt,
-H.time_read AS readDuration
+H.id AS historyId,
+M.id AS mangaId,
+C.id AS chapterId,
+M.remote_title,
+M.remote_cover AS thumbnailUrl,
+M.source_id AS sourceId,
+M.user_favorite_at IS NOT NULL AS isFavorite,
+M.state_cover_last_modified AS coverLastModified,
+C.remote_chapter_number AS chapterNumber,
+H.read_at AS readAt,
+H.read_duration AS readDuration
 FROM history H
-JOIN chapters C ON H.chapter_id = C._id
-JOIN mangas M ON C.manga_id = M._id
-WHERE M._id = :mangaId
-ORDER BY H.last_read DESC
+JOIN chapter C ON H.chapter_id = C.id
+JOIN manga M ON C.manga_id = M.id
+WHERE M.id = :mangaId
+ORDER BY H.read_at DESC
 LIMIT 1;
+
+getHistoryByChapterUrlAndMangaId:
+SELECT
+H.id,
+H.chapter_id,
+H.read_at,
+H.read_duration
+FROM history H
+JOIN chapter C
+ON H.chapter_id = C.id
+WHERE C.remote_url = :chapterUrl AND C.manga_id = :mangaId AND C.id = H.chapter_id
+ORDER BY H.id ASC
+LIMIT 1;
+

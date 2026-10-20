@@ -4,6 +4,7 @@ import kotlinx.coroutines.flow.Flow
 import tachiyomi.domain.history.model.UpdateWatch
 import tachiyomi.domain.history.repository.UpdateWatchRepository
 
+@dev.zacsweers.metro.Inject
 class ManageUpdateWatch(
     private val repository: UpdateWatchRepository,
 ) {

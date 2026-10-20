@@ -1,6 +1,8 @@
 package eu.kanade.tachiyomi.source
 
+import android.content.Context
 import eu.kanade.domain.source.service.SourcePreferences
+import mihon.app.di.appGraph
 import tachiyomi.domain.source.model.StubSource
 import tachiyomi.source.local.isLocal
 import uy.kohesive.injekt.Injekt
@@ -53,3 +55,6 @@ private fun getMergedSourcesString(
 // SY <--
 
 fun Source.isLocalOrStub(): Boolean = isLocal() || this is StubSource
+
+fun Source.getNameForMangaInfo(context: Context): String =
+    getNameForMangaInfo(enabledLanguages = context.appGraph.sourcePreferences.enabledLanguages.get())

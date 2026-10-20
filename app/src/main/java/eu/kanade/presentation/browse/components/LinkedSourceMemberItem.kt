@@ -65,9 +65,7 @@ fun LinkedSourceMemberItem(
 ) {
     val manga = member.manga
     val sourceManager: SourceManager = remember { Injekt.get() }
-    val sourceName = remember(manga.source) {
-        sourceManager.getOrStub(manga.source).name
-    }
+    val sourceName = eu.kanade.tachiyomi.ui.mod.components.rememberSourceName(manga.source)
     val isTablet = isTabletUi()
 
     Surface(
@@ -124,7 +122,7 @@ fun LinkedSourceMemberItem(
                     ) {
                         StatusInfo(member = member)
 
-                        val lastCheckTimestamp = manga.lastModifiedAt * 1000
+                        val lastCheckTimestamp = (manga.lastUpdate?.toEpochMilliseconds() ?: 0L) * 1000
                         if (lastCheckTimestamp > 0L) {
                             Text(
                                 text = "Checked: ${relativeTimeSpanString(lastCheckTimestamp)}",

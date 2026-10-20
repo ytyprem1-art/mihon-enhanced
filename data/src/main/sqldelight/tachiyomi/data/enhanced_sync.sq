@@ -1,0 +1,57 @@
+-- Mod-only counters retain compatibility with existing Drive sync backups.
+CREATE TABLE enhanced_sync_state (id INTEGER NOT NULL PRIMARY KEY, restoring INTEGER NOT NULL DEFAULT 0);
+INSERT INTO enhanced_sync_state(id, restoring) VALUES (1, 0);
+
+CREATE TABLE enhanced_manga_version (
+    manga_id INTEGER NOT NULL PRIMARY KEY REFERENCES manga(id) ON DELETE CASCADE,
+    version INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE enhanced_chapter_version (
+    chapter_id INTEGER NOT NULL PRIMARY KEY REFERENCES chapter(id) ON DELETE CASCADE,
+    version INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TRIGGER enhanced_manga_version_updated AFTER UPDATE ON manga
+WHEN (SELECT restoring FROM enhanced_sync_state WHERE id = 1) = 0 AND (
+    new.remote_url IS NOT old.remote_url OR
+    new.remote_description IS NOT old.remote_description OR
+    (new.user_favorite_at IS NULL) != (old.user_favorite_at IS NULL)
+)
+BEGIN
+    INSERT INTO enhanced_manga_version(manga_id, version)
+    SELECT new.id, 0 WHERE NOT EXISTS (SELECT 1 FROM enhanced_manga_version WHERE manga_id = new.id);
+    UPDATE enhanced_manga_version SET version = version + 1 WHERE manga_id = new.id;
+END;
+
+CREATE TRIGGER enhanced_chapter_version_updated AFTER UPDATE ON chapter
+WHEN (SELECT restoring FROM enhanced_sync_state WHERE id = 1) = 0 AND (
+    new.user_read != old.user_read OR new.user_bookmark != old.user_bookmark OR
+    new.user_last_page_read != old.user_last_page_read
+)
+BEGIN
+    INSERT INTO enhanced_chapter_version(chapter_id, version)
+    SELECT new.id, 0 WHERE NOT EXISTS (SELECT 1 FROM enhanced_chapter_version WHERE chapter_id = new.id);
+    UPDATE enhanced_chapter_version SET version = version + 1 WHERE chapter_id = new.id;
+    INSERT INTO enhanced_manga_version(manga_id, version)
+    SELECT new.manga_id, 0 WHERE NOT EXISTS (SELECT 1 FROM enhanced_manga_version WHERE manga_id = new.manga_id);
+    UPDATE enhanced_manga_version SET version = version + 1 WHERE manga_id = new.manga_id;
+END;
+
+mangaVersion:
+SELECT coalesce((SELECT version FROM enhanced_manga_version WHERE manga_id = :mangaId), 0);
+
+chapterVersion:
+SELECT coalesce((SELECT version FROM enhanced_chapter_version WHERE chapter_id = :chapterId), 0);
+
+setMangaVersion:
+INSERT OR REPLACE INTO enhanced_manga_version(manga_id, version) VALUES (:mangaId, :version);
+
+setChapterVersion:
+INSERT OR REPLACE INTO enhanced_chapter_version(chapter_id, version) VALUES (:chapterId, :version);
+
+setRestoring:
+UPDATE enhanced_sync_state SET restoring = :restoring WHERE id = 1;
+
+chapterVersionsByManga:
+SELECT C.id, coalesce(V.version, 0) AS version FROM chapter C
+LEFT JOIN enhanced_chapter_version V ON V.chapter_id = C.id WHERE C.manga_id = :mangaId;

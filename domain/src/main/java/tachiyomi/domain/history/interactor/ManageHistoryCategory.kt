@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.first
 import tachiyomi.domain.history.repository.HistoryCategory
 import tachiyomi.domain.history.repository.HistoryCategoryRepository
 
+@dev.zacsweers.metro.Inject
 class ManageHistoryCategory(
     private val repository: HistoryCategoryRepository
 ) {

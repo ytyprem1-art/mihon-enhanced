@@ -20,7 +20,6 @@ import tachiyomi.domain.history.repository.HistoryCategoryRepository
 import tachiyomi.domain.history.repository.HistoryRepository
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.manga.repository.MangaRepository
-import java.util.Date
 
 class HistorySourceLinksTest {
     private var stored = emptySet<String>()
@@ -32,12 +31,12 @@ class HistorySourceLinksTest {
         every { it.getStringSet(any(), any()) } returns preference
     }
     private val links = HistorySourceLinks(store)
-    private val history = mockk<HistoryRepository>(relaxed = true)
+    private val history = mockk<tachiyomi.data.history.HistoryRepositoryImpl>(relaxed = true)
     private val chapters = mockk<ChapterRepository>()
     private val mangas = mockk<MangaRepository>()
     private val categories = mockk<HistoryCategoryRepository>(relaxed = true)
     private val router = AutoCategorizingHistoryRepository(history, chapters, mangas, categories, links)
-    private val update = HistoryUpdate(10, Date(1000), 20)
+    private val update = HistoryUpdate(10, kotlin.time.Instant.fromEpochMilliseconds(1000), 20)
 
     private fun prepare(sourceId: Long = 100) {
         coEvery { chapters.getChapterById(10) } returns Chapter.create().copy(id = 10, mangaId = 20)

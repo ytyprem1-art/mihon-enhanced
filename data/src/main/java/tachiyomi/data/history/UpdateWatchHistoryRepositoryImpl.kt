@@ -9,6 +9,9 @@ import tachiyomi.data.subscribeToOneOrNull
 import tachiyomi.domain.history.model.UpdateWatchHistory
 import tachiyomi.domain.history.repository.UpdateWatchHistoryRepository
 
+@dev.zacsweers.metro.SingleIn(dev.zacsweers.metro.AppScope::class)
+@dev.zacsweers.metro.ContributesBinding(dev.zacsweers.metro.AppScope::class)
+@dev.zacsweers.metro.Inject
 class UpdateWatchHistoryRepositoryImpl(
     private val database: Database,
 ) : UpdateWatchHistoryRepository {

@@ -1,0 +1,11 @@
+import kotlin.Boolean;
+
+referencedMangaIds:
+SELECT manga_id FROM history_category_mapping WHERE :historyCategories = 1
+UNION SELECT manga_id FROM history_group_members WHERE :historyGroups = 1
+UNION SELECT manga_id FROM linked_source_members WHERE :linkedSources = 1
+UNION SELECT manga_id FROM update_watch WHERE :updateWatch = 1
+UNION SELECT manga_id FROM update_watch_inbox WHERE :updateWatch = 1
+UNION SELECT manga_id FROM update_watch_history WHERE :updateWatch = 1
+UNION SELECT manga_id FROM merged WHERE manga_id IS NOT NULL
+UNION SELECT merge_id AS manga_id FROM merged;

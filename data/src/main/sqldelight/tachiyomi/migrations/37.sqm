@@ -1,0 +1,30 @@
+-- Repair mod sync counters under upstream INSERT ... ON CONFLICT DO UPDATE.
+-- The outer UPSERT abort policy overrides OR IGNORE inside triggers. Guard before inserting.
+DROP TRIGGER IF EXISTS enhanced_manga_version_updated;
+DROP TRIGGER IF EXISTS enhanced_chapter_version_updated;
+
+CREATE TRIGGER enhanced_manga_version_updated AFTER UPDATE ON manga
+WHEN (SELECT restoring FROM enhanced_sync_state WHERE id = 1) = 0 AND (
+    new.remote_url IS NOT old.remote_url OR
+    new.remote_description IS NOT old.remote_description OR
+    (new.user_favorite_at IS NULL) != (old.user_favorite_at IS NULL)
+)
+BEGIN
+    INSERT INTO enhanced_manga_version(manga_id, version)
+    SELECT new.id, 0 WHERE NOT EXISTS (SELECT 1 FROM enhanced_manga_version WHERE manga_id = new.id);
+    UPDATE enhanced_manga_version SET version = version + 1 WHERE manga_id = new.id;
+END;
+
+CREATE TRIGGER enhanced_chapter_version_updated AFTER UPDATE ON chapter
+WHEN (SELECT restoring FROM enhanced_sync_state WHERE id = 1) = 0 AND (
+    new.user_read != old.user_read OR new.user_bookmark != old.user_bookmark OR
+    new.user_last_page_read != old.user_last_page_read
+)
+BEGIN
+    INSERT INTO enhanced_chapter_version(chapter_id, version)
+    SELECT new.id, 0 WHERE NOT EXISTS (SELECT 1 FROM enhanced_chapter_version WHERE chapter_id = new.id);
+    UPDATE enhanced_chapter_version SET version = version + 1 WHERE chapter_id = new.id;
+    INSERT INTO enhanced_manga_version(manga_id, version)
+    SELECT new.manga_id, 0 WHERE NOT EXISTS (SELECT 1 FROM enhanced_manga_version WHERE manga_id = new.manga_id);
+    UPDATE enhanced_manga_version SET version = version + 1 WHERE manga_id = new.manga_id;
+END;

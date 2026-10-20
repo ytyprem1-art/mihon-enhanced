@@ -12,12 +12,14 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import mihon.core.viewmodel.StateViewModel
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import kotlin.time.Duration.Companion.seconds
 
-class GlobalChatViewModel : StateViewModel<GlobalChatState>(GlobalChatState.NeedUsername) {
+class GlobalChatViewModel : androidx.lifecycle.ViewModel() {
+    private val mutableState = kotlinx.coroutines.flow.MutableStateFlow<GlobalChatState>(GlobalChatState.NeedUsername)
+    val state: kotlinx.coroutines.flow.StateFlow<GlobalChatState> = mutableState
+
 
     private val auth = FirebaseAuth.getInstance()
     private val db = FirebaseFirestore.getInstance()

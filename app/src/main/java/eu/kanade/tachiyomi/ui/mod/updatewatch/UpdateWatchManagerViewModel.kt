@@ -1,5 +1,7 @@
 package eu.kanade.tachiyomi.ui.mod.updatewatch
 
+import eu.kanade.tachiyomi.ui.mod.util.dateUploadMillis
+import kotlinx.coroutines.launch
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.viewModelScope
@@ -15,7 +17,6 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
-import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.core.common.util.system.logcat
 import logcat.LogPriority
 import tachiyomi.domain.chapter.model.Chapter
@@ -35,7 +36,6 @@ import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.source.linked.interactor.ManageLinkedSourceGroup
 import tachiyomi.domain.source.linked.model.LinkedSourceGroup
 import tachiyomi.domain.source.service.SourceManager
-import mihon.core.viewmodel.StateViewModel
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import java.time.LocalDate
@@ -53,14 +53,17 @@ class UpdateWatchManagerViewModel(
     private val getChaptersByMangaId: GetChaptersByMangaId = Injekt.get(),
     private val sourceManager: SourceManager = Injekt.get(),
     private val libraryPreferences: LibraryPreferences = Injekt.get(),
-) : StateViewModel<UpdateWatchManagerViewModel.State>(State()) {
+) : androidx.lifecycle.ViewModel() {
+    private val mutableState = kotlinx.coroutines.flow.MutableStateFlow<UpdateWatchManagerViewModel.State>(State())
+    val state: kotlinx.coroutines.flow.StateFlow<UpdateWatchManagerViewModel.State> = mutableState
+
 
     val sortMode by libraryPreferences.trackedMangaSort.asState(viewModelScope)
     val funOverdueMessages by libraryPreferences.funOverdueMessages.asState(viewModelScope)
     val snackbarHostState = SnackbarHostState()
 
     init {
-        viewModelScope.launchIO {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             val itemsFlow = manageUpdateWatch.subscribeAll()
                 .flatMapLatest { trackedList ->
                     if (trackedList.isEmpty()) return@flatMapLatest flowOf(emptyList<UpdateWatchUiModel.Item>())
@@ -77,15 +80,15 @@ class UpdateWatchManagerViewModel(
                             if (manga == null) return@combine null
 
                             val latestChapter = if (chapters.isNotEmpty()) {
-                                chapters.filter { it.dateUpload > 0 }
-                                    .maxByOrNull { it.dateUpload }
+                                chapters.filter { it.dateUploadMillis > 0 }
+                                    .maxByOrNull { it.dateUploadMillis }
                             } else {
                                 null
                             }
 
                             val daysSinceRelease = latestChapter?.let {
                                 val today = LocalDate.now()
-                                val releaseDate = it.dateUpload.toJavaLocalDate()
+                                val releaseDate = java.time.Instant.ofEpochMilli(it.dateUploadMillis).atZone(java.time.ZoneId.systemDefault()).toLocalDate()
                                 ChronoUnit.DAYS.between(releaseDate, today)
                             } ?: -1L
 
@@ -140,7 +143,7 @@ class UpdateWatchManagerViewModel(
     }
 
     fun untrack(mangaId: Long) {
-        viewModelScope.launchIO {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             try {
                 manageUpdateWatch.delete(mangaId)
                 UpdateWatchRefreshScheduler.setupTask(Injekt.get<android.app.Application>())
@@ -155,7 +158,7 @@ class UpdateWatchManagerViewModel(
     }
 
     fun updateBackgroundRefresh(mangaId: Long, enabled: Boolean, interval: Int, profile: UpdateWatch.RefreshProfile) {
-        viewModelScope.launchIO {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             try {
                 manageUpdateWatch.updateBackgroundRefresh(mangaId, enabled, interval, profile)
                 UpdateWatchRefreshScheduler.setupTask(Injekt.get<android.app.Application>())
@@ -166,7 +169,7 @@ class UpdateWatchManagerViewModel(
     }
 
     fun simulateInactivityWarning(item: UpdateWatchUiModel.Item, milestone: Int) {
-        viewModelScope.launchIO {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             try {
                 val source = sourceManager.getOrStub(item.trackingManga.source)
                 val inboxItem = UpdateWatchInboxItem(
@@ -193,21 +196,21 @@ class UpdateWatchManagerViewModel(
     }
 
     fun simulateRealRefresh(item: UpdateWatchUiModel.Item) {
-        viewModelScope.launchIO {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             val mangaId = item.trackingManga.id
             val startTime = System.currentTimeMillis()
             try {
                 snackbarHostState.showSnackbar("Starting manual refresh for ${item.trackingManga.title}...")
 
                 val oldChapters = chapterRepository.getChapterByMangaId(mangaId)
-                val oldLatest = oldChapters.filter { it.dateUpload > 0 }.maxByOrNull { it.dateUpload }
+                val oldLatest = oldChapters.filter { it.dateUploadMillis > 0 }.maxByOrNull { it.dateUploadMillis }
 
                 val refreshResult = updateMangaFromRemote(item.trackingManga, fetchChapters = true)
 
                 if (refreshResult.isSuccess) {
                     val newChapters = refreshResult.getOrThrow().newChapters
                     val currentChapters = chapterRepository.getChapterByMangaId(mangaId)
-                    val newLatest = currentChapters.filter { it.dateUpload > 0 }.maxByOrNull { it.dateUpload }
+                    val newLatest = currentChapters.filter { it.dateUploadMillis > 0 }.maxByOrNull { it.dateUploadMillis }
 
                     val foundNew = newChapters.isNotEmpty() || (newLatest != null && newLatest.id != oldLatest?.id)
                     val newCount = newChapters.size.coerceAtLeast(if (foundNew) 1 else 0)
@@ -226,7 +229,7 @@ class UpdateWatchManagerViewModel(
                             latestChapterId = newLatest.id,
                             latestChapterNumber = newLatest.chapterNumber,
                             chapterIds = newChapters.map { it.id }.ifEmpty { listOf(newLatest.id) },
-                            latestChapterUploadAt = newLatest.dateUpload,
+                            latestChapterUploadAt = newLatest.dateUploadMillis,
                         )
                         manageUpdateWatchInbox.insertOrMerge(inboxItem)
                         manageUpdateWatch.resetStaleMilestone(mangaId)

@@ -3,6 +3,8 @@ package eu.kanade.tachiyomi.ui.mod.historycategory
 import tachiyomi.core.common.preference.Preference
 import tachiyomi.core.common.preference.PreferenceStore
 
+@dev.zacsweers.metro.Inject
+@dev.zacsweers.metro.SingleIn(dev.zacsweers.metro.AppScope::class)
 class HistorySourceLinks(preferenceStore: PreferenceStore) {
     // Category IDs belong to this installation; do not restore them as app settings on another device.
     private val preference = preferenceStore.getStringSet(Preference.appStateKey("history_category_source_links"))

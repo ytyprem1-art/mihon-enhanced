@@ -8,6 +8,9 @@ import tachiyomi.data.subscribeToList
 import tachiyomi.domain.history.model.UpdateWatchInboxItem
 import tachiyomi.domain.history.repository.UpdateWatchInboxRepository
 
+@dev.zacsweers.metro.SingleIn(dev.zacsweers.metro.AppScope::class)
+@dev.zacsweers.metro.ContributesBinding(dev.zacsweers.metro.AppScope::class)
+@dev.zacsweers.metro.Inject
 class UpdateWatchInboxRepositoryImpl(
     private val database: Database,
 ) : UpdateWatchInboxRepository {

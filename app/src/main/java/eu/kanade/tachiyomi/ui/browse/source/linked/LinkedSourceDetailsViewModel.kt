@@ -1,5 +1,7 @@
 package eu.kanade.tachiyomi.ui.browse.source.linked
 
+import eu.kanade.tachiyomi.ui.mod.util.dateUploadMillis
+import kotlinx.coroutines.launch
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
 import androidx.lifecycle.viewmodel.initializer
@@ -13,9 +15,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import logcat.LogPriority
-import mihon.core.viewmodel.StateViewModel
 import mihon.domain.source.interactor.UpdateMangaFromRemote
-import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.chapter.repository.ChapterRepository
 import tachiyomi.domain.history.group.interactor.ManageHistoryGroups
@@ -36,7 +36,10 @@ class LinkedSourceDetailsViewModel(
     private val sourceManager: SourceManager = Injekt.get(),
     private val manageHistoryGroups: ManageHistoryGroups = Injekt.get(),
     private val manageUpdateWatch: ManageUpdateWatch = Injekt.get(),
-) : StateViewModel<LinkedSourceDetailsViewModel.State>(State()) {
+) : androidx.lifecycle.ViewModel() {
+    private val mutableState = kotlinx.coroutines.flow.MutableStateFlow<LinkedSourceDetailsViewModel.State>(State())
+    val state: kotlinx.coroutines.flow.StateFlow<LinkedSourceDetailsViewModel.State> = mutableState
+
 
     companion object {
         val GROUP_ID_KEY = CreationExtras.Key<Long>()
@@ -54,12 +57,12 @@ class LinkedSourceDetailsViewModel(
     val events = _events.receiveAsFlow()
 
     init {
-        viewModelScope.launchIO {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             val group = manageLinkedSourceGroup.getGroupById(groupId)
             mutableState.update { it.copy(group = group) }
         }
 
-        viewModelScope.launchIO {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             combine(
                 manageLinkedSourceGroup.subscribeMembers(groupId),
                 manageUpdateWatch.subscribeAll(),
@@ -78,10 +81,10 @@ class LinkedSourceDetailsViewModel(
                             manga = member,
                             latestChapter = latestChapter?.chapterNumber,
                             latestChapterId = latestChapter?.id,
-                            latestChapterDateUpload = latestChapter?.dateUpload?.takeIf { it > 0 },
+                            latestChapterDateUpload = latestChapter?.dateUploadMillis?.takeIf { it > 0 },
                             lastRead = history?.chapterNumber,
                             lastReadChapterId = history?.chapterId,
-                            readAt = history?.readAt?.time,
+                            readAt = history?.readAt?.toEpochMilliseconds(),
                             isTracking = trackingMap.containsKey(member.id),
                             isPaused = trackingMap[member.id]?.isPaused ?: false,
                         )
@@ -97,7 +100,7 @@ class LinkedSourceDetailsViewModel(
     fun refreshMember(mangaId: Long) {
         if (state.value.refreshingIds.contains(mangaId)) return
 
-        viewModelScope.launchIO {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             mutableState.update { it.copy(refreshingIds = it.refreshingIds + mangaId) }
             try {
                 val manga = manageLinkedSourceGroup.subscribeMembers(groupId).map { members ->
@@ -105,7 +108,7 @@ class LinkedSourceDetailsViewModel(
                 }.flatMapLatest { manga ->
                     if (manga == null) kotlinx.coroutines.flow.flowOf(null)
                     else kotlinx.coroutines.flow.flowOf(manga)
-                }.firstOrNull() ?: return@launchIO
+                }.firstOrNull() ?: return@launch
 
                 val source = sourceManager.getOrStub(manga.source)
                 updateMangaFromRemote(
@@ -124,7 +127,7 @@ class LinkedSourceDetailsViewModel(
     }
 
     fun removeMember(mangaId: Long, sourceId: Long) {
-        viewModelScope.launchIO {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             try {
                 manageLinkedSourceGroup.removeMember(groupId, mangaId, sourceId)
                 manageUpdateWatch.delete(mangaId)
@@ -144,7 +147,7 @@ class LinkedSourceDetailsViewModel(
             )
         }
 
-        viewModelScope.launchIO {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             try {
                 val current = manageUpdateWatch.getById(mangaId)
                 if (current != null) {
@@ -168,8 +171,8 @@ class LinkedSourceDetailsViewModel(
     }
 
     fun togglePaused(mangaId: Long) {
-        viewModelScope.launchIO {
-            val current = manageUpdateWatch.getById(mangaId) ?: return@launchIO
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            val current = manageUpdateWatch.getById(mangaId) ?: return@launch
             manageUpdateWatch.updatePaused(mangaId, !current.isPaused)
         }
     }
@@ -187,7 +190,7 @@ class LinkedSourceDetailsViewModel(
         val members = state.value.members
         val groupName = state.value.group?.name ?: return
 
-        viewModelScope.launchIO {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             val memberships = manageHistoryGroups.getAllMemberships()
 
             val withHistory = members.filter { it.lastRead != null }
@@ -207,7 +210,7 @@ class LinkedSourceDetailsViewModel(
     }
 
     fun performCreateHistoryGroup(name: String, mangaIds: List<Long>) {
-        viewModelScope.launchIO {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             try {
                 manageHistoryGroups.createGroupWithMembers(name, mangaIds)
                 _events.send(Event.HistoryGroupCreated)

@@ -1,5 +1,6 @@
 package eu.kanade.tachiyomi.ui.mod.historygroup
 
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
@@ -15,11 +16,9 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
-import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.domain.history.group.interactor.ManageHistoryGroups
 import tachiyomi.domain.history.interactor.GetHistory
 import tachiyomi.domain.history.model.HistoryWithRelations
-import mihon.core.viewmodel.StateViewModel
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 
@@ -27,7 +26,10 @@ class HistoryGroupDetailViewModel(
     private val groupId: Long,
     private val manageHistoryGroups: ManageHistoryGroups = Injekt.get(),
     private val getHistory: GetHistory = Injekt.get(),
-) : StateViewModel<HistoryGroupDetailViewModel.State>(State()) {
+) : androidx.lifecycle.ViewModel() {
+    private val mutableState = kotlinx.coroutines.flow.MutableStateFlow<HistoryGroupDetailViewModel.State>(State())
+    val state: kotlinx.coroutines.flow.StateFlow<HistoryGroupDetailViewModel.State> = mutableState
+
 
     companion object {
         val GROUP_ID_KEY = CreationExtras.Key<Long>()
@@ -45,12 +47,12 @@ class HistoryGroupDetailViewModel(
     val events: Flow<Event> = _events.receiveAsFlow()
 
     init {
-        viewModelScope.launchIO {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             val group = manageHistoryGroups.getGroups().find { it.id == groupId }
             mutableState.update { it.copy(groupName = group?.name ?: "") }
         }
 
-        viewModelScope.launchIO {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             combine(
                 manageHistoryGroups.subscribeMembers(groupId),
                 getHistory.subscribe(""),
@@ -66,8 +68,8 @@ class HistoryGroupDetailViewModel(
     private fun List<HistoryWithRelations>.toHistoryUiModels(): List<HistoryUiModel> {
         return map { HistoryUiModel.Item(it) }
             .insertSeparators { before, after ->
-                val beforeDate = before?.item?.readAt?.time?.toLocalDate()
-                val afterDate = after?.item?.readAt?.time?.toLocalDate()
+                val beforeDate = before?.item?.readAt?.toLocalDate()
+                val afterDate = after?.item?.readAt?.toLocalDate()
                 when {
                     beforeDate != afterDate && afterDate != null -> HistoryUiModel.Header(afterDate)
                     else -> null
@@ -91,7 +93,7 @@ class HistoryGroupDetailViewModel(
     fun removeSelectedFromGroup() {
         val selected = state.value.selected
         if (selected.isEmpty()) return
-        viewModelScope.launchIO {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             selected.forEach { mangaId ->
                 manageHistoryGroups.removeMangaFromGroup(mangaId)
             }

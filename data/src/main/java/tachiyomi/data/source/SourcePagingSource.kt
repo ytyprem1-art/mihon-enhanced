@@ -5,60 +5,66 @@ import eu.kanade.tachiyomi.source.Source
 import eu.kanade.tachiyomi.source.model.FilterList
 import eu.kanade.tachiyomi.source.model.MangasPage
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import mihon.domain.manga.model.toDomainManga
-import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.domain.manga.interactor.NetworkToLocalManga
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.manga.repository.MangaRepository
 import tachiyomi.domain.source.repository.SourcePagingSource
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 class SourceSearchPagingSource(
-    source: Source,
+    source: suspend () -> Source,
     private val query: String,
     private val filters: FilterList,
-) : BaseSourcePagingSource(source) {
-    override suspend fun requestNextPage(currentPage: Int): MangasPage {
+    networkToLocalManga: NetworkToLocalManga,
+) : BaseSourcePagingSource(source, networkToLocalManga) {
+    override suspend fun requestNextPage(source: Source, currentPage: Int): MangasPage {
         return source.getSearchManga(currentPage, query, filters)
     }
 }
 
-class SourcePopularPagingSource(source: Source) : BaseSourcePagingSource(source) {
-    override suspend fun requestNextPage(currentPage: Int): MangasPage {
+class SourcePopularPagingSource(
+    source: suspend () -> Source,
+    networkToLocalManga: NetworkToLocalManga,
+) : BaseSourcePagingSource(source, networkToLocalManga) {
+    override suspend fun requestNextPage(source: Source, currentPage: Int): MangasPage {
         return source.getPopularManga(currentPage)
     }
 }
 
 class SourceLatestPagingSource(
-    source: Source,
-    libraryOnly: Boolean = false,
-) : BaseSourcePagingSource(source, libraryOnly) {
-    override suspend fun requestNextPage(currentPage: Int): MangasPage {
+    source: suspend () -> Source,
+    networkToLocalManga: NetworkToLocalManga,
+    libraryOnly: Boolean,
+    mangaRepository: MangaRepository,
+) : BaseSourcePagingSource(source, networkToLocalManga, libraryOnly, mangaRepository) {
+    override suspend fun requestNextPage(source: Source, currentPage: Int): MangasPage {
         return source.getLatestUpdates(currentPage)
     }
 }
 
 abstract class BaseSourcePagingSource(
-    protected val source: Source,
-    protected open val libraryOnly: Boolean = false,
-    private val networkToLocalManga: NetworkToLocalManga = Injekt.get(),
-    private val mangaRepository: MangaRepository = Injekt.get(),
+    private val source: suspend () -> Source,
+    private val networkToLocalManga: NetworkToLocalManga,
+    private val libraryOnly: Boolean = false,
+    private val mangaRepository: MangaRepository? = null,
 ) : SourcePagingSource() {
 
     private val seenManga = hashSetOf<String>()
     private var favoriteUrls: Set<String>? = null
 
-    private suspend fun getFavoriteUrls(): Set<String> {
-        return favoriteUrls ?: withIOContext {
-            mangaRepository.getFavoriteUrlsBySourceId(source.id)
+    private suspend fun getFavoriteUrls(sourceId: Long): Set<String> {
+        return favoriteUrls ?: withContext(Dispatchers.IO) {
+            requireNotNull(mangaRepository).getFavoriteUrlsBySourceId(sourceId)
                 .first()
                 .toHashSet()
                 .also { favoriteUrls = it }
         }
     }
 
-    abstract suspend fun requestNextPage(currentPage: Int): MangasPage
+    abstract suspend fun requestNextPage(source: Source, currentPage: Int): MangasPage
 
     override suspend fun load(params: LoadParams<Long>): LoadResult<Long, Manga> {
         var currentRemotePage = params.key ?: 1
@@ -69,11 +75,12 @@ abstract class BaseSourcePagingSource(
         val maxFetches = if (libraryOnly) 20 else 1
 
         return try {
-            val favUrls = if (libraryOnly) getFavoriteUrls() else emptySet()
+            val source = source()
+            val favUrls = if (libraryOnly) getFavoriteUrls(source.id) else emptySet()
 
             while (accumulated.size < params.loadSize && hasNextPage && fetchCount < maxFetches) {
-                val mangasPage = withIOContext {
-                    requestNextPage(currentRemotePage.toInt())
+                val mangasPage = withContext(Dispatchers.IO) {
+                    requestNextPage(source, currentRemotePage.toInt())
                         .takeIf { it.mangas.isNotEmpty() }
                         ?: throw NoResultsException()
                 }
@@ -110,6 +117,8 @@ abstract class BaseSourcePagingSource(
                 prevKey = null,
                 nextKey = if (hasNextPage) lastFetchedRemotePage + 1 else null,
             )
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             LoadResult.Error(e)
         }

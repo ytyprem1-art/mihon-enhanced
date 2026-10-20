@@ -1,5 +1,6 @@
 package eu.kanade.tachiyomi.ui.mod.search
 
+import kotlinx.coroutines.launch
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
@@ -21,10 +22,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 import logcat.LogPriority
-import mihon.core.viewmodel.StateViewModel
 import mihon.domain.manga.model.toDomainManga
-import tachiyomi.core.common.util.lang.launchIO
-import tachiyomi.core.common.util.lang.withUIContext
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.manga.interactor.GetManga
 import tachiyomi.domain.manga.interactor.GetMergedReferencesById
@@ -45,7 +43,10 @@ class GlobalSourceSearchScreenModel(
     private val getMangaInteractor: GetManga = Injekt.get(),
     private val getMergedReferencesById: GetMergedReferencesById = Injekt.get(),
     private val smartSearchMerge: SmartSearchMerge = Injekt.get(),
-) : StateViewModel<GlobalSourceSearchScreenModel.State>(State(searchQuery = initialQuery)) {
+) : androidx.lifecycle.ViewModel() {
+    private val mutableState = kotlinx.coroutines.flow.MutableStateFlow<GlobalSourceSearchScreenModel.State>(State(searchQuery = initialQuery))
+    val state: kotlinx.coroutines.flow.StateFlow<GlobalSourceSearchScreenModel.State> = mutableState
+
 
     val snackbarHostState = SnackbarHostState()
     private val activeParentIdState = MutableStateFlow(parentMangaId)
@@ -58,7 +59,7 @@ class GlobalSourceSearchScreenModel(
             search()
         }
 
-        viewModelScope.launchIO {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             activeParentIdState
                 .filterNotNull()
                 .flatMapLatest { id ->
@@ -99,14 +100,14 @@ class GlobalSourceSearchScreenModel(
         onFirstMergeCreated: ((oldParentId: Long, newMergedMangaId: Long) -> Unit)? = null,
     ) {
         val parentId = activeParentIdState.value ?: return
-        viewModelScope.launchIO {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             try {
                 val resultManga = smartSearchMerge.await(manga, parentId)
                 val previousParentId = activeParentIdState.value
                 activeParentIdState.value = resultManga.id
                 dismissDialog()
                 if (previousParentId != null && resultManga.id != previousParentId) {
-                    withUIContext {
+                    withContext(kotlinx.coroutines.Dispatchers.Main) {
                         onFirstMergeCreated?.invoke(previousParentId, resultManga.id)
                     }
                 }
@@ -127,6 +128,7 @@ class GlobalSourceSearchScreenModel(
         searchJob?.cancel()
 
         val disabledSources = sourcePreferences.disabledSources.get()
+        searchJob = viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
         val sources = sourceManager.getAll()
             .filterIsInstance<CatalogueSource>()
             .filter { "${it.id}" !in disabledSources }
@@ -139,7 +141,6 @@ class GlobalSourceSearchScreenModel(
             )
         }
 
-        searchJob = viewModelScope.launchIO {
             sources.map { source ->
                 async {
                     try {

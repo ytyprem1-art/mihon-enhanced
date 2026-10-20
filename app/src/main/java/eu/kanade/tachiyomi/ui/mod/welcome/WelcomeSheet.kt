@@ -113,6 +113,35 @@ fun WelcomeSheet(
                     desc = stringResource(MR.strings.mod_welcome_feature_grid_columns_desc)
                 )
 
+                FeatureItem(
+                    title = stringResource(MR.strings.mod_welcome_feature_favorites_title),
+                    desc = stringResource(MR.strings.mod_welcome_feature_favorites_desc),
+                )
+                FeatureItem(
+                    title = stringResource(MR.strings.mod_welcome_feature_browse_style_title),
+                    desc = stringResource(MR.strings.mod_welcome_feature_browse_style_desc),
+                )
+                FeatureItem(
+                    title = stringResource(MR.strings.mod_welcome_feature_crop_title),
+                    desc = stringResource(MR.strings.mod_welcome_feature_crop_desc),
+                )
+                FeatureItem(
+                    title = stringResource(MR.strings.mod_welcome_feature_upscale_title),
+                    desc = stringResource(MR.strings.mod_welcome_feature_upscale_desc),
+                )
+                FeatureItem(
+                    title = stringResource(MR.strings.mod_welcome_feature_chat_title),
+                    desc = stringResource(MR.strings.mod_welcome_feature_chat_desc),
+                )
+                FeatureItem(
+                    title = stringResource(MR.strings.mod_welcome_feature_merge_title),
+                    desc = stringResource(MR.strings.mod_welcome_feature_merge_desc),
+                )
+                FeatureItem(
+                    title = stringResource(MR.strings.mod_welcome_feature_drive_sync_title),
+                    desc = stringResource(MR.strings.mod_welcome_feature_drive_sync_desc),
+                )
+
                 SectionHeader(stringResource(MR.strings.mod_welcome_section_credits))
                 Text(
                     text = stringResource(MR.strings.mod_welcome_credit_mod_title),

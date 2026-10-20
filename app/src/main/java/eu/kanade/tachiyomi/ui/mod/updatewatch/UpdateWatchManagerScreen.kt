@@ -1,5 +1,6 @@
 package eu.kanade.tachiyomi.ui.mod.updatewatch
 
+import eu.kanade.tachiyomi.ui.mod.util.dateUploadMillis
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.items
@@ -366,9 +367,7 @@ private fun UpdateWatchManagerContent(
                 key = { "tracked-${it.trackingManga.id}" }
             ) { item ->
                 val sourceManager = remember { Injekt.get<SourceManager>() }
-                val sourceName = remember(item.trackingManga.source) {
-                    sourceManager.getOrStub(item.trackingManga.source).name
-                }
+                val sourceName = eu.kanade.tachiyomi.ui.mod.components.rememberSourceName(item.trackingManga.source)
 
                 var showMenu by remember { mutableStateOf(false) }
                 var showDebugMilestoneMenu by remember { mutableStateOf(false) }
@@ -385,7 +384,7 @@ private fun UpdateWatchManagerContent(
                             chapterId = item.latestChapter.id,
                             title = item.group?.name ?: item.trackingManga.title,
                             chapterNumber = item.latestChapter.chapterNumber,
-                            readAt = if (item.latestChapter.dateUpload > 0) java.util.Date(item.latestChapter.dateUpload) else null,
+                            readAt = item.latestChapter.dateUpload,
                             readDuration = 0L,
                             coverData = MangaCover(
                                 mangaId = item.trackingManga.id,
@@ -502,7 +501,7 @@ private fun UpdateWatchManagerContent(
                                         enabled = item.backgroundRefreshEnabled,
                                         expectedIntervalDays = item.expectedIntervalDays,
                                         refreshProfile = item.refreshProfile,
-                                        latestChapterUploadDate = item.latestChapter.dateUpload,
+                                        latestChapterUploadDate = item.latestChapter.dateUploadMillis,
                                         lastCheckAt = item.lastBackgroundCheckAt,
                                         now = System.currentTimeMillis()
                                     )

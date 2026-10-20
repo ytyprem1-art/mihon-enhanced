@@ -6,6 +6,7 @@ import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.manga.repository.MangaMergeRepository
 
+@dev.zacsweers.metro.Inject
 class GetMergedManga(
     private val mangaMergeRepository: MangaMergeRepository,
 ) {

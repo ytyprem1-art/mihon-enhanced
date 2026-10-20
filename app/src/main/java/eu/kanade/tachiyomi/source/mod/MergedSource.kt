@@ -1,5 +1,6 @@
 package eu.kanade.tachiyomi.source.mod
 
+import kotlinx.coroutines.withContext
 import eu.kanade.domain.chapter.interactor.SyncChaptersWithSource
 import eu.kanade.domain.manga.interactor.UpdateManga
 import eu.kanade.domain.manga.model.toSManga
@@ -20,7 +21,6 @@ import kotlinx.coroutines.sync.withPermit
 import mihon.domain.chapter.interactor.FilterChaptersForDownload
 import mihon.domain.source.interactor.UpdateMangaFromRemote
 import okhttp3.Response
-import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.domain.category.interactor.GetCategories
 import tachiyomi.domain.chapter.model.Chapter
 import tachiyomi.domain.download.service.DownloadPreferences
@@ -96,7 +96,7 @@ class MergedSource : HttpSource() {
     }
 
     suspend fun getMangaDetails(manga: SManga): SManga {
-        return withIOContext {
+        return withContext(kotlinx.coroutines.Dispatchers.IO) {
             val mergedManga = requireNotNull(getMangaByUrlAndSourceId.await(manga.url, id)) { "merged manga not in db" }
             val mangaReferences = getMergedReferencesById.await(mergedManga.id)
                 .apply {

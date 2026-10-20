@@ -1,5 +1,7 @@
 package eu.kanade.tachiyomi.ui.mod.updatewatch.worker
 
+import eu.kanade.tachiyomi.ui.mod.util.dateUploadMillis
+import kotlinx.coroutines.withContext
 import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
@@ -15,7 +17,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.CancellationException
 import logcat.LogPriority
 import mihon.domain.source.interactor.UpdateMangaFromRemote
-import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.chapter.model.Chapter
 import tachiyomi.domain.chapter.repository.ChapterRepository
@@ -51,7 +52,7 @@ class UpdateWatchRefreshWorker(context: Context, workerParams: WorkerParameters)
     private val newlyFoundInboxItems = mutableListOf<UpdateWatchInboxItem>()
     private val mangaDiagnosticDetails = mutableListOf<MangaDiagnosticDetail>()
 
-    override suspend fun doWork(): Result = withIOContext {
+    override suspend fun doWork(): Result = withContext(kotlinx.coroutines.Dispatchers.IO) {
         UpdateWatchRefreshState.onRunStarted()
         val startTime = System.currentTimeMillis()
         val scheduledAt = inputData.getLong(UpdateWatchRefreshScheduler.KEY_SCHEDULED_AT, 0L).takeIf { it > 0 }
@@ -74,13 +75,13 @@ class UpdateWatchRefreshWorker(context: Context, workerParams: WorkerParameters)
             trackedManga.filter { it.backgroundRefreshEnabled && !it.isPaused }.forEach { tracking ->
                 val manga = getManga.await(tracking.mangaId) ?: return@forEach
                 val chapters = chapterRepository.getChapterByMangaId(manga.id)
-                val latestChapter = chapters.filter { it.dateUpload > 0 }.maxByOrNull { it.dateUpload } ?: return@forEach
+                val latestChapter = chapters.filter { it.dateUploadMillis > 0 }.maxByOrNull { it.dateUploadMillis } ?: return@forEach
 
                 val eligibility = UpdateWatchRefreshHelper.getEligibility(
                     enabled = tracking.backgroundRefreshEnabled,
                     expectedIntervalDays = tracking.expectedIntervalDays,
                     refreshProfile = tracking.refreshProfile,
-                    latestChapterUploadDate = latestChapter.dateUpload,
+                    latestChapterUploadDate = latestChapter.dateUploadMillis,
                     lastCheckAt = tracking.lastBackgroundCheckAt,
                     now = startTime,
                 )
@@ -137,7 +138,7 @@ class UpdateWatchRefreshWorker(context: Context, workerParams: WorkerParameters)
                 logcat(LogPriority.INFO) { "Background refresh: No eligible candidates." }
                 val finalTarget = UpdateWatchRefreshScheduler.setupTaskSuspend(applicationContext, skipRunCheck = true)
                 recordRunDiagnostics(allCandidates, trackedManga, processedCount = 0, updatedCount = 0, failedCount = 0, startTime, scheduledAt, sourceCount = 0, finalTarget, runOrigin)
-                return@withIOContext Result.success()
+                return@withContext Result.success()
             }
 
             logcat(LogPriority.INFO) { "Background refresh: Total potential eligible candidates found: ${allCandidates.size}" }
@@ -176,7 +177,7 @@ class UpdateWatchRefreshWorker(context: Context, workerParams: WorkerParameters)
                         "Worker skipped reschedule: all ${allSelectedIds.size} eligible candidates are already claimed by another active run.\nActive claims: ${UpdateWatchRefreshState.queuedMangaIds.value.size}"
                     )
                     recordRunDiagnostics(allCandidates, trackedManga, processedCount = 0, updatedCount = 0, failedCount = 0, startTime, scheduledAt, sourceCount = 0, finalTarget = null, runOrigin)
-                    return@withIOContext Result.success()
+                    return@withContext Result.success()
                 } else {
                     // STALE CLAIMS FALLBACK
                     UpdateWatchRefreshState.clear()
@@ -312,14 +313,14 @@ class UpdateWatchRefreshWorker(context: Context, workerParams: WorkerParameters)
 
         return try {
             val oldChapters = chapterRepository.getChapterByMangaId(manga.id)
-            val oldLatest = oldChapters.filter { it.dateUpload > 0 }.maxByOrNull { it.dateUpload }
+            val oldLatest = oldChapters.filter { it.dateUploadMillis > 0 }.maxByOrNull { it.dateUploadMillis }
 
             val refreshResult = updateMangaFromRemote(manga, fetchChapters = true)
 
             if (refreshResult.isSuccess) {
                 val newChapters = refreshResult.getOrThrow().newChapters
                 val currentChapters = chapterRepository.getChapterByMangaId(manga.id)
-                val newLatest = currentChapters.filter { it.dateUpload > 0 }.maxByOrNull { it.dateUpload }
+                val newLatest = currentChapters.filter { it.dateUploadMillis > 0 }.maxByOrNull { it.dateUploadMillis }
 
                 UpdateWatchPostRefreshHandler.handleRefreshResult(
                     manga = manga,
@@ -359,7 +360,7 @@ class UpdateWatchRefreshWorker(context: Context, workerParams: WorkerParameters)
     private suspend fun recordMangaDiagnostic(candidate: RefreshCandidate, sourceName: String, result: String, error: String?) {
         try {
             val releaseDate = chapterRepository.getChapterByMangaId(candidate.mangaId)
-                .filter { it.dateUpload > 0 }.maxByOrNull { it.dateUpload }?.dateUpload ?: 0L
+                .filter { it.dateUploadMillis > 0 }.maxByOrNull { it.dateUploadMillis }?.dateUploadMillis ?: 0L
 
             val eligibility = UpdateWatchRefreshHelper.getEligibility(
                 enabled = true,
@@ -402,8 +403,8 @@ class UpdateWatchRefreshWorker(context: Context, workerParams: WorkerParameters)
             val completionTime = System.currentTimeMillis()
             val latestChapterDates = trackedManga.associate { tracking ->
                 val chapters = chapterRepository.getChapterByMangaId(tracking.mangaId)
-                val latest = chapters.filter { it.dateUpload > 0 }.maxByOrNull { it.dateUpload }
-                tracking.mangaId to (latest?.dateUpload ?: 0L)
+                val latest = chapters.filter { it.dateUploadMillis > 0 }.maxByOrNull { it.dateUploadMillis }
+                tracking.mangaId to (latest?.dateUploadMillis ?: 0L)
             }
             val earliestNext = UpdateWatchRefreshHelper.getEarliestNextEligibleAt(trackedManga, latestChapterDates)
             val marginMillis = Random.nextLong(5, 9) * 60 * 1000L

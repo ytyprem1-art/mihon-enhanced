@@ -1,29 +1,34 @@
 package eu.kanade.tachiyomi.data.backup.create.creators
 
+import dev.zacsweers.metro.Inject
 import app.cash.sqldelight.async.coroutines.awaitAsList
-import app.cash.sqldelight.async.coroutines.awaitAsOne
 import eu.kanade.tachiyomi.data.backup.create.BackupOptions
-import eu.kanade.tachiyomi.data.backup.models.BackupChapter
 import eu.kanade.tachiyomi.data.backup.models.BackupHistory
 import eu.kanade.tachiyomi.data.backup.models.BackupManga
-import eu.kanade.tachiyomi.data.backup.models.backupChapterMapper
 import eu.kanade.tachiyomi.data.backup.models.backupMergedMangaReferenceMapper
-import eu.kanade.tachiyomi.data.backup.models.backupTrackMapper
+import eu.kanade.tachiyomi.data.backup.models.toBackupChapter
+import eu.kanade.tachiyomi.data.backup.models.toBackupTracking
 import eu.kanade.tachiyomi.ui.reader.setting.ReadingMode
-import tachiyomi.data.Database
-import tachiyomi.data.MemoColumnAdapter
+import mihon.core.common.extensions.toByteArray
+import mihon.core.common.extensions.toEpochMillisOrZero
 import tachiyomi.domain.category.interactor.GetCategories
+import tachiyomi.domain.chapter.repository.ChapterRepository
 import tachiyomi.domain.history.interactor.GetHistory
 import tachiyomi.domain.history.interactor.ManageHistoryCategory
 import tachiyomi.domain.manga.model.Manga
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
+import tachiyomi.domain.manga.repository.MangaRepository
+import tachiyomi.domain.track.repository.TrackRepository
 
+@Inject
 class MangaBackupCreator(
-    private val database: Database = Injekt.get(),
-    private val getCategories: GetCategories = Injekt.get(),
-    private val getHistory: GetHistory = Injekt.get(),
-    private val manageHistoryCategory: ManageHistoryCategory = Injekt.get(),
+    private val syncVersions: eu.kanade.tachiyomi.ui.mod.sync.EnhancedSyncVersions,
+    private val database: tachiyomi.data.Database,
+    private val mangaRepository: MangaRepository,
+    private val chapterRepository: ChapterRepository,
+    private val trackRepository: TrackRepository,
+    private val getCategories: GetCategories,
+    private val getHistory: GetHistory,
+    private val manageHistoryCategory: ManageHistoryCategory,
 ) {
 
     suspend operator fun invoke(mangas: List<Manga>, options: BackupOptions): List<BackupManga> {
@@ -34,22 +39,16 @@ class MangaBackupCreator(
 
     private suspend fun backupManga(manga: Manga, options: BackupOptions): BackupManga {
         // Entry for this manga
-        val mangaObject = manga.toBackupManga()
+        val mangaObject = manga.toBackupManga().apply { version = syncVersions.manga(manga.id) }
 
-        mangaObject.excludedScanlators = database.excluded_scanlatorsQueries
-            .getExcludedScanlatorsByMangaId(manga.id)
-            .awaitAsList()
+        mangaObject.excludedScanlators = mangaRepository.getExcludedScanlators(manga.id).toList()
 
         if (options.chapters) {
-            // Backup all the chapters
-            database.chaptersQueries
-                .getChaptersByMangaId(
-                    mangaId = manga.id,
-                    applyScanlatorFilter = 0, // false
-                    mapper = backupChapterMapper,
-                )
-                .awaitAsList()
-                .takeUnless(List<BackupChapter>::isEmpty)
+            // Read sync counters in one query per manga, including long chapters lists.
+            val chapterVersions = syncVersions.chapters(manga.id)
+            chapterRepository.getChapterByMangaId(manga.id, applyScanlatorFilter = false)
+                .map { chapter -> chapter.toBackupChapter().apply { version = chapterVersions[chapter.id] ?: 0L } }
+                .takeUnless { it.isEmpty() }
                 ?.let { mangaObject.chapters = it }
         }
 
@@ -62,9 +61,7 @@ class MangaBackupCreator(
         }
 
         if (options.tracking) {
-            val tracks = database.manga_syncQueries
-                .getTracksByMangaId(manga.id, backupTrackMapper)
-                .awaitAsList()
+            val tracks = trackRepository.getTracksByMangaId(manga.id).map { it.toBackupTracking() }
             if (tracks.isNotEmpty()) {
                 mangaObject.tracking = tracks
             }
@@ -73,11 +70,11 @@ class MangaBackupCreator(
         if (options.history) {
             val historyByMangaId = getHistory.await(manga.id)
             if (historyByMangaId.isNotEmpty()) {
-                val history = historyByMangaId.map { history ->
-                    val chapter = database.chaptersQueries
-                        .getChapterById(history.chapterId)
-                        .awaitAsOne()
-                    BackupHistory(chapter.url, history.readAt?.time ?: 0L, history.readDuration)
+                val chapterUrlsById = chapterRepository.getChapterByMangaId(manga.id).associate { it.id to it.url }
+                val history = historyByMangaId.mapNotNull { history ->
+                    // A chapter removed since its history was read takes that history with it
+                    val url = chapterUrlsById[history.chapterId] ?: return@mapNotNull null
+                    BackupHistory(url, history.readAt.toEpochMillisOrZero(), history.readDuration)
                 }
                 if (history.isNotEmpty()) {
                     mangaObject.history = history
@@ -85,7 +82,7 @@ class MangaBackupCreator(
             }
         }
 
-        mangaObject.historyCategory = manageHistoryCategory.getMangaCategory(manga.id) ?: 0L
+        mangaObject.historyCategory = if (options.modHistoryCategories) manageHistoryCategory.getMangaCategory(manga.id) ?: 0L else 0L
 
         mangaObject.mergedMangaReferences = database.mergedQueries
             .selectByMergeId(manga.id, backupMergedMangaReferenceMapper)
@@ -107,15 +104,13 @@ private fun Manga.toBackupManga() =
         thumbnailUrl = this.thumbnailUrl,
         favorite = this.favorite,
         source = this.source,
-        dateAdded = this.dateAdded,
+        dateAdded = this.favoriteAt.toEpochMillisOrZero(),
         viewer = (this.viewerFlags.toInt() and ReadingMode.MASK),
         viewer_flags = this.viewerFlags.toInt(),
         chapterFlags = this.chapterFlags.toInt(),
         updateStrategy = this.updateStrategy,
-        lastModifiedAt = this.lastModifiedAt,
-        favoriteModifiedAt = this.favoriteModifiedAt,
-        version = this.version,
         notes = this.notes,
         initialized = this.initialized,
-        memo = MemoColumnAdapter.encode(this.memo),
+        memo = this.memo.toByteArray(),
+
     )

@@ -12,6 +12,8 @@ import kotlinx.coroutines.flow.update
 import eu.kanade.tachiyomi.ui.mod.panelshare.ChatPanelStore
 import eu.kanade.tachiyomi.ui.mod.panelshare.ChatHistoryPaging
 
+@dev.zacsweers.metro.Inject
+@dev.zacsweers.metro.SingleIn(dev.zacsweers.metro.AppScope::class)
 class ChatManager {
 
     private val auth = FirebaseAuth.getInstance()

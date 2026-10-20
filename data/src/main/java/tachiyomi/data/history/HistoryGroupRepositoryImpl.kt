@@ -11,6 +11,9 @@ import tachiyomi.data.subscribeToOneOrNull
 import tachiyomi.domain.history.group.model.HistoryGroup
 import tachiyomi.domain.history.group.repository.HistoryGroupRepository
 
+@dev.zacsweers.metro.SingleIn(dev.zacsweers.metro.AppScope::class)
+@dev.zacsweers.metro.ContributesBinding(dev.zacsweers.metro.AppScope::class)
+@dev.zacsweers.metro.Inject
 class HistoryGroupRepositoryImpl(
     private val database: Database,
 ) : HistoryGroupRepository {

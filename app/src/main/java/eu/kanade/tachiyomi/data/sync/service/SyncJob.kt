@@ -1,6 +1,7 @@
 package eu.kanade.tachiyomi.data.sync.service
 
 import android.content.Context
+import mihon.app.di.appGraph
 import androidx.work.BackoffPolicy
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
@@ -28,7 +29,7 @@ class SyncJob(private val context: Context, workerParams: WorkerParameters) :
         }
 
         return try {
-            val syncManager = SyncManager(context)
+            val syncManager = context.appGraph.enhancedSyncManager
             syncManager.syncData(showUserNotification = false, rethrowErrors = true)
             Result.success()
         } catch (e: CancellationException) {

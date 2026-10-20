@@ -1,5 +1,6 @@
 package eu.kanade.tachiyomi.ui.mod.updatewatch
 
+import eu.kanade.tachiyomi.ui.mod.util.dateUploadMillis
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -66,9 +67,7 @@ fun UpdateWatchContent(
                     }
                     is UpdateWatchUiModel.Item -> {
                         val sourceManager = remember { Injekt.get<SourceManager>() }
-                        val sourceName = remember(item.trackingManga.source) {
-                            sourceManager.getOrStub(item.trackingManga.source).name
-                        }
+                        val sourceName = eu.kanade.tachiyomi.ui.mod.components.rememberSourceName(item.trackingManga.source)
 
                         var showMenu by remember { mutableStateOf(false) }
 
@@ -94,7 +93,7 @@ fun UpdateWatchContent(
                                 chapterId = item.latestChapter.id,
                                 title = item.group?.name ?: item.trackingManga.title,
                                 chapterNumber = item.latestChapter.chapterNumber,
-                                readAt = java.util.Date(item.latestChapter.dateUpload),
+                                readAt = item.latestChapter.dateUpload,
                                 readDuration = 0L,
                                 coverData = MangaCover(
                                     mangaId = item.trackingManga.id,
@@ -145,7 +144,7 @@ fun UpdateWatchContent(
                                             enabled = item.backgroundRefreshEnabled,
                                             expectedIntervalDays = item.expectedIntervalDays,
                                             refreshProfile = item.refreshProfile,
-                                            latestChapterUploadDate = item.latestChapter.dateUpload,
+                                            latestChapterUploadDate = item.latestChapter.dateUploadMillis,
                                             lastCheckAt = item.lastBackgroundCheckAt,
                                             now = System.currentTimeMillis()
                                         )

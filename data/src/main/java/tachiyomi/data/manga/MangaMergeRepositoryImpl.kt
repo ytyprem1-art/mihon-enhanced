@@ -13,6 +13,9 @@ import tachiyomi.domain.manga.model.MergedMangaReference
 import tachiyomi.domain.manga.repository.MangaMergeRepository
 import eu.kanade.tachiyomi.source.mod.MERGED_SOURCE_ID
 
+@dev.zacsweers.metro.SingleIn(dev.zacsweers.metro.AppScope::class)
+@dev.zacsweers.metro.ContributesBinding(dev.zacsweers.metro.AppScope::class)
+@dev.zacsweers.metro.Inject
 class MangaMergeRepositoryImpl(
     private val database: Database,
 ) : MangaMergeRepository {

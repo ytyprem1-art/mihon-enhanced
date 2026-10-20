@@ -1,0 +1,211 @@
+import kotlin.Boolean;
+import kotlin.Long;
+import kotlin.collections.List;
+
+-- Rebind every saved mod relationship after upstream deduplication.
+
+CREATE TABLE mod_upgrade_manga_map AS SELECT O.old_id, M.id AS new_id FROM mod_upgrade_manga_identity O JOIN manga M ON M.source_id = O.source AND M.remote_url = O.url;
+
+CREATE UNIQUE INDEX mod_upgrade_manga_map_id ON mod_upgrade_manga_map(old_id);
+
+CREATE TABLE mod_upgrade_chapter_map AS SELECT O.old_id, C.id AS new_id FROM mod_upgrade_chapter_identity O JOIN mod_upgrade_manga_map M ON M.old_id = O.manga_id JOIN chapter C ON C.manga_id = M.new_id AND C.remote_url = O.url;
+
+CREATE UNIQUE INDEX mod_upgrade_chapter_map_id ON mod_upgrade_chapter_map(old_id);
+
+CREATE TABLE history_category_mapping (
+    _id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    manga_id INTEGER NOT NULL,
+    category_id INTEGER NOT NULL,
+    FOREIGN KEY(category_id) REFERENCES history_categories(_id) ON DELETE CASCADE
+);
+
+INSERT OR REPLACE INTO history_category_mapping (_id, manga_id, category_id)
+SELECT O._id, (SELECT new_id FROM mod_upgrade_manga_map WHERE old_id = O.manga_id), O.category_id FROM mod_upgrade_history_category_mapping O
+WHERE EXISTS (SELECT 1 FROM mod_upgrade_manga_map WHERE old_id = O.manga_id) ORDER BY O.rowid;
+
+DELETE FROM history_category_mapping WHERE _id NOT IN (
+    SELECT min(_id) FROM history_category_mapping GROUP BY manga_id
+);
+DROP TABLE mod_upgrade_history_category_mapping;
+
+CREATE TABLE linked_source_members (
+    _id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    group_id INTEGER NOT NULL,
+    manga_id INTEGER NOT NULL,
+    FOREIGN KEY(group_id) REFERENCES linked_source_groups(_id) ON DELETE CASCADE
+);
+
+INSERT OR REPLACE INTO linked_source_members (_id, group_id, manga_id)
+SELECT O._id, O.group_id, (SELECT new_id FROM mod_upgrade_manga_map WHERE old_id = O.manga_id) FROM mod_upgrade_linked_source_members O
+WHERE EXISTS (SELECT 1 FROM mod_upgrade_manga_map WHERE old_id = O.manga_id) ORDER BY O.rowid;
+
+DROP TABLE mod_upgrade_linked_source_members;
+
+CREATE TABLE history_group_members (
+    manga_id INTEGER NOT NULL PRIMARY KEY,
+    group_id INTEGER NOT NULL,
+    FOREIGN KEY (manga_id) REFERENCES manga (id) ON DELETE CASCADE,
+    FOREIGN KEY (group_id) REFERENCES history_groups (_id) ON DELETE CASCADE
+);
+
+INSERT OR REPLACE INTO history_group_members (manga_id, group_id)
+SELECT (SELECT new_id FROM mod_upgrade_manga_map WHERE old_id = O.manga_id), O.group_id FROM mod_upgrade_history_group_members O
+WHERE EXISTS (SELECT 1 FROM mod_upgrade_manga_map WHERE old_id = O.manga_id) ORDER BY O.rowid;
+
+DROP TABLE mod_upgrade_history_group_members;
+
+CREATE TABLE update_watch (
+    manga_id INTEGER NOT NULL PRIMARY KEY,
+    is_paused INTEGER NOT NULL DEFAULT 0,
+    background_refresh_enabled INTEGER NOT NULL DEFAULT 0,
+    expected_interval_days INTEGER NOT NULL DEFAULT 7,
+    refresh_profile TEXT NOT NULL DEFAULT 'WEEKLY_STABLE',
+    last_background_check_at INTEGER,
+    last_warned_milestone INTEGER NOT NULL DEFAULT 0,
+    FOREIGN KEY(manga_id) REFERENCES manga (id) ON DELETE CASCADE
+);
+
+INSERT OR REPLACE INTO update_watch (manga_id, is_paused, background_refresh_enabled, expected_interval_days, refresh_profile, last_background_check_at, last_warned_milestone)
+SELECT (SELECT new_id FROM mod_upgrade_manga_map WHERE old_id = O.manga_id), O.is_paused, O.background_refresh_enabled, O.expected_interval_days, O.refresh_profile, O.last_background_check_at, O.last_warned_milestone FROM mod_upgrade_update_watch O
+WHERE EXISTS (SELECT 1 FROM mod_upgrade_manga_map WHERE old_id = O.manga_id) ORDER BY O.background_refresh_enabled, last_background_check_at;
+
+DROP TABLE mod_upgrade_update_watch;
+
+CREATE TABLE update_watch_inbox (
+    manga_id INTEGER NOT NULL PRIMARY KEY,
+    manga_title TEXT NOT NULL,
+    source_id INTEGER NOT NULL,
+    source_name TEXT NOT NULL,
+    chapter_count INTEGER NOT NULL,
+    chapter_range TEXT NOT NULL,
+    first_found_at INTEGER NOT NULL,
+    last_found_at INTEGER NOT NULL,
+    latest_chapter_id INTEGER NOT NULL,
+    latest_chapter_number REAL NOT NULL,
+    latest_chapter_upload_at INTEGER NOT NULL,
+    chapter_ids TEXT AS List<Long> NOT NULL,
+    type INTEGER NOT NULL DEFAULT 0,
+    milestone INTEGER NOT NULL DEFAULT 0,
+    FOREIGN KEY(manga_id) REFERENCES manga (id) ON DELETE CASCADE
+);
+
+-- SQLite on older Android versions has no JSON extension: split the stored ID list using a CTE.
+CREATE TABLE mod_upgrade_inbox_ids AS
+WITH RECURSIVE split(manga_id, position, token, remaining) AS (
+    SELECT manga_id, 0, '', chapter_ids || ',' FROM mod_upgrade_update_watch_inbox
+    UNION ALL
+    SELECT manga_id, position + 1, trim(substr(remaining, 1, instr(remaining, ',') - 1)),
+           substr(remaining, instr(remaining, ',') + 1)
+    FROM split WHERE remaining != ''
+)
+SELECT manga_id, position, CAST(token AS INTEGER) AS chapter_id FROM split WHERE token != '';
+
+INSERT OR REPLACE INTO update_watch_inbox (manga_id, manga_title, source_id, source_name, chapter_count, chapter_range, first_found_at, last_found_at, latest_chapter_id, latest_chapter_number, latest_chapter_upload_at, chapter_ids, type, milestone)
+SELECT (SELECT new_id FROM mod_upgrade_manga_map WHERE old_id = O.manga_id), O.manga_title, O.source_id, O.source_name, O.chapter_count, O.chapter_range, O.first_found_at, O.last_found_at, coalesce((SELECT new_id FROM mod_upgrade_chapter_map WHERE old_id = O.latest_chapter_id), O.latest_chapter_id), O.latest_chapter_number, O.latest_chapter_upload_at, coalesce((SELECT group_concat(new_id, ', ') FROM (
+    SELECT DISTINCT CM.new_id FROM mod_upgrade_inbox_ids J
+    JOIN mod_upgrade_chapter_map CM ON CM.old_id = J.chapter_id WHERE J.manga_id = O.manga_id ORDER BY J.position
+)), ''), O.type, O.milestone FROM mod_upgrade_update_watch_inbox O
+WHERE EXISTS (SELECT 1 FROM mod_upgrade_manga_map WHERE old_id = O.manga_id) ORDER BY O.last_found_at;
+
+DROP TABLE mod_upgrade_update_watch_inbox;
+DROP TABLE mod_upgrade_inbox_ids;
+
+CREATE TABLE update_watch_history (
+    manga_id INTEGER NOT NULL,
+    timestamp INTEGER NOT NULL,
+    success INTEGER NOT NULL,
+    new_chapters INTEGER NOT NULL,
+    category TEXT NOT NULL,
+    detail TEXT,
+    PRIMARY KEY (manga_id, timestamp),
+    FOREIGN KEY(manga_id) REFERENCES manga (id) ON DELETE CASCADE
+);
+
+INSERT OR REPLACE INTO update_watch_history (manga_id, timestamp, success, new_chapters, category, detail)
+SELECT (SELECT new_id FROM mod_upgrade_manga_map WHERE old_id = O.manga_id), O.timestamp, O.success, O.new_chapters, O.category, O.detail FROM mod_upgrade_update_watch_history O
+WHERE EXISTS (SELECT 1 FROM mod_upgrade_manga_map WHERE old_id = O.manga_id) ORDER BY O.timestamp;
+
+DROP TABLE mod_upgrade_update_watch_history;
+
+CREATE TABLE merged(
+    _id INTEGER NOT NULL PRIMARY KEY,
+    info_manga INTEGER AS Boolean NOT NULL,
+    get_chapter_updates INTEGER AS Boolean NOT NULL,
+    chapter_sort_mode INTEGER NOT NULL,
+    chapter_priority INTEGER NOT NULL,
+    download_chapters INTEGER AS Boolean NOT NULL,
+    merge_id INTEGER NOT NULL,
+    merge_url TEXT NOT NULL,
+    manga_id INTEGER,
+    manga_url TEXT NOT NULL,
+    manga_source INTEGER NOT NULL,
+    FOREIGN KEY(manga_id) REFERENCES manga (id)
+    ON DELETE SET NULL,
+    FOREIGN KEY(merge_id) REFERENCES manga (id)
+    ON DELETE CASCADE
+);
+
+INSERT OR REPLACE INTO merged (_id, info_manga, get_chapter_updates, chapter_sort_mode, chapter_priority, download_chapters, merge_id, merge_url, manga_id, manga_url, manga_source)
+SELECT O._id, O.info_manga, O.get_chapter_updates, O.chapter_sort_mode, O.chapter_priority, O.download_chapters, (SELECT new_id FROM mod_upgrade_manga_map WHERE old_id = O.merge_id), O.merge_url, (SELECT new_id FROM mod_upgrade_manga_map WHERE old_id = O.manga_id), O.manga_url, O.manga_source FROM mod_upgrade_merged O
+WHERE EXISTS (SELECT 1 FROM mod_upgrade_manga_map WHERE old_id = O.merge_id) ORDER BY O.rowid;
+
+DELETE FROM merged WHERE _id NOT IN (
+    SELECT min(_id) FROM merged GROUP BY merge_id, manga_source, manga_url
+);
+DROP TABLE mod_upgrade_merged;
+
+CREATE INDEX merged_merge_id_index ON merged(merge_id);
+
+CREATE INDEX update_watch_history_manga_id_timestamp_idx ON update_watch_history(manga_id, timestamp);
+
+-- Mod-only counters retain compatibility with existing Drive sync backups.
+CREATE TABLE enhanced_sync_state (id INTEGER NOT NULL PRIMARY KEY, restoring INTEGER NOT NULL DEFAULT 0);
+INSERT INTO enhanced_sync_state(id, restoring) VALUES (1, 0);
+
+CREATE TABLE enhanced_manga_version (
+    manga_id INTEGER NOT NULL PRIMARY KEY REFERENCES manga(id) ON DELETE CASCADE,
+    version INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE enhanced_chapter_version (
+    chapter_id INTEGER NOT NULL PRIMARY KEY REFERENCES chapter(id) ON DELETE CASCADE,
+    version INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TRIGGER enhanced_manga_version_updated AFTER UPDATE ON manga
+WHEN (SELECT restoring FROM enhanced_sync_state WHERE id = 1) = 0 AND (
+    new.remote_url IS NOT old.remote_url OR
+    new.remote_description IS NOT old.remote_description OR
+    (new.user_favorite_at IS NULL) != (old.user_favorite_at IS NULL)
+)
+BEGIN
+    INSERT OR IGNORE INTO enhanced_manga_version(manga_id, version) VALUES(new.id, 0);
+    UPDATE enhanced_manga_version SET version = version + 1 WHERE manga_id = new.id;
+END;
+
+CREATE TRIGGER enhanced_chapter_version_updated AFTER UPDATE ON chapter
+WHEN (SELECT restoring FROM enhanced_sync_state WHERE id = 1) = 0 AND (
+    new.user_read != old.user_read OR new.user_bookmark != old.user_bookmark OR
+    new.user_last_page_read != old.user_last_page_read
+)
+BEGIN
+    INSERT OR IGNORE INTO enhanced_chapter_version(chapter_id, version) VALUES(new.id, 0);
+    UPDATE enhanced_chapter_version SET version = version + 1 WHERE chapter_id = new.id;
+    INSERT OR IGNORE INTO enhanced_manga_version(manga_id, version) VALUES(new.manga_id, 0);
+    UPDATE enhanced_manga_version SET version = version + 1 WHERE manga_id = new.manga_id;
+END;
+
+
+INSERT INTO enhanced_manga_version(manga_id, version)
+SELECT M.new_id, max(O.version) FROM mod_upgrade_manga_identity O
+JOIN mod_upgrade_manga_map M ON M.old_id = O.old_id GROUP BY M.new_id;
+INSERT INTO enhanced_chapter_version(chapter_id, version)
+SELECT C.new_id, max(O.version) FROM mod_upgrade_chapter_identity O
+JOIN mod_upgrade_chapter_map C ON C.old_id = O.old_id GROUP BY C.new_id;
+
+DROP TABLE mod_upgrade_manga_identity;
+
+DROP TABLE mod_upgrade_chapter_identity;
+
+DROP TABLE mod_upgrade_manga_map;
+
+DROP TABLE mod_upgrade_chapter_map;

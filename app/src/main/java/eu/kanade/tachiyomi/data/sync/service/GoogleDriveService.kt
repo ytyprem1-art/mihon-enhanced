@@ -24,9 +24,9 @@ import com.google.api.services.drive.DriveScopes
 import eu.kanade.domain.sync.SyncPreferences
 import eu.kanade.tachiyomi.util.system.PkceUtil
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import logcat.LogPriority
-import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.core.common.util.system.logcat
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
@@ -37,7 +37,12 @@ import java.security.SecureRandom
 /**
  * Service class for handling Google Drive authentication and API interactions.
  */
-class GoogleDriveService(private val context: Context) {
+@dev.zacsweers.metro.Inject
+@dev.zacsweers.metro.SingleIn(dev.zacsweers.metro.AppScope::class)
+class GoogleDriveService(
+    private val context: Context,
+    @mihon.core.metro.AppCoroutineScope private val appScope: kotlinx.coroutines.CoroutineScope,
+) {
 
     private val syncPreferences: SyncPreferences = Injekt.get()
 
@@ -209,7 +214,7 @@ class GoogleDriveService(private val context: Context) {
         onSuccess: () -> Unit,
         onFailure: (String) -> Unit,
     ) {
-        launchIO {
+        appScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             try {
                 val expectedState = syncPreferences.googleDriveOAuthState().get()
                 val codeVerifier = syncPreferences.googleDriveOAuthCodeVerifier().get()

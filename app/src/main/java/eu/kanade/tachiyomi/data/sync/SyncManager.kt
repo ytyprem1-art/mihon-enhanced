@@ -29,17 +29,21 @@ import java.util.UUID
 /**
  * Manager class for handling synchronization tasks between local database and sync services.
  */
+@dev.zacsweers.metro.Inject
+@dev.zacsweers.metro.SingleIn(dev.zacsweers.metro.AppScope::class)
 class SyncManager(
     private val context: Context,
+    backupCreatorFactory: BackupCreator.Factory,
+    backupRestorerFactory: BackupRestorer.Factory,
+    private val backupDecoder: BackupDecoder,
+    backupNotifier: BackupNotifier,
     private val syncPreferences: SyncPreferences = Injekt.get(),
 ) {
     private val notifier: SyncNotifier = SyncNotifier(context)
     private val protoBuf: ProtoBuf = Injekt.get()
-    private val backupCreator: BackupCreator = BackupCreator(context, isAutoBackup = false)
-    private val backupDecoder: BackupDecoder = BackupDecoder(context)
-    private val backupRestorer: BackupRestorer = BackupRestorer(
-        context = context,
-        notifier = BackupNotifier(context),
+    private val backupCreator: BackupCreator = backupCreatorFactory.create(isAutoBackup = false)
+    private val backupRestorer: BackupRestorer = backupRestorerFactory.create(
+        notifier = backupNotifier,
         isSync = true,
     )
 

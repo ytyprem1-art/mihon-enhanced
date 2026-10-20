@@ -382,9 +382,7 @@ private fun MemberTableRow(
 ) {
     val manga = member.manga
     val sourceManager: SourceManager = remember { Injekt.get() }
-    val sourceName = remember(manga.source) {
-        sourceManager.getOrStub(manga.source).name
-    }
+    val sourceName = eu.kanade.tachiyomi.ui.mod.components.rememberSourceName(manga.source)
     val isCurrentManga = manga.id == currentMangaId
 
     Row(
@@ -548,7 +546,7 @@ private fun MemberTableRow(
         )
 
         // Last Check
-        val lastCheckTimestamp = manga.lastModifiedAt * 1000
+        val lastCheckTimestamp = (manga.lastUpdate?.toEpochMilliseconds() ?: 0L) * 1000
         val lastCheckText = if (lastCheckTimestamp > 0L) {
             formatCompactRelativeTime(lastCheckTimestamp)
         } else {

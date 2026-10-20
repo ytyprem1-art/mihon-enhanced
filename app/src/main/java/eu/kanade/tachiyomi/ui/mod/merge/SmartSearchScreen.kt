@@ -55,7 +55,7 @@ class SmartSearchScreen(
                     }
                     navigator.replace(
                         BrowseSourceScreen(
-                            sourceId = screenModel.source.id,
+                            sourceId = sourceId,
                             listingQuery = title,
                         ),
                     )
@@ -66,7 +66,7 @@ class SmartSearchScreen(
         Scaffold(
             topBar = { scrollBehavior ->
                 AppBar(
-                    title = screenModel.source.name,
+                    title = screenModel.source?.name.orEmpty(),
                     navigateUp = navigator::pop,
                     scrollBehavior = scrollBehavior,
                 )

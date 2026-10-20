@@ -26,11 +26,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.CreationExtras
-import androidx.lifecycle.viewmodel.compose.viewModel
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
-import eu.kanade.core.util.ifSourcesLoaded
 import eu.kanade.presentation.browse.GlobalSearchScreen
 import eu.kanade.presentation.util.Screen
 import eu.kanade.tachiyomi.ui.browse.source.browse.BrowseSourceScreen
@@ -47,21 +44,12 @@ class LinkedSourceSearchScreen(
 
     @Composable
     override fun Content() {
-        if (!ifSourcesLoaded()) {
-            LoadingScreen()
-            return
-        }
-
         val navigator = LocalNavigator.currentOrThrow
         val context = LocalContext.current
 
-        val viewModel = viewModel<LinkedSourceSearchViewModel>(
-            factory = LinkedSourceSearchViewModel.Factory,
-            extras = CreationExtras {
-                set(LinkedSourceSearchViewModel.LINKED_GROUP_ID_KEY, linkedGroupId)
-                set(LinkedSourceSearchViewModel.INITIAL_QUERY_KEY, searchQuery)
-            },
-        )
+        val viewModel = dev.zacsweers.metrox.viewmodel.assistedMetroViewModel<LinkedSourceSearchViewModel, LinkedSourceSearchViewModel.Factory> {
+            create(linkedGroupId = linkedGroupId, initialQuery = searchQuery)
+        }
         val state by viewModel.state.collectAsState()
         var showSingleLoadingScreen by remember {
             mutableStateOf(searchQuery.isNotEmpty() && state.total == 1)

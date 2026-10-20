@@ -6,7 +6,7 @@ CREATE TABLE update_watch (
     refresh_profile TEXT NOT NULL DEFAULT 'WEEKLY_STABLE',
     last_background_check_at INTEGER,
     last_warned_milestone INTEGER NOT NULL DEFAULT 0,
-    FOREIGN KEY(manga_id) REFERENCES mangas (_id) ON DELETE CASCADE
+    FOREIGN KEY(manga_id) REFERENCES manga (id) ON DELETE CASCADE
 );
 
 getTrackedMangaIds:

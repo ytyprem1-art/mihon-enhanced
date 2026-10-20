@@ -4,6 +4,7 @@ import kotlinx.coroutines.flow.Flow
 import tachiyomi.domain.history.model.UpdateWatchInboxItem
 import tachiyomi.domain.history.repository.UpdateWatchInboxRepository
 
+@dev.zacsweers.metro.Inject
 class GetUpdateWatchInbox(
     private val repository: UpdateWatchInboxRepository,
 ) {

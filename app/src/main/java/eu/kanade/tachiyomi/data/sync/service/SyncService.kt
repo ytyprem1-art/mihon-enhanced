@@ -97,7 +97,11 @@ abstract class SyncService(
             remoteSyncData.backup?.backupExtensionStores,
         )
 
+        val inboxDismissals = eu.kanade.tachiyomi.ui.mod.updatewatch.UpdateWatchDismissals.merge(
+            localSyncData.backup?.updateWatchDismissals.orEmpty(), remoteSyncData.backup?.updateWatchDismissals.orEmpty(),
+        )
         val mergedBackup = Backup(
+            updateWatchDismissals = inboxDismissals,
             backupManga = mergedMangaList,
             backupCategories = mergedMangaCategoriesList,
             backupSources = mergedSourcesList,
@@ -117,9 +121,10 @@ abstract class SyncService(
                 localSyncData.backup?.backupUpdateWatch,
                 remoteSyncData.backup?.backupUpdateWatch,
             ),
-            backupUpdateWatchInbox = mergeUpdateWatchInboxLists(
-                localSyncData.backup?.backupUpdateWatchInbox,
-                remoteSyncData.backup?.backupUpdateWatchInbox,
+            backupUpdateWatchInbox = eu.kanade.tachiyomi.ui.mod.updatewatch.UpdateWatchDismissals.filterBackupInbox(
+                mergeUpdateWatchInboxLists(
+                    localSyncData.backup?.backupUpdateWatchInbox, remoteSyncData.backup?.backupUpdateWatchInbox,
+                ), inboxDismissals,
             ),
             backupUpdateWatchHistory = mergeUpdateWatchHistoryLists(
                 localSyncData.backup?.backupUpdateWatchHistory,

@@ -1,0 +1,33 @@
+-- Preserve mod relationships by stable source + URL while upstream rebuilds its tables.
+
+CREATE TABLE mod_upgrade_manga_identity AS SELECT _id AS old_id, source, url, version FROM mangas;
+
+CREATE TABLE mod_upgrade_chapter_identity AS SELECT _id AS old_id, manga_id, url, version FROM chapters;
+
+CREATE TABLE mod_upgrade_history_category_mapping AS SELECT _id, manga_id, category_id FROM history_category_mapping;
+
+DROP TABLE history_category_mapping;
+
+CREATE TABLE mod_upgrade_linked_source_members AS SELECT _id, group_id, manga_id FROM linked_source_members;
+
+DROP TABLE linked_source_members;
+
+CREATE TABLE mod_upgrade_history_group_members AS SELECT manga_id, group_id FROM history_group_members;
+
+DROP TABLE history_group_members;
+
+CREATE TABLE mod_upgrade_update_watch AS SELECT manga_id, is_paused, background_refresh_enabled, expected_interval_days, refresh_profile, last_background_check_at, last_warned_milestone FROM update_watch;
+
+DROP TABLE update_watch;
+
+CREATE TABLE mod_upgrade_update_watch_inbox AS SELECT manga_id, manga_title, source_id, source_name, chapter_count, chapter_range, first_found_at, last_found_at, latest_chapter_id, latest_chapter_number, latest_chapter_upload_at, chapter_ids, type, milestone FROM update_watch_inbox;
+
+DROP TABLE update_watch_inbox;
+
+CREATE TABLE mod_upgrade_update_watch_history AS SELECT manga_id, timestamp, success, new_chapters, category, detail FROM update_watch_history;
+
+DROP TABLE update_watch_history;
+
+CREATE TABLE mod_upgrade_merged AS SELECT _id, info_manga, get_chapter_updates, chapter_sort_mode, chapter_priority, download_chapters, merge_id, merge_url, manga_id, manga_url, manga_source FROM merged;
+
+DROP TABLE merged;

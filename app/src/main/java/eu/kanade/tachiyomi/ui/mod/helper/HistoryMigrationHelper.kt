@@ -130,34 +130,24 @@ object HistoryMigrationHelper {
                     val finalReadAt = if (targetHistory == null) {
                         history.readAt
                     } else {
-                        val t1 = history.readAt?.time ?: 0L
-                        val t2 = targetHistory.readAt?.time ?: 0L
-                        if (t1 > 0 || t2 > 0) Date(max(t1, t2)) else null
+                        val t1 = history.readAt?.toEpochMilliseconds() ?: 0L
+                        val t2 = targetHistory.readAt?.toEpochMilliseconds() ?: 0L
+                        if (t1 > 0 || t2 > 0) kotlin.time.Instant.fromEpochMilliseconds(max(t1, t2)) else null
                     }
 
-                    database.historyQueries.upsert(targetChapter.id, finalReadAt, history.readDuration)
+                    database.historyQueries.upsert(chapterId = targetChapter.id, readAt = finalReadAt, readDuration = history.readDuration)
 
                     // 2. Delete old history row to rebind identity to Record B
                     database.historyQueries.deleteHistoryByChapterId(history.chapterId)
                     reboundChapterIds.add(history.chapterId)
 
                     // 3. Sync Chapter Progress
-                    database.chaptersQueries.update(
-                        mangaId = null,
-                        url = null,
-                        name = null,
-                        scanlator = null,
-                        read = targetChapter.read || oldChapter.read,
-                        bookmark = targetChapter.bookmark || oldChapter.bookmark,
-                        lastPageRead = max(targetChapter.lastPageRead, oldChapter.lastPageRead),
-                        chapterNumber = null,
-                        sourceOrder = null,
-                        dateFetch = null,
-                        dateUpload = null,
-                        version = null,
-                        isSyncing = null,
-                        memo = null,
-                        chapterId = targetChapter.id
+                    database.chapterQueries.update(
+                        userRead = targetChapter.read || oldChapter.read,
+                        userBookmark = targetChapter.bookmark || oldChapter.bookmark,
+                        userLastPageRead = max(targetChapter.lastPageRead, oldChapter.lastPageRead),
+                        stateDateFetch = null,
+                        id = targetChapter.id,
                     )
                 } else {
                     logcat(LogPriority.DEBUG) {
@@ -171,7 +161,7 @@ object HistoryMigrationHelper {
             // if we are in a manual migration flow (i.e. Record A is about to be replaced)
             if (oldManga.id != targetManga.id && reboundChapterIds.isNotEmpty()) {
                 logcat(LogPriority.INFO) { "Mod: Deleting ${reboundChapterIds.size} rebound chapters from Record A (${oldManga.id})" }
-                database.chaptersQueries.removeChaptersWithIds(reboundChapterIds.toList())
+                database.chapterQueries.removeChaptersWithIds(reboundChapterIds.toList())
             }
         }
     }

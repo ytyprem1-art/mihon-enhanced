@@ -1,9 +1,8 @@
 package eu.kanade.tachiyomi.ui.browse.source.linked
 
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.launch
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.CreationExtras
-import androidx.lifecycle.viewmodel.initializer
-import androidx.lifecycle.viewmodel.viewModelFactory
 import eu.kanade.tachiyomi.ui.browse.source.globalsearch.SearchViewModel
 import eu.kanade.tachiyomi.ui.browse.source.globalsearch.SearchItemResult
 import eu.kanade.tachiyomi.ui.browse.source.globalsearch.SourceFilter
@@ -11,31 +10,29 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
-import tachiyomi.core.common.util.lang.launchIO
-import tachiyomi.core.common.util.lang.withUIContext
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.source.linked.interactor.ManageLinkedSourceGroup
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
+@dev.zacsweers.metro.AssistedInject
 class LinkedSourceSearchViewModel(
-    val linkedGroupId: Long,
-    initialQuery: String = "",
-    private val manageLinkedSourceGroup: ManageLinkedSourceGroup = Injekt.get(),
-) : SearchViewModel(State(searchQuery = initialQuery)) {
-
-    companion object {
-        val LINKED_GROUP_ID_KEY = CreationExtras.Key<Long>()
-        val INITIAL_QUERY_KEY = CreationExtras.Key<String>()
-
-        val Factory = viewModelFactory {
-            initializer {
-                LinkedSourceSearchViewModel(
-                    linkedGroupId = get(LINKED_GROUP_ID_KEY)!!,
-                    initialQuery = get(INITIAL_QUERY_KEY) ?: "",
-                )
-            }
-        }
+    @dev.zacsweers.metro.Assisted val linkedGroupId: Long,
+    @dev.zacsweers.metro.Assisted initialQuery: String,
+    private val manageLinkedSourceGroup: ManageLinkedSourceGroup,
+    sourcePreferences: eu.kanade.domain.source.service.SourcePreferences,
+    sourceManager: tachiyomi.domain.source.service.SourceManager,
+    extensionManager: eu.kanade.tachiyomi.extension.ExtensionManager,
+    networkToLocalManga: tachiyomi.domain.manga.interactor.NetworkToLocalManga,
+    getManga: tachiyomi.domain.manga.interactor.GetManga,
+) : SearchViewModel(
+    State(searchQuery = initialQuery),
+    sourcePreferences = sourcePreferences, sourceManager = sourceManager, extensionManager = extensionManager,
+    networkToLocalManga = networkToLocalManga, getManga = getManga, preferences = sourcePreferences,
+) {
+    @dev.zacsweers.metro.AssistedFactory
+    @dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactoryKey
+    @dev.zacsweers.metro.ContributesIntoMap(dev.zacsweers.metro.AppScope::class)
+    interface Factory : dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactory {
+        fun create(linkedGroupId: Long, initialQuery: String): LinkedSourceSearchViewModel
     }
 
     init {
@@ -48,7 +45,7 @@ class LinkedSourceSearchViewModel(
             search()
         }
 
-        viewModelScope.launchIO {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             state
                 .map { it.items }
                 .distinctUntilChanged()
@@ -70,14 +67,14 @@ class LinkedSourceSearchViewModel(
     }
 
     private fun updateMemberships(memberships: Map<Long, Long?>) {
-        mutableState.update { it.copy(mangaGroupIds = memberships) }
+        updateState { it.copy(mangaGroupIds = memberships) }
     }
 
     fun addMangaToGroup(manga: Manga, onResult: (AddResult) -> Unit) {
-        viewModelScope.launchIO {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             val existingGroupId = manageLinkedSourceGroup.getGroupForManga(manga.id, manga.source)?.id
             if (existingGroupId != null) {
-                withUIContext {
+                withContext(kotlinx.coroutines.Dispatchers.Main) {
                     if (existingGroupId == linkedGroupId) {
                         onResult(AddResult.AlreadyInThisGroup)
                     } else {
@@ -85,7 +82,7 @@ class LinkedSourceSearchViewModel(
                         onResult(AddResult.InAnotherGroup(group?.name ?: "Unknown"))
                     }
                 }
-                return@launchIO
+                return@launch
             }
 
             try {
@@ -94,11 +91,11 @@ class LinkedSourceSearchViewModel(
                 val currentMemberships = state.value.mangaGroupIds.toMutableMap()
                 currentMemberships[manga.id] = linkedGroupId
                 updateMemberships(currentMemberships)
-                withUIContext {
+                withContext(kotlinx.coroutines.Dispatchers.Main) {
                     onResult(AddResult.Success)
                 }
             } catch (e: Exception) {
-                withUIContext {
+                withContext(kotlinx.coroutines.Dispatchers.Main) {
                     onResult(AddResult.Error(e.message ?: "Unknown error"))
                 }
             }

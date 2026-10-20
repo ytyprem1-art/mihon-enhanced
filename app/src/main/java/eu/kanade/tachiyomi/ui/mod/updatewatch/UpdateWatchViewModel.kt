@@ -1,5 +1,7 @@
 package eu.kanade.tachiyomi.ui.mod.updatewatch
 
+import eu.kanade.tachiyomi.ui.mod.util.dateUploadMillis
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.viewModelScope
 import eu.kanade.tachiyomi.ui.mod.updatewatch.helper.UpdateWatchRefreshHelper
@@ -11,7 +13,6 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
-import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.domain.chapter.interactor.GetChaptersByMangaId
 import tachiyomi.core.common.util.system.logcat
 import logcat.LogPriority
@@ -28,7 +29,6 @@ import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.source.linked.interactor.ManageLinkedSourceGroup
 import tachiyomi.domain.source.linked.model.LinkedSourceGroup
 import tachiyomi.domain.history.model.UpdateWatchHistory
-import mihon.core.viewmodel.StateViewModel
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import java.time.LocalDate
@@ -43,22 +43,25 @@ class UpdateWatchViewModel(
     private val manageUpdateWatchInbox: ManageUpdateWatchInbox = Injekt.get(),
     private val getChaptersByMangaId: GetChaptersByMangaId = Injekt.get(),
     private val libraryPreferences: LibraryPreferences = Injekt.get(),
-) : StateViewModel<UpdateWatchViewModel.State>(State()) {
+) : androidx.lifecycle.ViewModel() {
+    private val mutableState = kotlinx.coroutines.flow.MutableStateFlow<UpdateWatchViewModel.State>(State())
+    val state: kotlinx.coroutines.flow.StateFlow<UpdateWatchViewModel.State> = mutableState
+
 
     init {
-        viewModelScope.launchIO {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             libraryPreferences.notifyTrackedUpdates.changes()
                 .collectLatest { enabled ->
                     mutableState.update { it.copy(notificationsEnabled = enabled) }
                 }
         }
-        viewModelScope.launchIO {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             libraryPreferences.funOverdueMessages.changes()
                 .collectLatest { enabled ->
                     mutableState.update { it.copy(funOverdueMessages = enabled) }
                 }
         }
-        viewModelScope.launchIO {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             getUpdateWatchInbox.subscribe()
                 .flatMapLatest { inboxItems ->
                     if (inboxItems.isEmpty()) return@flatMapLatest flowOf(emptyList<EnrichedUpdateWatchInboxItem>())
@@ -69,7 +72,7 @@ class UpdateWatchViewModel(
                             chapterRepository.getChapterByMangaIdAsFlow(item.mangaId),
                         ) { manga, chapters ->
                             val latestChapter = chapters.find { it.id == item.latestChapterId }
-                                ?: chapters.filter { it.dateUpload > 0 }.maxByOrNull { it.dateUpload }
+                                ?: chapters.filter { it.dateUploadMillis > 0 }.maxByOrNull { it.dateUploadMillis }
 
                             EnrichedUpdateWatchInboxItem(
                                 item = item,
@@ -107,7 +110,7 @@ class UpdateWatchViewModel(
                     }
                 }
         }
-        viewModelScope.launchIO {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             manageUpdateWatch.subscribeAll()
                 .flatMapLatest { trackedList ->
                     val activeTracking = trackedList.filter { !it.isPaused }
@@ -123,14 +126,14 @@ class UpdateWatchViewModel(
                         ) { manga, chapters, group, queuedIds ->
                             if (manga == null || chapters.isEmpty()) return@combine null
 
-                            val latestChapter = chapters.filter { it.dateUpload > 0 }
-                                .maxByOrNull { it.dateUpload } ?: return@combine null
+                            val latestChapter = chapters.filter { it.dateUploadMillis > 0 }
+                                .maxByOrNull { it.dateUploadMillis } ?: return@combine null
 
                             val eligibility = UpdateWatchRefreshHelper.getEligibility(
                                 enabled = tracking.backgroundRefreshEnabled,
                                 expectedIntervalDays = tracking.expectedIntervalDays,
                                 refreshProfile = tracking.refreshProfile,
-                                latestChapterUploadDate = latestChapter.dateUpload,
+                                latestChapterUploadDate = latestChapter.dateUploadMillis,
                                 lastCheckAt = tracking.lastBackgroundCheckAt,
                                 now = System.currentTimeMillis(),
                             )
@@ -182,7 +185,7 @@ class UpdateWatchViewModel(
     }
 
     fun pauseTracking(mangaId: Long) {
-        viewModelScope.launchIO {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             try {
                 manageUpdateWatch.updatePaused(mangaId, true)
                 UpdateWatchRefreshScheduler.setupTask(Injekt.get<android.app.Application>())
@@ -193,13 +196,16 @@ class UpdateWatchViewModel(
     }
 
     fun dismissInboxItem(mangaId: Long) {
-        viewModelScope.launchIO {
-            manageUpdateWatchInbox.delete(mangaId)
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            manageUpdateWatchInbox.dismiss(mangaId) { remaining ->
+                eu.kanade.tachiyomi.ui.mod.updatewatch.worker.UpdateWatchNotifier(Injekt.get<android.app.Application>())
+                    .updateAfterDismiss(remaining, libraryPreferences.notifyTrackedUpdates.get())
+            }
         }
     }
 
     fun disableAutoRefresh(mangaId: Long) {
-        viewModelScope.launchIO {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             try {
                 val tracking = manageUpdateWatch.getById(mangaId)
                 if (tracking != null) {

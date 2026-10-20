@@ -69,9 +69,7 @@ class LinkedSourceDetailsScreen(private val groupId: Long) : Screen() {
 
         memberToDelete?.let { member ->
             val sourceManager = remember { Injekt.get<SourceManager>() }
-            val sourceName = remember(member.manga.source) {
-                sourceManager.getOrStub(member.manga.source).name
-            }
+            val sourceName = eu.kanade.tachiyomi.ui.mod.components.rememberSourceName(member.manga.source)
             AlertDialog(
                 onDismissRequest = { memberToDelete = null },
                 title = { Text("Remove Source") },
@@ -113,9 +111,7 @@ class LinkedSourceDetailsScreen(private val groupId: Long) : Screen() {
                                     color = androidx.compose.material3.MaterialTheme.colorScheme.error
                                 )
                                 Text(
-                                    text = dialog.withoutHistory.joinToString(", ") {
-                                        sourceManager.get(it.manga.source)?.name ?: "Unknown source"
-                                    },
+                                    text = dialog.withoutHistory.map { eu.kanade.tachiyomi.ui.mod.components.rememberSourceName(it.manga.source) }.joinToString(", "),
                                     style = androidx.compose.material3.MaterialTheme.typography.bodyMedium,
                                     modifier = Modifier.padding(bottom = 8.dp)
                                 )
@@ -127,9 +123,7 @@ class LinkedSourceDetailsScreen(private val groupId: Long) : Screen() {
                                     color = androidx.compose.material3.MaterialTheme.colorScheme.error
                                 )
                                 Text(
-                                    text = dialog.inOtherGroup.joinToString(", ") {
-                                        sourceManager.get(it.manga.source)?.name ?: "Unknown source"
-                                    },
+                                    text = dialog.inOtherGroup.map { eu.kanade.tachiyomi.ui.mod.components.rememberSourceName(it.manga.source) }.joinToString(", "),
                                     style = androidx.compose.material3.MaterialTheme.typography.bodyMedium,
                                     modifier = Modifier.padding(bottom = 8.dp)
                                 )
@@ -183,7 +177,7 @@ class LinkedSourceDetailsScreen(private val groupId: Long) : Screen() {
                                     },
                                     headlineContent = { Text(member.manga.title) },
                                     supportingContent = {
-                                        Text(sourceManager.getOrStub(member.manga.source).name)
+                                        Text(eu.kanade.tachiyomi.ui.mod.components.rememberSourceName(member.manga.source))
                                     },
                                     trailingContent = {
                                         Checkbox(

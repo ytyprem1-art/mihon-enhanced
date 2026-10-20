@@ -7,6 +7,7 @@ import tachiyomi.domain.manga.repository.MangaRepository
 import tachiyomi.domain.source.linked.model.LinkedSourceGroup
 import tachiyomi.domain.source.linked.repository.LinkedSourceRepository
 
+@dev.zacsweers.metro.Inject
 class ManageLinkedSourceGroup(
     private val repository: LinkedSourceRepository,
     private val mangaRepository: MangaRepository,

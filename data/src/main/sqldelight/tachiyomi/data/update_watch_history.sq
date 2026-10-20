@@ -6,7 +6,7 @@ CREATE TABLE update_watch_history (
     category TEXT NOT NULL,
     detail TEXT,
     PRIMARY KEY (manga_id, timestamp),
-    FOREIGN KEY(manga_id) REFERENCES mangas (_id) ON DELETE CASCADE
+    FOREIGN KEY(manga_id) REFERENCES manga (id) ON DELETE CASCADE
 );
 
 CREATE INDEX update_watch_history_manga_id_timestamp_idx ON update_watch_history(manga_id, timestamp);

@@ -6,7 +6,7 @@ CREATE TABLE history_groups (
 CREATE TABLE history_group_members (
     manga_id INTEGER NOT NULL PRIMARY KEY,
     group_id INTEGER NOT NULL,
-    FOREIGN KEY (manga_id) REFERENCES mangas (_id) ON DELETE CASCADE,
+    FOREIGN KEY (manga_id) REFERENCES manga (id) ON DELETE CASCADE,
     FOREIGN KEY (group_id) REFERENCES history_groups (_id) ON DELETE CASCADE
 );
 

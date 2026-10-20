@@ -3,6 +3,8 @@ package eu.kanade.tachiyomi.ui.mod
 import tachiyomi.core.common.preference.Preference
 import tachiyomi.core.common.preference.PreferenceStore
 
+@dev.zacsweers.metro.Inject
+@dev.zacsweers.metro.SingleIn(dev.zacsweers.metro.AppScope::class)
 class EnhancedPreferences(
     private val preferenceStore: PreferenceStore,
 ) {

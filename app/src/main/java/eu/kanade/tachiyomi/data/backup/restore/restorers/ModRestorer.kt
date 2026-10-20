@@ -25,6 +25,7 @@ import tachiyomi.core.common.util.system.logcat
 import app.cash.sqldelight.async.coroutines.awaitAsList
 import tachiyomi.data.Database
 
+@dev.zacsweers.metro.Inject
 class ModRestorer(
     context: Context,
     private val manageLinkedSourceGroup: ManageLinkedSourceGroup,
@@ -127,7 +128,11 @@ class ModRestorer(
         backupUpdateWatchInbox.forEach { backupItem ->
             val mangaId = mangaUrlToIdMap[backupItem.member.source to backupItem.member.url]
             if (mangaId != null) {
-                val latestChapterId = getChapterIdRobust(mangaId, backupItem.latestChapterUrl, "Update Watch Inbox (latest)")
+                val latestChapterId = if (backupItem.type == UpdateWatchInboxItem.TYPE_INACTIVITY_WARNING) {
+                    0L
+                } else {
+                    getChapterIdRobust(mangaId, backupItem.latestChapterUrl, "Update Watch Inbox (latest)")
+                }
                 if (latestChapterId != null) {
                     val chapterIds = backupItem.chapterUrls.mapNotNull { url ->
                         getChapterIdRobust(mangaId, url, "Update Watch Inbox (member)")
@@ -193,12 +198,12 @@ class ModRestorer(
     }
 
     private suspend fun getChapterIdRobust(mangaId: Long, url: String, type: String): Long? {
-        val chapterList = database.chaptersQueries
-            .getChapterByUrlAndMangaId(url, mangaId)
+        val chapterList = database.chapterQueries
+            .getChapterByUrlAndMangaId(mangaId, url)
             .awaitAsList()
         if (chapterList.size > 1) {
             logcat(LogPriority.WARN) { "Restore: Duplicate chapter found for $type manga $mangaId chapter $url" }
         }
-        return chapterList.firstOrNull()?._id
+        return chapterList.firstOrNull()?.id
     }
 }
