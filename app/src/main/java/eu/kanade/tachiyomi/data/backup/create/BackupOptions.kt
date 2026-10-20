@@ -21,6 +21,7 @@ data class BackupOptions(
     val modLinkedSources: Boolean = true,
     val modUpdateWatch: Boolean = true,
     val modPersonalFavorites: Boolean = true,
+    val modUpdatesCategories: Boolean = true,
 ) {
 
     fun asBooleanArray() = booleanArrayOf(
@@ -39,10 +40,11 @@ data class BackupOptions(
         modLinkedSources,
         modUpdateWatch,
         modPersonalFavorites,
+        modUpdatesCategories,
     )
 
     fun canCreate() = libraryEntries || categories || appSettings || extensionStores || sourceSettings ||
-        modHistoryCategories || modHistoryGroups || modLinkedSources || modUpdateWatch || modPersonalFavorites
+        modHistoryCategories || modHistoryGroups || modLinkedSources || modUpdateWatch || modPersonalFavorites || modUpdatesCategories
 
     companion object {
         val libraryOptions = listOf(
@@ -133,6 +135,11 @@ data class BackupOptions(
                 getter = BackupOptions::modPersonalFavorites,
                 setter = { options, enabled -> options.copy(modPersonalFavorites = enabled) },
             ),
+            Entry(
+                label = MR.strings.mod_updates_categories,
+                getter = BackupOptions::modUpdatesCategories,
+                setter = { options, enabled -> options.copy(modUpdatesCategories = enabled) },
+            ),
         )
 
         fun fromBooleanArray(array: BooleanArray) = BackupOptions(
@@ -151,6 +158,7 @@ data class BackupOptions(
             modLinkedSources = array.getOrElse(12) { true },
             modUpdateWatch = array.getOrElse(13) { true },
             modPersonalFavorites = array.getOrElse(14) { true },
+            modUpdatesCategories = array.getOrElse(15) { true },
         )
     }
 

@@ -63,6 +63,7 @@ class BackupCreator(
     private val getFavorites: GetFavorites,
     private val backupPreferences: BackupPreferences,
     private val inboxDismissals: eu.kanade.tachiyomi.ui.mod.updatewatch.UpdateWatchDismissalStore,
+    private val updatesCategories: eu.kanade.tachiyomi.ui.mod.updatecategory.UpdatesCategories,
     private val modMangaCollector: eu.kanade.tachiyomi.ui.mod.backup.EnhancedBackupMangaCollector,
     private val mangaRepository: MangaRepository,
     private val categoriesBackupCreator: CategoriesBackupCreator,
@@ -182,6 +183,7 @@ class BackupCreator(
             }
 
             val backup = Backup(
+                updatesCategories = updatesCategories.backup(options.modUpdatesCategories),
                 updateWatchDismissals = if (options.modUpdateWatch) inboxDismissals.snapshot() else emptyList(),
                 personalFavorites = PersonalFavoriteBackup.snapshot(options.modPersonalFavorites),
                 backupManga = backupManga,

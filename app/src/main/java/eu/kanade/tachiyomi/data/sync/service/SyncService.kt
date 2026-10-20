@@ -101,6 +101,9 @@ abstract class SyncService(
             localSyncData.backup?.updateWatchDismissals.orEmpty(), remoteSyncData.backup?.updateWatchDismissals.orEmpty(),
         )
         val mergedBackup = Backup(
+            updatesCategories = eu.kanade.tachiyomi.ui.mod.updatecategory.UpdatesCategories.mergeBackups(
+                localSyncData.backup?.updatesCategories.orEmpty(), remoteSyncData.backup?.updatesCategories.orEmpty(),
+            ),
             updateWatchDismissals = inboxDismissals,
             backupManga = mergedMangaList,
             backupCategories = mergedMangaCategoriesList,

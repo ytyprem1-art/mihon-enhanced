@@ -63,6 +63,7 @@ fun UpdateScreen(
     onOpenChapter: (UpdatesItem) -> Unit,
     onFilterClicked: () -> Unit,
     hasActiveFilters: Boolean,
+    categoryBar: @Composable () -> Unit = {},
 ) {
     BackHandler(enabled = state.selectionMode) {
         onSelectAll(false)
@@ -72,6 +73,7 @@ fun UpdateScreen(
 
     Scaffold(
         topBar = { scrollBehavior ->
+            Column {
             UpdatesAppBar(
                 onCalendarClicked = { onCalendarClicked() },
                 onUpdateLibrary = { scope.launch { onUpdateLibrary() } },
@@ -83,6 +85,8 @@ fun UpdateScreen(
                 onCancelActionMode = { onSelectAll(false) },
                 scrollBehavior = scrollBehavior,
             )
+            if (!state.selectionMode) categoryBar()
+            }
         },
         bottomBar = {
             UpdatesBottomBar(

@@ -56,6 +56,7 @@ class BackupFileValidator(
             hasModLinkedSources = backup.backupLinkedSourceGroups.isNotEmpty(),
             hasModUpdateWatch = backup.backupUpdateWatch.isNotEmpty(),
             hasModPersonalFavorites = backup.personalFavorites.isNotEmpty(),
+            hasModUpdatesCategories = backup.updatesCategories.isNotEmpty(),
         )
     }
 
@@ -67,5 +68,6 @@ class BackupFileValidator(
         val hasModLinkedSources: Boolean = false,
         val hasModUpdateWatch: Boolean = false,
         val hasModPersonalFavorites: Boolean = false,
+        val hasModUpdatesCategories: Boolean = false,
     )
 }

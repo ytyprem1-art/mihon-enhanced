@@ -1,6 +1,9 @@
 package eu.kanade.tachiyomi.ui.mod.di
 
 interface EnhancedGraph {
+    val enhancedBackupCreatorFactory: eu.kanade.tachiyomi.data.backup.create.BackupCreator.Factory
+    val enhancedBackupRestorerFactory: eu.kanade.tachiyomi.data.backup.restore.BackupRestorer.Factory
+    val enhancedBackupNotifier: eu.kanade.tachiyomi.data.backup.BackupNotifier
     val enhancedUpdateWatchDismissalStore: eu.kanade.tachiyomi.ui.mod.updatewatch.UpdateWatchDismissalStore
     val enhancedModRestorer: eu.kanade.tachiyomi.data.backup.restore.restorers.ModRestorer
     val enhancedMangaMergeRepository: tachiyomi.domain.manga.repository.MangaMergeRepository

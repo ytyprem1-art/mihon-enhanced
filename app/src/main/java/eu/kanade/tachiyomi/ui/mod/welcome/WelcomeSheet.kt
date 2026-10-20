@@ -73,6 +73,14 @@ fun WelcomeSheet(
 
                 SectionHeader(stringResource(MR.strings.mod_welcome_section_features))
                 FeatureItem(
+                    title = stringResource(MR.strings.mod_welcome_feature_comments_title),
+                    desc = stringResource(MR.strings.mod_welcome_feature_comments_desc),
+                )
+                FeatureItem(
+                    title = stringResource(MR.strings.mod_welcome_feature_updates_categories_title),
+                    desc = stringResource(MR.strings.mod_welcome_feature_updates_categories_desc),
+                )
+                FeatureItem(
                     title = stringResource(MR.strings.mod_welcome_feature_history_categories_title),
                     desc = stringResource(MR.strings.mod_welcome_feature_history_categories_desc)
                 )

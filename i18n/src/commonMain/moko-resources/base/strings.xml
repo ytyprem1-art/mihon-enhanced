@@ -1119,7 +1119,7 @@
     <string name="mod_welcome_intro">Mihon Enhanced adds quality-of-life tools and additional manga management features while keeping the core Mihon experience familiar.</string>
     <string name="mod_welcome_section_features">What\'s in this mod</string>
     <string name="mod_welcome_feature_history_categories_title">History Categories</string>
-    <string name="mod_welcome_feature_history_categories_desc">Organize reading history into custom categories independently from Library categories.</string>
+    <string name="mod_welcome_feature_history_categories_desc">Organize reading history into custom categories independently from Library categories, with source links for automatic categorization.</string>
     <string name="mod_welcome_feature_history_groups_title">History Groups</string>
     <string name="mod_welcome_feature_history_groups_desc">Create manual groups for history entries.</string>
     <string name="mod_welcome_feature_linked_sources_title">Linked Sources</string>
@@ -1127,11 +1127,15 @@
     <string name="mod_welcome_feature_quick_switcher_title">Quick Source Switcher</string>
     <string name="mod_welcome_feature_quick_switcher_desc">Switch between linked or available sources directly from manga-related screens.</string>
     <string name="mod_welcome_feature_update_watch_title">Update Watch</string>
-    <string name="mod_welcome_feature_update_watch_desc">Track manga updates with adaptive refresh scheduling, notifications, inbox/history, and Auto Refresh controls.</string>
+    <string name="mod_welcome_feature_update_watch_desc">Track manga updates with adaptive refresh scheduling, notifications, inbox/history, and Auto Refresh controls. Dismissed chapter updates stay cleared until newer chapters arrive.</string>
+    <string name="mod_welcome_feature_updates_categories_title">Updates Source Categories</string>
+    <string name="mod_welcome_feature_updates_categories_desc">Create categories in Updates and link sources to automatically separate their existing and future updates. Category names, order, and source links are included in backup and restore.</string>
+    <string name="mod_welcome_feature_comments_title">Chapter Comments &amp; Reactions</string>
+    <string name="mod_welcome_feature_comments_desc">Read comments and replies from supported websites directly in the reader, with available comment totals and full-screen image previews. Replies stay expanded while scrolling, and guest chapter reactions are available where supported. Comments load only when opened.</string>
     <string name="mod_welcome_feature_bookmark_import_title">External Bookmark Import</string>
     <string name="mod_welcome_feature_bookmark_import_desc">Import supported external bookmark data into Mihon Enhanced.</string>
     <string name="mod_welcome_feature_backup_restore_title">Extended Backup &amp; Restore</string>
-    <string name="mod_welcome_feature_backup_restore_desc">Backup and restore Mihon Enhanced-specific data including personal favorites, History Categories, History Groups, Linked Sources, merged chapters, and Update Watch state.</string>
+    <string name="mod_welcome_feature_backup_restore_desc">Backup and restore Mihon Enhanced-specific data including personal favorites, History Categories, Updates Source Categories and their source links, History Groups, Linked Sources, merged chapters, and Update Watch state.</string>
     <string name="mod_welcome_feature_migration_title">History Migration &amp; Reconciliation</string>
     <string name="mod_welcome_feature_migration_desc">Improved migration/reconciliation behavior designed to preserve reading progress and mod relationships when manga identities change.</string>
     <string name="mod_welcome_feature_cloudflare_title">MangaNato Cloudflare Handling</string>
@@ -1202,4 +1206,5 @@
     <string name="pref_enable_merge_source_colors_summary">Color merged source names using their deterministic source accent.</string>
     <string name="pref_enable_merge_chapter_title_colors">Enable chapter title colors</string>
     <string name="pref_enable_merge_chapter_title_colors_summary">Color merged chapter titles using the same source accent.</string>
+    <string name="mod_updates_categories">Updates source categories</string>
 </resources>

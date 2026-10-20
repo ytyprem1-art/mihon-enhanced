@@ -23,6 +23,7 @@ data class Backup(
     @ProtoNumber(605) var backupUpdateWatchHistory: List<BackupUpdateWatchHistory> = emptyList(),
     @ProtoNumber(607) var updateWatchDismissals: List<eu.kanade.tachiyomi.ui.mod.updatewatch.UpdateWatchDismissal> = emptyList(),
     @ProtoNumber(606) var personalFavorites: List<PersonalFavorite> = emptyList(),
+    @ProtoNumber(608) var updatesCategories: List<eu.kanade.tachiyomi.ui.mod.updatecategory.UpdatesCategoryBackup> = emptyList(),
 )
 
 @Serializable

@@ -16,6 +16,7 @@ data class RestoreOptions(
     val modLinkedSources: Boolean = true,
     val modUpdateWatch: Boolean = true,
     val modPersonalFavorites: Boolean = true,
+    val modUpdatesCategories: Boolean = true,
 ) {
 
     fun asBooleanArray() = booleanArrayOf(
@@ -29,10 +30,11 @@ data class RestoreOptions(
         modLinkedSources,
         modUpdateWatch,
         modPersonalFavorites,
+        modUpdatesCategories,
     )
 
     fun canRestore() = libraryEntries || categories || appSettings || extensionStores || sourceSettings ||
-        modHistoryCategories || modHistoryGroups || modLinkedSources || modUpdateWatch || modPersonalFavorites
+        modHistoryCategories || modHistoryGroups || modLinkedSources || modUpdateWatch || modPersonalFavorites || modUpdatesCategories
 
     companion object {
         val options = listOf(
@@ -89,6 +91,11 @@ data class RestoreOptions(
                 getter = RestoreOptions::modPersonalFavorites,
                 setter = { options, enabled -> options.copy(modPersonalFavorites = enabled) },
             ),
+            Entry(
+                label = MR.strings.mod_updates_categories,
+                getter = RestoreOptions::modUpdatesCategories,
+                setter = { options, enabled -> options.copy(modUpdatesCategories = enabled) },
+            ),
         )
 
         fun fromBooleanArray(array: BooleanArray) = RestoreOptions(
@@ -102,6 +109,7 @@ data class RestoreOptions(
             modLinkedSources = array.getOrElse(7) { true },
             modUpdateWatch = array.getOrElse(8) { true },
             modPersonalFavorites = array.getOrElse(9) { true },
+            modUpdatesCategories = array.getOrElse(10) { true },
         )
     }
 

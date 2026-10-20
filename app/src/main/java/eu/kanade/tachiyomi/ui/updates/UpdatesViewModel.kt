@@ -81,8 +81,10 @@ class UpdatesViewModel(
     private val getChapter: GetChapter,
     private val libraryPreferences: LibraryPreferences,
     private val updatesPreferences: UpdatesPreferences,
+    val updatesCategories: eu.kanade.tachiyomi.ui.mod.updatecategory.UpdatesCategories,
 ) : ViewModel() {
 
+    val categorySources get() = sourceManager.sources
     private val subscriberGate = SubscriberGate()
 
     val snackbarHostState: SnackbarHostState = SnackbarHostState()
@@ -186,6 +188,7 @@ class UpdatesViewModel(
             .toUpdateItems()
             .applyFilters(itemPreferences)
     }
+        .combine(updatesCategories.changes) { items, categories -> items.filter { categories.includes(it.update.sourceId) } }
         .flowOn(Dispatchers.Default)
         .stateIn(viewModelScope + subscriberGate, SharingStarted.Eagerly, null)
 

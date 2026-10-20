@@ -58,6 +58,7 @@ class BackupRestorer(
     private val stubSourceRepository: StubSourceRepository,
     private val database: tachiyomi.data.Database,
     private val inboxDismissals: eu.kanade.tachiyomi.ui.mod.updatewatch.UpdateWatchDismissalStore,
+    private val updatesCategories: eu.kanade.tachiyomi.ui.mod.updatecategory.UpdatesCategories,
     private val manageUpdateWatchInbox: tachiyomi.domain.history.interactor.ManageUpdateWatchInbox,
     private val modRestorer: ModRestorer,
 ) {
@@ -179,6 +180,7 @@ class BackupRestorer(
             }
 
             PersonalFavoriteBackup.restore(backup.personalFavorites, options.modPersonalFavorites)
+            updatesCategories.restore(backup.updatesCategories, options.modUpdatesCategories)
 
             // TODO: optionally trigger online library + tracker update
         }
