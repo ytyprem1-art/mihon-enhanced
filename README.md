@@ -4,16 +4,20 @@
 
 <br>
 
-[![Android](https://img.shields.io/badge/Android-8.0%2B-60d5a9?style=for-the-badge&logo=android&logoColor=white)](https://github.com/ytyprem1-art/mihon-enhanced/releases)
+[![Android](https://img.shields.io/badge/Android-8.0%2B-60d5a9?style=for-the-badge&logo=android&logoColor=white)](#-build-your-own-fork)
 [![Base](https://img.shields.io/badge/Mihon_base-0.21.2-81a9ff?style=for-the-badge)](https://github.com/mihonapp/mihon)
 [![Development](https://img.shields.io/badge/Development-2.3-c2a0ff?style=for-the-badge)](#-downloads--version-status)
+[![Availability](https://img.shields.io/badge/Latest_features-Build_from_source-f2b67a?style=for-the-badge)](#-build-your-own-fork)
 [![License](https://img.shields.io/badge/License-Apache_2.0-f2b67a?style=for-the-badge)](LICENSE)
 
 **A familiar reader. More room to make it yours.**
 
-[📦 Downloads](https://github.com/ytyprem1-art/mihon-enhanced/releases) &nbsp; · &nbsp; [✨ Features](#-features) &nbsp; · &nbsp; [🔥 Firebase setup](mod/firebase/SETUP.md) &nbsp; · &nbsp; [🐛 Report an issue](https://github.com/ytyprem1-art/mihon-enhanced/issues)
+[🛠️ Build the latest](#-build-your-own-fork) &nbsp; · &nbsp; [📦 Legacy releases](https://github.com/ytyprem1-art/mihon-enhanced/releases) &nbsp; · &nbsp; [✨ Features](#-features) &nbsp; · &nbsp; [🔥 Firebase setup](mod/firebase/SETUP.md) &nbsp; · &nbsp; [🐛 Report an issue](https://github.com/ytyprem1-art/mihon-enhanced/issues)
 
 </div>
+
+> [!IMPORTANT]
+> **Want the latest features? Build from source.** The APKs on the Releases page are older builds from **before Global Chat** and do not include the full feature set described below. There is currently **no public prebuilt APK for the latest source**. Configure **your own Firebase project** for chat and the updater, then compile your own APK. The maintainer's personal chat server and private-group builds are not provided as a public service. Start with [the build instructions](#-build-your-own-fork) and [Firebase setup](mod/firebase/SETUP.md).
 
 ---
 
@@ -93,11 +97,14 @@ The [older History Category repository](https://github.com/ytyprem1-art/mihonHis
 
 ## 📦 Downloads & version status
 
-Use [Releases](https://github.com/ytyprem1-art/mihon-enhanced/releases) for available downloads. A commit or newer source version does **not** mean a signed release has been published.
+| Version / channel | What is available? |
+| :--- | :--- |
+| 📦 [Legacy public releases](https://github.com/ytyprem1-art/mihon-enhanced/releases) | Older APKs from before Global Chat. They do **not** contain all the features listed in this README. |
+| 🛠️ Latest source (`main`) | Current development source: **Mihon Enhanced 2.3**, Android version code **55**. **Compile it yourself** with your own Firebase configuration. No current public prebuilt APK is provided. |
 
-- Signed **2.2** was tested by the maintainer, including update notifications and the update flow.
-- Current development source: **Mihon Enhanced 2.3**, Android version code **55**.
-- 2.3 profile improvements were tested in debug; this README does not announce a 2.3 APK.
+The maintainer has tested signed 2.2 privately with friends, including update notifications and the update flow. That private build is **not a public GitHub release**. The next 2.3 profile improvements have been tested in debug; no public 2.3 APK is announced here.
+
+The feature list describes the latest source code, not the legacy downloadable APKs. To use the current chat and in-app updater, create your own backend using [Firebase setup](mod/firebase/SETUP.md). Forks do not join the maintainer's personal chat or receive private-group updates automatically.
 
 Enhanced uses a different package name from official Mihon, allowing installation alongside it. Debug and signed release builds are separate applications. Updating an existing installation without uninstalling requires its original package name/signing key and a higher Android version code.
 
