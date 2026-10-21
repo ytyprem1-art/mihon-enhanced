@@ -1,3 +1,6 @@
+// Raw protocol fixtures intentionally preserve their original single-line payloads.
+@file:Suppress("ktlint:standard:max-line-length")
+
 package eu.kanade.tachiyomi.ui.mod.chaptercomments
 
 import kotlinx.coroutines.test.runTest
@@ -14,18 +17,29 @@ class DoujindesuCommentsProviderTest {
     @Test
     fun `encrypted response uses adjacent hour key without reader HTML or images`() = runTest {
         val calls = mutableListOf<String>()
-        val provider = DoujindesuCommentsProvider(target, object : CommentsTransport {
-            override suspend fun get(url: String, referer: String?): String = error("Missing app identity header")
-            override suspend fun getWithHeaders(url: String, referer: String?, headers: Map<String, String>): String {
-                calls += url
-                assertEquals(target.url, referer)
-                assertEquals(mapOf("x-app-secret" to "dfdf72051dbfdc7d76889ebd31324e74"), headers)
-                return """{"_enc_resp_":"$ENCRYPTED_HOUR_100"}"""
-            }
-        }, nowMillis = { 101 * 3_600_000L })
+        val provider = DoujindesuCommentsProvider(
+            target,
+            object : CommentsTransport {
+                override suspend fun get(url: String, referer: String?): String = error("Missing app identity header")
+                override suspend fun getWithHeaders(
+                    url: String,
+                    referer: String?,
+                    headers: Map<String, String>,
+                ): String {
+                    calls += url
+                    assertEquals(target.url, referer)
+                    assertEquals(mapOf("x-app-secret" to "dfdf72051dbfdc7d76889ebd31324e74"), headers)
+                    return """{"_enc_resp_":"$ENCRYPTED_HOUR_100"}"""
+                }
+            },
+            nowMillis = { 101 * 3_600_000L },
+        )
         assertTrue(calls.isEmpty())
         val page = provider.comments(CommentSort.NEWEST, 1)
-        assertEquals(listOf("https://reader.example/api/chapters/$chapter/comments?sortBy=Latest&page=1&limit=15"), calls)
+        assertEquals(
+            listOf("https://reader.example/api/chapters/$chapter/comments?sortBy=Latest&page=1&limit=15"),
+            calls,
+        )
         assertEquals(1, page.total)
         assertFalse(page.hasMore)
         assertEquals("<b>A+B</b>", page.comments.single().content)
@@ -37,18 +51,27 @@ class DoujindesuCommentsProviderTest {
     @Test
     fun `plain protocol preserves flat reply tree and independently paginates expanded replies`() = runTest {
         val calls = mutableListOf<String>()
-        val provider = DoujindesuCommentsProvider(target, object : CommentsTransport {
-            override suspend fun get(url: String, referer: String?) = error("Missing headers")
-            override suspend fun getWithHeaders(url: String, referer: String?, headers: Map<String, String>): String {
-                calls += url
-                return when {
-                    url.endsWith("/reactions") -> """{"counts":[{"id":"love-id","name":"Love","icon_url":"https://cdn.example/love.webp","count":16}],"userReactions":[]}"""
-                    "/replies?" in url && "page=1" in url -> """{"replies":[{"id":"a","parent_id":"$rootId","content":"First"}],"hasMore":true,"total":2}"""
-                    "/replies?" in url -> """{"replies":[{"id":"b","parent_id":"$rootId","content":"Second","image_url":"https://cdn.example/comment.webp"}],"hasMore":false,"total":2}"""
-                    else -> """{"comments":[{"id":"$rootId","content":"[spoiler]hidden[/spoiler]","reply_count":2},{"id":"a","parent_id":"$rootId","root_id":"$rootId","content":"First"}],"total":29,"hasMore":true}"""
+        val provider = DoujindesuCommentsProvider(
+            target,
+            object : CommentsTransport {
+                override suspend fun get(url: String, referer: String?) = error("Missing headers")
+                override suspend fun getWithHeaders(
+                    url: String,
+                    referer: String?,
+                    headers: Map<String, String>,
+                ): String {
+                    calls += url
+                    return when {
+                        url.endsWith(
+                            "/reactions",
+                        ) -> """{"counts":[{"id":"love-id","name":"Love","icon_url":"https://cdn.example/love.webp","count":16}],"userReactions":[]}"""
+                        "/replies?" in url && "page=1" in url -> """{"replies":[{"id":"a","parent_id":"$rootId","content":"First"}],"hasMore":true,"total":2}"""
+                        "/replies?" in url -> """{"replies":[{"id":"b","parent_id":"$rootId","content":"Second","image_url":"https://cdn.example/comment.webp"}],"hasMore":false,"total":2}"""
+                        else -> """{"comments":[{"id":"$rootId","content":"[spoiler]hidden[/spoiler]","reply_count":2},{"id":"a","parent_id":"$rootId","root_id":"$rootId","content":"First"}],"total":29,"hasMore":true}"""
+                    }
                 }
-            }
-        })
+            },
+        )
         val page = provider.comments(CommentSort.POPULAR, 2)
         assertTrue(calls.first().endsWith("sortBy=Popular&page=2&limit=15"))
         assertEquals(29, page.total)
@@ -66,17 +89,28 @@ class DoujindesuCommentsProviderTest {
 
     @Test
     fun `invalid encrypted data is an error instead of an empty chapter`() = runTest {
-        val provider = DoujindesuCommentsProvider(target, object : CommentsTransport {
-            override suspend fun get(url: String, referer: String?) = """{"_enc_resp_":"001122"}"""
-        })
+        val provider = DoujindesuCommentsProvider(
+            target,
+            object : CommentsTransport {
+                override suspend fun get(url: String, referer: String?) = """{"_enc_resp_":"001122"}"""
+            },
+        )
         assertTrue(runCatching { provider.comments(CommentSort.OLDEST, 1) }.isFailure)
     }
 
     @Test
     fun `engine detection recognizes shell on another domain without accepting arbitrary Vite sites`() {
-        assertTrue(DoujindesuCommentsProvider.recognizes("""<title>Doujindesu</title><script src="/assets/index-current.js"></script>"""))
+        assertTrue(
+            DoujindesuCommentsProvider.recognizes(
+                """<title>Doujindesu</title><script src="/assets/index-current.js"></script>""",
+            ),
+        )
         assertTrue(DoujindesuCommentsProvider.recognizes("const key='doujindesu_device_id'; data._enc_resp_"))
-        assertFalse(DoujindesuCommentsProvider.recognizes("""<title>Other reader</title><script src="/assets/index-other.js"></script>"""))
+        assertFalse(
+            DoujindesuCommentsProvider.recognizes(
+                """<title>Other reader</title><script src="/assets/index-other.js"></script>""",
+            ),
+        )
     }
 
     private companion object {

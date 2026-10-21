@@ -136,7 +136,18 @@ fun MangaChapterListItem(
             Column(
                 modifier = Modifier
                     .weight(1f)
-                    .padding(start = if (finalSourceColor != null) 13.dp else 16.dp, top = 12.dp, end = 8.dp, bottom = 12.dp),
+                    .padding(
+                        start = if (finalSourceColor !=
+                            null
+                        ) {
+                            13.dp
+                        } else {
+                            16.dp
+                        },
+                        top = 12.dp,
+                        end = 8.dp,
+                        bottom = 12.dp,
+                    ),
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 Row(
@@ -169,7 +180,9 @@ fun MangaChapterListItem(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         onTextLayout = { textHeight = it.size.height },
-                        color = (finalChapterColor ?: LocalContentColor.current).copy(alpha = if (read) DISABLED_ALPHA else 1f),
+                        color = (finalChapterColor ?: LocalContentColor.current).copy(
+                            alpha = if (read) DISABLED_ALPHA else 1f,
+                        ),
                     )
                 }
 

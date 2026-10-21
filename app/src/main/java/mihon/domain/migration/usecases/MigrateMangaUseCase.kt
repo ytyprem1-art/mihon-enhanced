@@ -19,8 +19,8 @@ import tachiyomi.domain.category.interactor.GetCategories
 import tachiyomi.domain.category.interactor.SetMangaCategories
 import tachiyomi.domain.chapter.interactor.GetChaptersByMangaId
 import tachiyomi.domain.chapter.interactor.UpdateChapter
-import tachiyomi.domain.history.repository.HistoryRepository
 import tachiyomi.domain.chapter.model.ChapterUpdate
+import tachiyomi.domain.history.repository.HistoryRepository
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.manga.model.MangaUpdate
 import tachiyomi.domain.source.service.SourceManager
@@ -117,7 +117,7 @@ class MigrateMangaUseCase(
                 targetChapters = mangaChapters,
                 getHistoryByMangaId = historyRepository::getHistoryByMangaId,
                 oldManga = current,
-                targetManga = target
+                targetManga = target,
             )
             // MOD END: Migrate History
 

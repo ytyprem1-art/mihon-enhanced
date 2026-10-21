@@ -1,14 +1,14 @@
 package eu.kanade.tachiyomi.ui.mod.chatprofile
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -26,33 +26,44 @@ import kotlinx.coroutines.launch
 
 /** Displays the existing presence snapshot; opening a profile makes no network request. */
 @Composable
-fun ChatUserProfile(username: String, appVersion: String?, userId: String = "", avatarBase64: String? = null, avatarPhotoVersion: String? = null, onDismiss: () -> Unit) {
+fun ChatUserProfile(
+    username: String,
+    appVersion: String?,
+    userId: String = "",
+    avatarBase64: String? = null,
+    avatarPhotoVersion: String? = null,
+    onDismiss: () -> Unit,
+) {
     val scope = rememberCoroutineScope()
     val ownProfile = userId.isNotBlank() && FirebaseAuth.getInstance().currentUser?.uid == userId
     var busy by remember(userId) { mutableStateOf(false) }
     var error by remember(userId) { mutableStateOf<String?>(null) }
     var cropUri by remember(userId) { mutableStateOf<android.net.Uri?>(null) }
-    var photoPreview by remember(userId, avatarBase64, avatarPhotoVersion) { mutableStateOf<android.graphics.Bitmap?>(null) }
+    var photoPreview by remember(userId, avatarBase64, avatarPhotoVersion) {
+        mutableStateOf<android.graphics.Bitmap?>(null)
+    }
     suspend fun changePhoto(photo: ChatAvatarUpload?) = ChatProfilePhotoStore.change(userId, username, photo)
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null && !busy) cropUri = uri
     }
-    cropUri?.let { uri -> ChatAvatarCrop(uri, onDismiss = { cropUri = null }) { encoded ->
-        cropUri = null
-        scope.launch {
-            busy = true
-            error = null
-            try {
-                changePhoto(encoded)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                error = e.message ?: "Could not update photo. Please retry."
-            } finally {
-                busy = false
+    cropUri?.let { uri ->
+        ChatAvatarCrop(uri, onDismiss = { cropUri = null }) { encoded ->
+            cropUri = null
+            scope.launch {
+                busy = true
+                error = null
+                try {
+                    changePhoto(encoded)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    error = e.message ?: "Could not update photo. Please retry."
+                } finally {
+                    busy = false
+                }
             }
         }
-    } }
+    }
     AlertDialog(
         onDismissRequest = { if (!busy) onDismiss() },
         title = { Text("Chat profile") },
@@ -65,27 +76,34 @@ fun ChatUserProfile(username: String, appVersion: String?, userId: String = "", 
                     Text(appVersion?.takeIf { it.isNotBlank() } ?: "Version unavailable")
                 }
                 if (ownProfile) {
-                    if (avatarBase64 != null && avatarPhotoVersion == null) Text(
-                        "Choose your photo again for a sharper preview.", style = MaterialTheme.typography.bodySmall,
-                    )
-                    TextButton(enabled = !busy, onClick = { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }) {
+                    if (avatarBase64 != null && avatarPhotoVersion == null) {
+                        Text(
+                            "Choose your photo again for a sharper preview.",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                    TextButton(enabled = !busy, onClick = {
+                        picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                    }) {
                         Text("Change photo")
                     }
-                    if (avatarBase64 != null) TextButton(enabled = !busy, onClick = {
-                        scope.launch {
-                            busy = true
-                            error = null
-                            try {
-                                changePhoto(null)
-                            } catch (e: CancellationException) {
-                                throw e
-                            } catch (e: Exception) {
-                                error = e.message ?: "Could not remove photo. Please retry."
-                            } finally {
-                                busy = false
+                    if (avatarBase64 != null) {
+                        TextButton(enabled = !busy, onClick = {
+                            scope.launch {
+                                busy = true
+                                error = null
+                                try {
+                                    changePhoto(null)
+                                } catch (e: CancellationException) {
+                                    throw e
+                                } catch (e: Exception) {
+                                    error = e.message ?: "Could not remove photo. Please retry."
+                                } finally {
+                                    busy = false
+                                }
                             }
-                        }
-                    }) { Text("Remove photo") }
+                        }) { Text("Remove photo") }
+                    }
                 }
                 if (busy) CircularProgressIndicator()
                 error?.let { Text(it, color = MaterialTheme.colorScheme.error) }

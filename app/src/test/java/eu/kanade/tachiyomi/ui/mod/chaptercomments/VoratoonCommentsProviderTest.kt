@@ -1,3 +1,6 @@
+// Raw protocol fixtures intentionally preserve their original single-line payloads.
+@file:Suppress("ktlint:standard:max-line-length")
+
 package eu.kanade.tachiyomi.ui.mod.chaptercomments
 
 import kotlinx.coroutines.async
@@ -58,17 +61,23 @@ class VoratoonCommentsProviderTest {
     @Test
     fun `emoji switch removes previous before adding next and off only removes`() = runTest {
         val writes = mutableListOf<Pair<String, Boolean>>()
-        val provider = VoratoonCommentsProvider(target, object : CommentsTransport {
-            override suspend fun get(url: String, referer: String?) = """{"status":200,"data":{"id":435871,"seriesId":4718}}"""
-            override suspend fun write(method: String, url: String, json: String, referer: String?): String {
-                val payload = Json.parseToJsonElement(json) as JsonObject
-                val type = (payload["reactionType"] as JsonPrimitive).content
-                val enabled = (payload["isAdd"] as JsonPrimitive).booleanOrNull == true
-                writes += type to enabled
-                val selected = if (enabled) "\"$type\"" else "null"
-                return """{"status":200,"data":{"reactions":[],"selectedReaction":$selected}}"""
-            }
-        })
+        val provider = VoratoonCommentsProvider(
+            target,
+            object : CommentsTransport {
+                override suspend fun get(
+                    url: String,
+                    referer: String?,
+                ) = """{"status":200,"data":{"id":435871,"seriesId":4718}}"""
+                override suspend fun write(method: String, url: String, json: String, referer: String?): String {
+                    val payload = Json.parseToJsonElement(json) as JsonObject
+                    val type = (payload["reactionType"] as JsonPrimitive).content
+                    val enabled = (payload["isAdd"] as JsonPrimitive).booleanOrNull == true
+                    writes += type to enabled
+                    val selected = if (enabled) "\"$type\"" else "null"
+                    return """{"status":200,"data":{"reactions":[],"selectedReaction":$selected}}"""
+                }
+            },
+        )
         assertEquals(setOf("like", "laugh", "love", "sad", "angry"), provider.reactionOptions.map { it.key }.toSet())
         provider.setChapterReaction(null, "love")
         provider.setChapterReaction("love", "angry")
@@ -79,45 +88,73 @@ class VoratoonCommentsProviderTest {
 
     @Test
     fun `mismatched server selection is not acknowledged as successful reaction`() = runTest {
-        val provider = VoratoonCommentsProvider(target, object : CommentsTransport {
-            override suspend fun get(url: String, referer: String?) = """{"status":200,"data":{"id":1,"seriesId":2}}"""
-            override suspend fun write(method: String, url: String, json: String, referer: String?) = """{"status":200,"data":{"selectedReaction":null,"reactions":[]}}"""
-        })
+        val provider = VoratoonCommentsProvider(
+            target,
+            object : CommentsTransport {
+                override suspend fun get(
+                    url: String,
+                    referer: String?,
+                ) = """{"status":200,"data":{"id":1,"seriesId":2}}"""
+                override suspend fun write(
+                    method: String,
+                    url: String,
+                    json: String,
+                    referer: String?,
+                ) = """{"status":200,"data":{"selectedReaction":null,"reactions":[]}}"""
+            },
+        )
         assertTrue(runCatching { provider.setChapterReaction(null, "love") }.isFailure)
     }
 
     @Test
     fun `failed addition after successful removal reports confirmed empty selection`() = runTest {
         val writes = mutableListOf<String>()
-        val provider = VoratoonCommentsProvider(target, object : CommentsTransport {
-            override suspend fun get(url: String, referer: String?) = """{"status":200,"data":{"id":1,"seriesId":2}}"""
-            override suspend fun write(method: String, url: String, json: String, referer: String?): String {
-                writes += json
-                return if (writes.size == 1) {
-                    """{"status":200,"data":{"selectedReaction":null,"reactions":[]}}"""
-                } else {
-                    """{"status":401,"message":"Unauthorized"}"""
+        val provider = VoratoonCommentsProvider(
+            target,
+            object : CommentsTransport {
+                override suspend fun get(
+                    url: String,
+                    referer: String?,
+                ) = """{"status":200,"data":{"id":1,"seriesId":2}}"""
+                override suspend fun write(method: String, url: String, json: String, referer: String?): String {
+                    writes += json
+                    return if (writes.size == 1) {
+                        """{"status":200,"data":{"selectedReaction":null,"reactions":[]}}"""
+                    } else {
+                        """{"status":401,"message":"Unauthorized"}"""
+                    }
                 }
-            }
-        })
+            },
+        )
         val failure = runCatching { provider.setChapterReaction("love", "angry") }.exceptionOrNull()
         assertTrue(failure is ChapterReactionUpdateException)
         assertEquals(null, (failure as ChapterReactionUpdateException).confirmedSelection)
         assertTrue(failure.cause?.message.orEmpty().contains("login"))
         assertEquals(2, writes.size)
-        assertEquals(listOf(false, true), writes.map { ((Json.parseToJsonElement(it) as JsonObject)["isAdd"] as JsonPrimitive).booleanOrNull })
+        assertEquals(
+            listOf(false, true),
+            writes.map {
+                ((Json.parseToJsonElement(it) as JsonObject)["isAdd"] as JsonPrimitive).booleanOrNull
+            },
+        )
     }
 
     @Test
     fun `vote authentication rejection surfaces login requirement and does not retry`() = runTest {
         var writes = 0
-        val provider = VoratoonCommentsProvider(target, object : CommentsTransport {
-            override suspend fun get(url: String, referer: String?) = """{"status":200,"data":{"id":435871,"seriesId":4718}}"""
-            override suspend fun write(method: String, url: String, json: String, referer: String?): String {
-                writes++
-                return """{"status":401,"message":"Unauthorized"}"""
-            }
-        })
+        val provider = VoratoonCommentsProvider(
+            target,
+            object : CommentsTransport {
+                override suspend fun get(
+                    url: String,
+                    referer: String?,
+                ) = """{"status":200,"data":{"id":435871,"seriesId":4718}}"""
+                override suspend fun write(method: String, url: String, json: String, referer: String?): String {
+                    writes++
+                    return """{"status":401,"message":"Unauthorized"}"""
+                }
+            },
+        )
         val failure = runCatching { provider.setChapterUpvote(true) }.exceptionOrNull()
         assertTrue(failure?.message.orEmpty().contains("login"))
         assertEquals(1, writes)
@@ -126,14 +163,18 @@ class VoratoonCommentsProviderTest {
     @Test
     fun `flat replies and ignored backend pagination are assembled into local root pages`() = runTest {
         val calls = mutableListOf<String>()
-        val roots = (1..11).joinToString { """{"id":$it,"content":"Root $it","createdAt":"2026-10-20T00:00:00Z","data":{"user":{"fullName":"A"},"votes":{"upvotes":${if (it == 11) 10 else 0}}}}""" }
+        val roots = (1..11).joinToString {
+            """{"id":$it,"content":"Root $it","createdAt":"2026-10-20T00:00:00Z","data":{"user":{"fullName":"A"},"votes":{"upvotes":${if (it == 11) 10 else 0}}}}"""
+        }
         val transport = object : CommentsTransport {
             override suspend fun get(url: String, referer: String?): String {
                 calls += url
                 yield()
                 return when {
                     url.endsWith("/reactions") -> """{"status":200,"data":["like","laugh","like"]}"""
-                    url.contains("/comments?") -> """{"status":200,"data":[$roots,{"id":12,"content":"![photo](https://cdn.example/reply.png)","isSpoiler":true,"data":{"parentCommentId":11,"votes":{"upvotes":4}}}],"meta":{"page":1,"take":12,"total":12,"lastPage":1,"hasNextPage":false}}"""
+                    url.contains(
+                        "/comments?",
+                    ) -> """{"status":200,"data":[$roots,{"id":12,"content":"![photo](https://cdn.example/reply.png)","isSpoiler":true,"data":{"parentCommentId":11,"votes":{"upvotes":4}}}],"meta":{"page":1,"take":12,"total":12,"lastPage":1,"hasNextPage":false}}"""
                     else -> """{"status":200,"data":{"id":435871,"seriesId":4718}}"""
                 }
             }

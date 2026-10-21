@@ -1,5 +1,6 @@
 package eu.kanade.presentation.history
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,38 +12,45 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.runtime.saveable.Saver
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ListAlt
 import androidx.compose.material.icons.outlined.Checklist
 import androidx.compose.material.icons.outlined.CollectionsBookmark
 import androidx.compose.material.icons.outlined.Create
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.DeleteSweep
 import androidx.compose.material.icons.outlined.FlipToBack
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.Merge
 import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.material.icons.outlined.SelectAll
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.ScrollableTabRow
-import androidx.compose.material3.Tab
-import androidx.compose.material3.Text
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Tab
+import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource as androidStringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.tooling.preview.PreviewParameter
@@ -55,12 +63,12 @@ import eu.kanade.presentation.components.relativeDateText
 import eu.kanade.presentation.history.components.HistoryItem
 import eu.kanade.presentation.theme.TachiyomiPreviewTheme
 import eu.kanade.presentation.util.isTabletUi
-import tachiyomi.presentation.core.util.collectAsState
 import eu.kanade.tachiyomi.R
-import eu.kanade.tachiyomi.ui.mod.util.SourceColorUtil
 import eu.kanade.tachiyomi.ui.history.HistoryViewModel
 import eu.kanade.tachiyomi.ui.mod.components.HistoryAppBarActions
 import eu.kanade.tachiyomi.ui.mod.components.HistorySearchExpandedActions
+import eu.kanade.tachiyomi.ui.mod.util.SourceColorUtil
+import kotlinx.coroutines.launch
 import kotlinx.datetime.LocalDate
 import mihon.icons.materialsymbols.MaterialSymbols
 import mihon.icons.materialsymbols.rounded.DeleteSweep
@@ -68,24 +76,16 @@ import tachiyomi.domain.history.model.HistoryWithRelations
 import tachiyomi.domain.manga.model.MangaCover
 import tachiyomi.domain.source.service.SourceManager
 import tachiyomi.i18n.MR
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import tachiyomi.presentation.core.components.FastScrollLazyColumn
 import tachiyomi.presentation.core.components.ListGroupHeader
 import tachiyomi.presentation.core.components.material.Scaffold
 import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.screens.EmptyScreen
 import tachiyomi.presentation.core.screens.LoadingScreen
-import androidx.activity.compose.BackHandler
-import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material.icons.outlined.Notifications
-import androidx.compose.material.icons.outlined.NotificationsActive
-import androidx.compose.material3.ExtendedFloatingActionButton
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.runtime.rememberCoroutineScope
-import kotlinx.coroutines.launch
+import tachiyomi.presentation.core.util.collectAsState
+import uy.kohesive.injekt.Injekt
+import uy.kohesive.injekt.api.get
+import androidx.compose.ui.res.stringResource as androidStringResource
 
 @Composable
 fun HistoryScreen(
@@ -190,7 +190,7 @@ fun HistoryScreen(
                                         icon = Icons.Outlined.Delete,
                                         onClick = {
                                             onDialogChange(
-                                                HistoryViewModel.Dialog.DeleteSelected(state.selected)
+                                                HistoryViewModel.Dialog.DeleteSelected(state.selected),
                                             )
                                         },
                                         enabled = state.selected.isNotEmpty(),
@@ -202,14 +202,20 @@ fun HistoryScreen(
                                             onDialogChange(
                                                 HistoryViewModel.Dialog.MoveSelectedToHistoryCategory(
                                                     state.selected,
-                                                    state.historyCategories
-                                                )
+                                                    state.historyCategories,
+                                                ),
                                             )
                                         },
                                         enabled = state.selected.isNotEmpty(),
                                     ),
                                     AppBar.Action(
-                                        title = if (state.selected.size == 1) "Add to history group" else "Create history group",
+                                        title = if (state.selected.size ==
+                                            1
+                                        ) {
+                                            "Add to history group"
+                                        } else {
+                                            "Create history group"
+                                        },
                                         icon = Icons.Outlined.Merge,
                                         onClick = {
                                             if (state.selected.size == 1) {
@@ -229,8 +235,8 @@ fun HistoryScreen(
                                                 onDialogChange(
                                                     HistoryViewModel.Dialog.CreateHistoryGroup(
                                                         state.selected,
-                                                        suggestedName
-                                                    )
+                                                        suggestedName,
+                                                    ),
                                                 )
                                             }
                                         },
@@ -284,7 +290,7 @@ fun HistoryScreen(
                                         onClick = {
                                             onDialogChange(HistoryViewModel.Dialog.ManageHistoryCategory(category))
                                         },
-                                    )
+                                    ),
                                 )
                             }
                         }
@@ -294,7 +300,7 @@ fun HistoryScreen(
                                 title = linkedGroupsText,
                                 icon = Icons.Outlined.CollectionsBookmark,
                                 onClick = onClickLinkedSourceGroups,
-                            )
+                            ),
                         )
 
                         list.add(
@@ -302,7 +308,7 @@ fun HistoryScreen(
                                 title = selectText,
                                 icon = Icons.Outlined.Checklist,
                                 onClick = { viewModel.toggleSelectionMode() },
-                            )
+                            ),
                         )
 
                         list.add(
@@ -312,7 +318,7 @@ fun HistoryScreen(
                                 onClick = {
                                     onDialogChange(HistoryViewModel.Dialog.CreateHistoryCategory)
                                 },
-                            )
+                            ),
                         )
 
                         list.add(
@@ -482,7 +488,13 @@ private fun HistoryScreenContent(
                         selectionMode = selectionMode,
                         selected = value.mangaId in selected,
                         sourceName = item.sourceName,
-                        sourceColor = if (item.isMerged && useSourceColor) SourceColorUtil.getColorForSource(item.sourceId) else null,
+                        sourceColor = if (item.isMerged &&
+                            useSourceColor
+                        ) {
+                            SourceColorUtil.getColorForSource(item.sourceId)
+                        } else {
+                            null
+                        },
                     )
                 }
 
@@ -507,7 +519,13 @@ private fun HistoryScreenContent(
                         selected = value.mangaId in selected,
                         onOverflowClick = { showMenu = true },
                         sourceName = item.sourceNames.firstOrNull(),
-                        sourceColor = if (item.isMerged && useSourceColor) SourceColorUtil.getColorForSource(value.coverData.sourceId) else null,
+                        sourceColor = if (item.isMerged &&
+                            useSourceColor
+                        ) {
+                            SourceColorUtil.getColorForSource(value.coverData.sourceId)
+                        } else {
+                            null
+                        },
                         overflowContent = {
                             androidx.compose.material3.DropdownMenu(
                                 expanded = showMenu,
@@ -548,12 +566,12 @@ private fun HistoryScreenContent(
                                 modifier = Modifier
                                     .background(
                                         MaterialTheme.colorScheme.secondaryContainer,
-                                        MaterialTheme.shapes.extraSmall
+                                        MaterialTheme.shapes.extraSmall,
                                     )
                                     .padding(horizontal = 4.dp, vertical = 2.dp),
-                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
                             )
-                        }
+                        },
                     )
                 }
             }

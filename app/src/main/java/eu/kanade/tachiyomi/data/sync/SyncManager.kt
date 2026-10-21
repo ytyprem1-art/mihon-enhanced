@@ -68,7 +68,10 @@ class SyncManager(
 
         val rawServiceValue = syncPreferences.syncService().get()
         val mappedService = SyncService.fromInt(rawServiceValue)
-        Log.d("SyncServiceDebug", "SyncManager: Reading service. rawValue=$rawServiceValue, mapped=$mappedService, SyncPreferences=${syncPreferences.hashCode()}")
+        Log.d(
+            "SyncServiceDebug",
+            "SyncManager: Reading service. rawValue=$rawServiceValue, mapped=$mappedService, SyncPreferences=${syncPreferences.hashCode()}",
+        )
 
         // Handle sync based on the selected service.
         val syncService = when (mappedService) {

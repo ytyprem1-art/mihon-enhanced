@@ -30,7 +30,8 @@ class AdjustCropDeviceTest {
         bitmap.recycle()
         val page = ReaderPage(0, stream = { ByteArrayInputStream(bytes) }).apply { status = Page.State.Ready }
         val chapter = ReaderChapter(Chapter.create()).apply { state = ReaderChapter.State.Loaded(listOf(page)) }
-        val document = withContext(Dispatchers.Main) { OriginalCropDocument(context, chapter, 0).also { it.loadNext() } }
+        val document =
+            withContext(Dispatchers.Main) { OriginalCropDocument(context, chapter, 0).also { it.loadNext() } }
         try {
             assertEquals(1, document.pages.size)
             for (template in CropTemplate.entries) {

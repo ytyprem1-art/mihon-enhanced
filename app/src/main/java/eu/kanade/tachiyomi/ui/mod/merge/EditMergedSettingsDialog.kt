@@ -71,7 +71,10 @@ fun EditMergedSettingsDialog(
         mutableStateOf(mainReference?.chapterSortMode != MergedMangaReference.CHAPTER_SORT_NONE)
     }
     var dedupeMode by remember(mainReference) {
-        mutableStateOf(mainReference?.chapterSortMode?.takeIf { it != MergedMangaReference.CHAPTER_SORT_NONE } ?: MergedMangaReference.CHAPTER_SORT_PRIORITY)
+        mutableStateOf(
+            mainReference?.chapterSortMode?.takeIf { it != MergedMangaReference.CHAPTER_SORT_NONE }
+                ?: MergedMangaReference.CHAPTER_SORT_PRIORITY,
+        )
     }
 
     val infoMangaId = references.firstOrNull { it.isInfoManga }?.mangaId
@@ -82,7 +85,7 @@ fun EditMergedSettingsDialog(
             TextButton(
                 onClick = {
                     val updatedMain = mainReference?.copy(
-                        chapterSortMode = if (dedupeEnabled) dedupeMode else MergedMangaReference.CHAPTER_SORT_NONE
+                        chapterSortMode = if (dedupeEnabled) dedupeMode else MergedMangaReference.CHAPTER_SORT_NONE,
                     )
                     val finalRefs = references.map { ref ->
                         if (ref.mangaSourceId == MERGED_SOURCE_ID) {
@@ -93,7 +96,7 @@ fun EditMergedSettingsDialog(
                     }
                     onPositiveClick(finalRefs)
                     onDismissRequest()
-                }
+                },
             ) {
                 Text(stringResource(MR.strings.action_save))
             }
@@ -129,20 +132,20 @@ fun EditMergedSettingsDialog(
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
+                    horizontalArrangement = Arrangement.Center,
                 ) {
                     Text(stringResource(MR.strings.allow_deduplication))
                     Spacer(Modifier.width(8.dp))
                     Switch(
                         checked = dedupeEnabled,
-                        onCheckedChange = { dedupeEnabled = it }
+                        onCheckedChange = { dedupeEnabled = it },
                     )
                 }
 
                 if (dedupeEnabled) {
                     DedupeModeSelector(
                         currentMode = dedupeMode,
-                        onModeSelected = { dedupeMode = it }
+                        onModeSelected = { dedupeMode = it },
                     )
                 }
 
@@ -156,18 +159,18 @@ fun EditMergedSettingsDialog(
                         }
                         references.clear()
                         references.addAll(updated)
-                    }
+                    },
                 )
 
                 HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
                 LazyColumn(
                     state = lazyListState,
-                    modifier = Modifier.weight(1f, fill = false)
+                    modifier = Modifier.weight(1f, fill = false),
                 ) {
                     itemsIndexed(
                         items = references.filter { it.mangaSourceId != MERGED_SOURCE_ID },
-                        key = { _, ref -> ref.id }
+                        key = { _, ref -> ref.id },
                     ) { _, ref ->
                         val manga = mergedData.manga[ref.mangaId]
                         val source = mergedData.sources.find { it.id == ref.mangaSourceId }
@@ -186,13 +189,13 @@ fun EditMergedSettingsDialog(
                                     val idx = references.indexOfFirst { it.id == ref.id }
                                     references[idx] = ref.copy(downloadChapters = !ref.downloadChapters)
                                 },
-                                onDelete = { onDeleteClick(ref) }
+                                onDelete = { onDeleteClick(ref) },
                             )
                         }
                     }
                 }
             }
-        }
+        },
     )
 }
 
@@ -208,36 +211,36 @@ private fun MergedMangaItem(
 ) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(Modifier.width(48.dp), contentAlignment = Alignment.Center) {
             if (isPriorityMode) {
                 Icon(
                     imageVector = Icons.Default.DragHandle,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
 
         MangaCover.Book(
             data = manga,
-            modifier = Modifier.size(40.dp, 60.dp)
+            modifier = Modifier.size(40.dp, 60.dp),
         )
 
         Column(
-            modifier = Modifier.weight(1f).padding(horizontal = 8.dp)
+            modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
         ) {
             Text(
                 text = manga?.title ?: "",
                 maxLines = 1,
-                style = MaterialTheme.typography.bodyMedium
+                style = MaterialTheme.typography.bodyMedium,
             )
             Text(
                 text = sourceName,
                 maxLines = 1,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
 
@@ -246,23 +249,31 @@ private fun MergedMangaItem(
                 Icon(
                     imageVector = Icons.Default.Delete,
                     contentDescription = stringResource(MR.strings.action_delete),
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(20.dp),
                 )
             }
             IconButton(onClick = onToggleDownloads) {
                 Icon(
                     imageVector = Icons.Default.GetApp,
                     contentDescription = null,
-                    tint = if (reference.downloadChapters) MaterialTheme.colorScheme.primary else LocalContentColor.current,
-                    modifier = Modifier.size(20.dp)
+                    tint = if (reference.downloadChapters) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        LocalContentColor.current
+                    },
+                    modifier = Modifier.size(20.dp),
                 )
             }
             IconButton(onClick = onToggleUpdates) {
                 Icon(
                     imageVector = if (reference.getChapterUpdates) Icons.Default.Sync else Icons.Default.SyncDisabled,
                     contentDescription = stringResource(MR.strings.fetch_chapter_updates),
-                    tint = if (reference.getChapterUpdates) MaterialTheme.colorScheme.primary else LocalContentColor.current,
-                    modifier = Modifier.size(20.dp)
+                    tint = if (reference.getChapterUpdates) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        LocalContentColor.current
+                    },
+                    modifier = Modifier.size(20.dp),
                 )
             }
         }
@@ -287,18 +298,18 @@ private fun DedupeModeSelector(
         ExposedDropdownMenuBox(
             expanded = expanded,
             onExpandedChange = { expanded = !expanded },
-            modifier = Modifier.padding(vertical = 4.dp)
+            modifier = Modifier.padding(vertical = 4.dp),
         ) {
             OutlinedTextField(
                 value = currentModeName,
                 onValueChange = {},
                 readOnly = true,
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
             )
             ExposedDropdownMenu(
                 expanded = expanded,
-                onDismissRequest = { expanded = false }
+                onDismissRequest = { expanded = false },
             ) {
                 modes.forEach { (mode, name) ->
                     DropdownMenuItem(
@@ -306,7 +317,7 @@ private fun DedupeModeSelector(
                         onClick = {
                             onModeSelected(mode)
                             expanded = false
-                        }
+                        },
                     )
                 }
             }
@@ -330,27 +341,28 @@ private fun InfoMangaSelector(
         ExposedDropdownMenuBox(
             expanded = expanded,
             onExpandedChange = { expanded = !expanded },
-            modifier = Modifier.padding(vertical = 4.dp)
+            modifier = Modifier.padding(vertical = 4.dp),
         ) {
             OutlinedTextField(
                 value = currentInfoSourceName,
                 onValueChange = {},
                 readOnly = true,
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
             )
             ExposedDropdownMenu(
                 expanded = expanded,
-                onDismissRequest = { expanded = false }
+                onDismissRequest = { expanded = false },
             ) {
                 references.forEach { ref ->
-                    val sourceName = mergedData.sources.find { it.id == ref.mangaSourceId }?.name ?: ref.mangaSourceId.toString()
+                    val sourceName =
+                        mergedData.sources.find { it.id == ref.mangaSourceId }?.name ?: ref.mangaSourceId.toString()
                     DropdownMenuItem(
                         text = { Text(sourceName) },
                         onClick = {
                             ref.mangaId?.let { onInfoMangaSelected(it) }
                             expanded = false
-                        }
+                        },
                     )
                 }
             }

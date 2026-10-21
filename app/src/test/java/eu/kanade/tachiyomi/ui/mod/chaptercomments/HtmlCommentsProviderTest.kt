@@ -1,14 +1,24 @@
+// Raw protocol fixtures intentionally preserve their original single-line payloads.
+@file:Suppress("ktlint:standard:max-line-length")
+
 package eu.kanade.tachiyomi.ui.mod.chaptercomments
 
 import kotlinx.coroutines.test.runTest
-import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class HtmlCommentsProviderTest {
     private val target = CommentTarget("https://template.example/webtoon/sample/chapter-25", "25", "Template")
     private val noNetwork = object : CommentsTransport {
         override suspend fun get(url: String, referer: String?): String = error("Unexpected request")
-        override suspend fun write(method: String, url: String, json: String, referer: String?): String = error("Unexpected write")
+        override suspend fun write(
+            method: String,
+            url: String,
+            json: String,
+            referer: String?,
+        ): String = error("Unexpected write")
     }
 
     @Test fun `verified empty standalone server list is supported without making requests`() = runTest {
@@ -56,11 +66,23 @@ class HtmlCommentsProviderTest {
     @Test fun `arbitrary comments div remains unsupported and advertised pagination is not silently discarded`() = runTest {
         val unknown = HtmlCommentsProvider(target, noNetwork, "<div id='comments' class='comment-list'></div>")
         assertTrue(runCatching { unknown.comments(CommentSort.POPULAR, 1) }.isFailure)
-        val paginated = HtmlCommentsProvider(target, noNetwork, "<ol class='comment-list'></ol><div class='comment-navigation'><span class='nav-next'><a href='?cpage=2'>Next</a></span></div>")
+        val paginated =
+            HtmlCommentsProvider(
+                target,
+                noNetwork,
+                "<ol class='comment-list'></ol><div class='comment-navigation'><span class='nav-next'><a href='?cpage=2'>Next</a></span></div>",
+            )
         assertTrue(runCatching { paginated.comments(CommentSort.POPULAR, 1) }.isFailure)
     }
 
     // Minimal server-list/form markers and article structure from the public inline writer.
-    private fun shell(comments: String) = """<div class='comment-box'><form id='mainForm' class='commentForm'><input name='blog_id' value='c241132'><input name='parent_id' value='0'></form><div id='comments' class='comment-list'>$comments</div></div>"""
-    private fun article(id: String, author: String, body: String, replies: String = "") = """<article id='div-comment-$id' class='comment-body'><div class='comment-avatar'><img class='avatar' src='/images/avatar.png'></div><div class='comment-author'><h5 class='heading fn'>$author</h5></div><div class='comment-content'>$body</div>$replies</article>"""
+    private fun shell(
+        comments: String,
+    ) = """<div class='comment-box'><form id='mainForm' class='commentForm'><input name='blog_id' value='c241132'><input name='parent_id' value='0'></form><div id='comments' class='comment-list'>$comments</div></div>"""
+    private fun article(
+        id: String,
+        author: String,
+        body: String,
+        replies: String = "",
+    ) = """<article id='div-comment-$id' class='comment-body'><div class='comment-avatar'><img class='avatar' src='/images/avatar.png'></div><div class='comment-author'><h5 class='heading fn'>$author</h5></div><div class='comment-content'>$body</div>$replies</article>"""
 }

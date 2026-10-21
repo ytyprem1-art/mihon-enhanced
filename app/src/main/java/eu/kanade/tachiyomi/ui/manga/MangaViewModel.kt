@@ -1,14 +1,5 @@
 package eu.kanade.tachiyomi.ui.manga
 
-import eu.kanade.tachiyomi.ui.mod.util.dateUploadMillis
-import dev.zacsweers.metro.AppScope
-import dev.zacsweers.metro.Assisted
-import dev.zacsweers.metro.AssistedFactory
-import dev.zacsweers.metro.AssistedInject
-import dev.zacsweers.metro.ContributesIntoMap
-import dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactory
-import dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactoryKey
-import kotlinx.coroutines.withContext
 import android.app.Application
 import android.content.Context
 import androidx.compose.material3.SnackbarDuration
@@ -21,6 +12,13 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.Assisted
+import dev.zacsweers.metro.AssistedFactory
+import dev.zacsweers.metro.AssistedInject
+import dev.zacsweers.metro.ContributesIntoMap
+import dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactory
+import dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactoryKey
 import eu.kanade.core.preference.asState
 import eu.kanade.core.util.addOrRemove
 import eu.kanade.core.util.insertSeparators
@@ -30,7 +28,9 @@ import eu.kanade.domain.manga.interactor.GetExcludedScanlators
 import eu.kanade.domain.manga.interactor.SetExcludedScanlators
 import eu.kanade.domain.manga.interactor.UpdateManga
 import eu.kanade.domain.manga.model.chaptersFiltered
+import eu.kanade.domain.manga.model.copyFrom
 import eu.kanade.domain.manga.model.downloadedFilter
+import eu.kanade.domain.manga.model.toSManga
 import eu.kanade.domain.track.interactor.AddTracks
 import eu.kanade.domain.track.interactor.RefreshTracks
 import eu.kanade.domain.track.interactor.TrackChapter
@@ -46,13 +46,13 @@ import eu.kanade.tachiyomi.data.track.EnhancedTracker
 import eu.kanade.tachiyomi.data.track.TrackerManager
 import eu.kanade.tachiyomi.source.Source
 import eu.kanade.tachiyomi.source.getNameForMangaInfo
-import eu.kanade.tachiyomi.ui.mod.EnhancedPreferences
-import eu.kanade.domain.manga.model.copyFrom
-import eu.kanade.domain.manga.model.toSManga
 import eu.kanade.tachiyomi.source.mod.MERGED_SOURCE_ID
+import eu.kanade.tachiyomi.ui.mod.EnhancedPreferences
 import eu.kanade.tachiyomi.ui.mod.merge.MergedMangaData
-import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
 import eu.kanade.tachiyomi.ui.mod.updatewatch.worker.UpdateWatchRefreshScheduler
+import eu.kanade.tachiyomi.ui.mod.util.dateUploadMillis
+import eu.kanade.tachiyomi.ui.mod.util.launchNonCancellable
+import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
 import eu.kanade.tachiyomi.util.chapter.getNextUnread
 import eu.kanade.tachiyomi.util.removeCovers
 import eu.kanade.tachiyomi.util.system.toast
@@ -71,6 +71,7 @@ import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import logcat.LogPriority
 import mihon.domain.chapter.interactor.FilterChaptersForDownload
 import mihon.domain.source.interactor.UpdateMangaFromRemote
@@ -78,7 +79,6 @@ import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.preference.CheckboxState
 import tachiyomi.core.common.preference.TriState
 import tachiyomi.core.common.preference.mapAsCheckboxState
-import eu.kanade.tachiyomi.ui.mod.util.launchNonCancellable
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.category.interactor.GetCategories
 import tachiyomi.domain.category.interactor.SetMangaCategories
@@ -188,7 +188,6 @@ class MangaViewModel(
 
     private val mutableState = kotlinx.coroutines.flow.MutableStateFlow<MangaViewModel.State>(State.Loading)
     val state: kotlinx.coroutines.flow.StateFlow<MangaViewModel.State> = mutableState
-
 
     val snackbarHostState = SnackbarHostState()
 
@@ -434,7 +433,7 @@ class MangaViewModel(
                             readAt = null,
                             isTracking = trackingState != null,
                             isPaused = trackingState?.isPaused ?: false,
-                        )
+                        ),
                     ),
                     isRefreshingData = needRefreshInfo || needRefreshChapter,
                     isWideCompact = isWide,
@@ -696,18 +695,16 @@ class MangaViewModel(
      */
     private fun deleteDownloads() {
         viewModelScope.launchNonCancellable {
-
-        val state = successState ?: return@launchNonCancellable
-        // SY -->
-        if (state.source.id == MERGED_SOURCE_ID) {
-            val mergedManga = state.mergedData?.manga?.map { it.value to sourceManager.getOrStub(it.value.source) }
-            mergedManga?.forEach { (manga, source) ->
-                downloadManager.deleteManga(manga, source)
+            val state = successState ?: return@launchNonCancellable
+            // SY -->
+            if (state.source.id == MERGED_SOURCE_ID) {
+                val mergedManga = state.mergedData?.manga?.map { it.value to sourceManager.getOrStub(it.value.source) }
+                mergedManga?.forEach { (manga, source) ->
+                    downloadManager.deleteManga(manga, source)
+                }
+            } else {
+                /* SY <-- */ downloadManager.deleteManga(state.manga, state.source)
             }
-        } else {
-            /* SY <-- */ downloadManager.deleteManga(state.manga, state.source)
-        }
-    
         }
     }
 
@@ -1081,11 +1078,9 @@ class MangaViewModel(
      */
     private fun downloadChapters(chapters: List<Chapter>) {
         viewModelScope.launchNonCancellable {
-
-        val manga = successState?.manga ?: return@launchNonCancellable
-        downloadManager.downloadChapters(manga, chapters)
-        toggleAllSelection(false)
-    
+            val manga = successState?.manga ?: return@launchNonCancellable
+            downloadManager.downloadChapters(manga, chapters)
+            toggleAllSelection(false)
         }
     }
 
@@ -1349,7 +1344,9 @@ class MangaViewModel(
 
     // Track sheet - end
 
-    fun showRemoveFromLibraryDialog() { updateSuccessState { it.copy(dialog = Dialog.RemoveFromLibrary) } }
+    fun showRemoveFromLibraryDialog() {
+        updateSuccessState { it.copy(dialog = Dialog.RemoveFromLibrary) }
+    }
 
     sealed interface Dialog {
         data object RemoveFromLibrary : Dialog
@@ -1618,8 +1615,8 @@ class MangaViewModel(
                         expectedIntervalDays = interval,
                         refreshProfile = UpdateWatch.RefreshProfile.WEEKLY_STABLE,
                         lastBackgroundCheckAt = null,
-                        lastWarnedMilestone = 0
-                    )
+                        lastWarnedMilestone = 0,
+                    ),
                 )
                 UpdateWatchRefreshScheduler.setupTask(Injekt.get<android.app.Application>())
             } catch (e: Exception) {

@@ -88,7 +88,7 @@ object CloudflareChallengeHelper {
                 "searchMangaRequest",
                 Int::class.javaPrimitiveType,
                 String::class.java,
-                FilterList::class.java
+                FilterList::class.java,
             )
             method.isAccessible = true
             val request = method.invoke(httpSource, 1, query ?: "", filters) as okhttp3.Request

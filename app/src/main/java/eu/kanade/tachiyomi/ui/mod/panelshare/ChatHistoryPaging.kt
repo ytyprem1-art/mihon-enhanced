@@ -19,7 +19,9 @@ class ChatHistoryPaging {
     fun requestMore(): Boolean {
         val current = state.value
         if (current.loading || (!current.canLoadMore && current.error == null)) return false
-        val next = if (current.error != null) current.limit else {
+        val next = if (current.error != null) {
+            current.limit
+        } else {
             (current.limit + PanelLimits.INITIAL_MESSAGES).coerceAtMost(PanelLimits.RETAINED_MESSAGES)
         }
         _state.value = current.copy(limit = next, loading = true, error = null)

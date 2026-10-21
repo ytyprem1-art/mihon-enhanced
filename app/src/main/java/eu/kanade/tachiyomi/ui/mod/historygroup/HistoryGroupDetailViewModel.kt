@@ -1,6 +1,5 @@
 package eu.kanade.tachiyomi.ui.mod.historygroup
 
-import kotlinx.coroutines.launch
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
@@ -16,6 +15,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import tachiyomi.domain.history.group.interactor.ManageHistoryGroups
 import tachiyomi.domain.history.interactor.GetHistory
 import tachiyomi.domain.history.model.HistoryWithRelations
@@ -29,7 +29,6 @@ class HistoryGroupDetailViewModel(
 ) : androidx.lifecycle.ViewModel() {
     private val mutableState = kotlinx.coroutines.flow.MutableStateFlow<HistoryGroupDetailViewModel.State>(State())
     val state: kotlinx.coroutines.flow.StateFlow<HistoryGroupDetailViewModel.State> = mutableState
-
 
     companion object {
         val GROUP_ID_KEY = CreationExtras.Key<Long>()

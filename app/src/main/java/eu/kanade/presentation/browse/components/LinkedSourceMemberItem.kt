@@ -154,13 +154,13 @@ fun LinkedSourceMemberItem(
                 TabletActions(
                     isRefreshing = isRefreshing,
                     onRefresh = onRefresh,
-                    onDelete = onDelete
+                    onDelete = onDelete,
                 )
             } else {
                 PhoneActions(
                     isRefreshing = isRefreshing,
                     onRefresh = onRefresh,
-                    onDelete = onDelete
+                    onDelete = onDelete,
                 )
             }
         }
@@ -271,7 +271,7 @@ private fun PhoneActions(
     Column(
         verticalArrangement = Arrangement.SpaceBetween,
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.fillMaxHeight()
+        modifier = Modifier.fillMaxHeight(),
     ) {
         IconButton(
             onClick = onRefresh,
@@ -308,7 +308,7 @@ private fun PhoneActions(
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.error,
                         )
-                    }
+                    },
                 )
             }
         }

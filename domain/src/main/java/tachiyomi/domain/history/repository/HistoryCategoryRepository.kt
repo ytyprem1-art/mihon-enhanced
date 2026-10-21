@@ -5,7 +5,7 @@ import kotlinx.coroutines.flow.Flow
 data class HistoryCategory(
     val id: Long,
     val name: String,
-    val sort: Int
+    val sort: Int,
 )
 
 interface HistoryCategoryRepository {

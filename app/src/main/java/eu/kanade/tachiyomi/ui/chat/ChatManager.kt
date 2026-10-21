@@ -4,13 +4,13 @@ import android.util.Log
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
-import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.MetadataChanges
+import com.google.firebase.firestore.Query
+import eu.kanade.tachiyomi.ui.mod.panelshare.ChatHistoryPaging
+import eu.kanade.tachiyomi.ui.mod.panelshare.ChatPanelStore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import eu.kanade.tachiyomi.ui.mod.panelshare.ChatPanelStore
-import eu.kanade.tachiyomi.ui.mod.panelshare.ChatHistoryPaging
 
 @dev.zacsweers.metro.Inject
 @dev.zacsweers.metro.SingleIn(dev.zacsweers.metro.AppScope::class)

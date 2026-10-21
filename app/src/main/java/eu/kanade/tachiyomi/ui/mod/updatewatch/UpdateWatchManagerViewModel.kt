@@ -1,15 +1,14 @@
 package eu.kanade.tachiyomi.ui.mod.updatewatch
 
-import eu.kanade.tachiyomi.ui.mod.util.dateUploadMillis
-import kotlinx.coroutines.launch
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Immutable
-import androidx.lifecycle.viewModelScope
-import eu.kanade.tachiyomi.util.lang.toJavaLocalDate
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.viewModelScope
 import eu.kanade.core.preference.asState
 import eu.kanade.tachiyomi.ui.mod.updatewatch.worker.UpdateWatchRefreshScheduler
 import eu.kanade.tachiyomi.ui.mod.updatewatch.worker.UpdateWatchRefreshState
+import eu.kanade.tachiyomi.ui.mod.util.dateUploadMillis
+import eu.kanade.tachiyomi.util.lang.toJavaLocalDate
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -17,20 +16,21 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
-import tachiyomi.core.common.util.system.logcat
+import kotlinx.coroutines.launch
 import logcat.LogPriority
+import mihon.domain.source.interactor.UpdateMangaFromRemote
+import tachiyomi.core.common.util.system.logcat
+import tachiyomi.domain.chapter.interactor.GetChaptersByMangaId
 import tachiyomi.domain.chapter.model.Chapter
 import tachiyomi.domain.chapter.repository.ChapterRepository
 import tachiyomi.domain.history.interactor.GetUpdateWatchHistory
 import tachiyomi.domain.history.interactor.ManageUpdateWatch
-import tachiyomi.domain.history.interactor.ManageUpdateWatchInbox
 import tachiyomi.domain.history.interactor.ManageUpdateWatchHistory
-import tachiyomi.domain.history.model.UpdateWatchInboxItem
+import tachiyomi.domain.history.interactor.ManageUpdateWatchInbox
 import tachiyomi.domain.history.model.UpdateWatch
-import tachiyomi.domain.library.service.LibraryPreferences
-import tachiyomi.domain.chapter.interactor.GetChaptersByMangaId
-import mihon.domain.source.interactor.UpdateMangaFromRemote
 import tachiyomi.domain.history.model.UpdateWatchHistory
+import tachiyomi.domain.history.model.UpdateWatchInboxItem
+import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.domain.manga.interactor.GetManga
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.source.linked.interactor.ManageLinkedSourceGroup
@@ -56,7 +56,6 @@ class UpdateWatchManagerViewModel(
 ) : androidx.lifecycle.ViewModel() {
     private val mutableState = kotlinx.coroutines.flow.MutableStateFlow<UpdateWatchManagerViewModel.State>(State())
     val state: kotlinx.coroutines.flow.StateFlow<UpdateWatchManagerViewModel.State> = mutableState
-
 
     val sortMode by libraryPreferences.trackedMangaSort.asState(viewModelScope)
     val funOverdueMessages by libraryPreferences.funOverdueMessages.asState(viewModelScope)
@@ -88,7 +87,9 @@ class UpdateWatchManagerViewModel(
 
                             val daysSinceRelease = latestChapter?.let {
                                 val today = LocalDate.now()
-                                val releaseDate = java.time.Instant.ofEpochMilli(it.dateUploadMillis).atZone(java.time.ZoneId.systemDefault()).toLocalDate()
+                                val releaseDate = java.time.Instant.ofEpochMilli(
+                                    it.dateUploadMillis,
+                                ).atZone(java.time.ZoneId.systemDefault()).toLocalDate()
                                 ChronoUnit.DAYS.between(releaseDate, today)
                             } ?: -1L
 
@@ -116,9 +117,13 @@ class UpdateWatchManagerViewModel(
             ) { items, query, sort ->
                 val sortedItems = when (sort) {
                     LibraryPreferences.TrackedMangaSort.NewestRelease -> items.sortedBy { it.daysSinceRelease }
-                    LibraryPreferences.TrackedMangaSort.OldestRelease -> items.sortedByDescending { it.daysSinceRelease }
+                    LibraryPreferences.TrackedMangaSort.OldestRelease -> items.sortedByDescending {
+                        it.daysSinceRelease
+                    }
                     LibraryPreferences.TrackedMangaSort.TitleAZ -> items.sortedBy { it.trackingManga.title.lowercase() }
-                    LibraryPreferences.TrackedMangaSort.TitleZA -> items.sortedByDescending { it.trackingManga.title.lowercase() }
+                    LibraryPreferences.TrackedMangaSort.TitleZA -> items.sortedByDescending {
+                        it.trackingManga.title.lowercase()
+                    }
                 }
 
                 if (query.isNullOrBlank()) return@combine sortedItems
@@ -185,7 +190,7 @@ class UpdateWatchManagerViewModel(
                     latestChapterNumber = 0.0,
                     chapterIds = emptyList(),
                     type = UpdateWatchInboxItem.TYPE_INACTIVITY_WARNING,
-                    milestone = milestone
+                    milestone = milestone,
                 )
                 manageUpdateWatchInbox.insertOrMerge(inboxItem)
                 snackbarHostState.showSnackbar("Simulated $milestone-day warning for ${item.trackingManga.title}")
@@ -210,7 +215,9 @@ class UpdateWatchManagerViewModel(
                 if (refreshResult.isSuccess) {
                     val newChapters = refreshResult.getOrThrow().newChapters
                     val currentChapters = chapterRepository.getChapterByMangaId(mangaId)
-                    val newLatest = currentChapters.filter { it.dateUploadMillis > 0 }.maxByOrNull { it.dateUploadMillis }
+                    val newLatest = currentChapters.filter {
+                        it.dateUploadMillis > 0
+                    }.maxByOrNull { it.dateUploadMillis }
 
                     val foundNew = newChapters.isNotEmpty() || (newLatest != null && newLatest.id != oldLatest?.id)
                     val newCount = newChapters.size.coerceAtLeast(if (foundNew) 1 else 0)
@@ -243,8 +250,8 @@ class UpdateWatchManagerViewModel(
                             success = true,
                             newChapters = newCount,
                             category = UpdateWatchHistory.FailureCategory.NONE,
-                            detail = null
-                        )
+                            detail = null,
+                        ),
                     )
                     snackbarHostState.showSnackbar("Refresh succeeded: found $newCount new chapters")
                 } else {
@@ -258,8 +265,8 @@ class UpdateWatchManagerViewModel(
                             success = false,
                             newChapters = 0,
                             category = UpdateWatchHistory.FailureCategory.UNKNOWN,
-                            detail = detail
-                        )
+                            detail = detail,
+                        ),
                     )
                     snackbarHostState.showSnackbar("Refresh failed: $detail")
                 }

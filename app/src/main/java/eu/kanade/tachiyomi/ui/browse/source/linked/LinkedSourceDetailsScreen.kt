@@ -108,24 +108,28 @@ class LinkedSourceDetailsScreen(private val groupId: Long) : Screen() {
                                 Text(
                                     text = "No read history:",
                                     style = androidx.compose.material3.MaterialTheme.typography.labelLarge,
-                                    color = androidx.compose.material3.MaterialTheme.colorScheme.error
+                                    color = androidx.compose.material3.MaterialTheme.colorScheme.error,
                                 )
                                 Text(
-                                    text = dialog.withoutHistory.map { eu.kanade.tachiyomi.ui.mod.components.rememberSourceName(it.manga.source) }.joinToString(", "),
+                                    text = dialog.withoutHistory.map {
+                                        eu.kanade.tachiyomi.ui.mod.components.rememberSourceName(it.manga.source)
+                                    }.joinToString(", "),
                                     style = androidx.compose.material3.MaterialTheme.typography.bodyMedium,
-                                    modifier = Modifier.padding(bottom = 8.dp)
+                                    modifier = Modifier.padding(bottom = 8.dp),
                                 )
                             }
                             if (dialog.inOtherGroup.isNotEmpty()) {
                                 Text(
                                     text = "Already in another History Group:",
                                     style = androidx.compose.material3.MaterialTheme.typography.labelLarge,
-                                    color = androidx.compose.material3.MaterialTheme.colorScheme.error
+                                    color = androidx.compose.material3.MaterialTheme.colorScheme.error,
                                 )
                                 Text(
-                                    text = dialog.inOtherGroup.map { eu.kanade.tachiyomi.ui.mod.components.rememberSourceName(it.manga.source) }.joinToString(", "),
+                                    text = dialog.inOtherGroup.map {
+                                        eu.kanade.tachiyomi.ui.mod.components.rememberSourceName(it.manga.source)
+                                    }.joinToString(", "),
                                     style = androidx.compose.material3.MaterialTheme.typography.bodyMedium,
-                                    modifier = Modifier.padding(bottom = 8.dp)
+                                    modifier = Modifier.padding(bottom = 8.dp),
                                 )
                             }
                             Text(
@@ -134,7 +138,7 @@ class LinkedSourceDetailsScreen(private val groupId: Long) : Screen() {
                                 } else {
                                     "At least two eligible sources are required to create a History Group."
                                 },
-                                style = androidx.compose.material3.MaterialTheme.typography.bodyLarge
+                                style = androidx.compose.material3.MaterialTheme.typography.bodyLarge,
                             )
                         }
                     },
@@ -142,7 +146,12 @@ class LinkedSourceDetailsScreen(private val groupId: Long) : Screen() {
                         TextButton(
                             onClick = {
                                 if (isEligible) {
-                                    viewModel.performCreateHistoryGroup(state.group?.name ?: "", dialog.eligible.map { it.manga.id })
+                                    viewModel.performCreateHistoryGroup(
+                                        state.group?.name ?: "",
+                                        dialog.eligible.map {
+                                            it.manga.id
+                                        },
+                                    )
                                 } else {
                                     viewModel.dismissDialog()
                                 }
@@ -157,7 +166,9 @@ class LinkedSourceDetailsScreen(private val groupId: Long) : Screen() {
                                 Text(stringResource(MR.strings.action_cancel))
                             }
                         }
-                    } else null,
+                    } else {
+                        null
+                    },
                 )
             }
             is LinkedSourceDetailsViewModel.Dialog.TrackingSourcePicker -> {
@@ -169,7 +180,7 @@ class LinkedSourceDetailsScreen(private val groupId: Long) : Screen() {
                         androidx.compose.foundation.lazy.LazyColumn {
                             items(
                                 items = state.members,
-                                key = { it.manga.id }
+                                key = { it.manga.id },
                             ) { member ->
                                 androidx.compose.material3.ListItem(
                                     modifier = Modifier.clickable {
@@ -177,14 +188,18 @@ class LinkedSourceDetailsScreen(private val groupId: Long) : Screen() {
                                     },
                                     headlineContent = { Text(member.manga.title) },
                                     supportingContent = {
-                                        Text(eu.kanade.tachiyomi.ui.mod.components.rememberSourceName(member.manga.source))
+                                        Text(
+                                            eu.kanade.tachiyomi.ui.mod.components.rememberSourceName(
+                                                member.manga.source,
+                                            ),
+                                        )
                                     },
                                     trailingContent = {
                                         Checkbox(
                                             checked = member.isTracking,
-                                            onCheckedChange = null
+                                            onCheckedChange = null,
                                         )
-                                    }
+                                    },
                                 )
                             }
                         }

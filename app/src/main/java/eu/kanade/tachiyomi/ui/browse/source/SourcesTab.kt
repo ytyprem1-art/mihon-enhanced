@@ -68,7 +68,9 @@ fun Screen.sourcesTab(
                 contentPadding = contentPadding,
                 onClickItem = { source, listing ->
                     if (smartSearchConfig != null) {
-                        navigator.push(SmartSearchScreen(source.id, smartSearchConfig.origTitle, smartSearchConfig.origMangaId!!))
+                        navigator.push(
+                            SmartSearchScreen(source.id, smartSearchConfig.origTitle, smartSearchConfig.origMangaId!!),
+                        )
                     } else {
                         navigator.push(BrowseSourceScreen(source.id, listing.query))
                     }

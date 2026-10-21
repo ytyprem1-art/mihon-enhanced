@@ -157,10 +157,10 @@ private fun GlobalSourceSearchContent(
                                     enabled = false,
                                     colors = ButtonDefaults.filledTonalButtonColors(
                                         disabledContainerColor = Color(0xFF4CAF50), // Green
-                                        disabledContentColor = Color.White
+                                        disabledContentColor = Color.White,
                                     ),
                                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
-                                    modifier = Modifier.height(32.dp)
+                                    modifier = Modifier.height(32.dp),
                                 ) {
                                     Text("MERGED", style = MaterialTheme.typography.labelSmall)
                                 }
@@ -168,7 +168,7 @@ private fun GlobalSourceSearchContent(
                                 FilledTonalButton(
                                     onClick = { onAdd(mangaState) },
                                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
-                                    modifier = Modifier.height(32.dp)
+                                    modifier = Modifier.height(32.dp),
                                 ) {
                                     Text("ADD", style = MaterialTheme.typography.labelSmall)
                                 }

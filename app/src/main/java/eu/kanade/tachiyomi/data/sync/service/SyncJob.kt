@@ -1,7 +1,6 @@
 package eu.kanade.tachiyomi.data.sync.service
 
 import android.content.Context
-import mihon.app.di.appGraph
 import androidx.work.BackoffPolicy
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
@@ -14,6 +13,7 @@ import eu.kanade.tachiyomi.data.sync.SyncManager
 import eu.kanade.tachiyomi.util.system.workManager
 import kotlinx.coroutines.CancellationException
 import logcat.LogPriority
+import mihon.app.di.appGraph
 import tachiyomi.core.common.util.system.logcat
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get

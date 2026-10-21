@@ -1,20 +1,20 @@
 package eu.kanade.tachiyomi.ui.browse.source.linked
 
-import kotlinx.coroutines.launch
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.viewModelScope
 import eu.kanade.core.preference.asState
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.domain.manga.model.Manga
-import tachiyomi.domain.source.service.SourceManager
 import tachiyomi.domain.source.linked.interactor.ManageLinkedSourceGroup
 import tachiyomi.domain.source.linked.model.LinkedSourceGroup
+import tachiyomi.domain.source.service.SourceManager
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 
@@ -26,7 +26,6 @@ class LinkedSourcesViewModel(
     private val mutableState = kotlinx.coroutines.flow.MutableStateFlow<LinkedSourcesViewModel.State>(State())
     val state: kotlinx.coroutines.flow.StateFlow<LinkedSourcesViewModel.State> = mutableState
 
-
     val sortMode by libraryPreferences.linkedSourceGroupSort.asState(viewModelScope)
 
     init {
@@ -34,7 +33,11 @@ class LinkedSourcesViewModel(
             val groupsFlow = manageLinkedSourceGroup.subscribe()
                 .distinctUntilChanged()
                 .flatMapLatest { groups ->
-                    if (groups.isEmpty()) return@flatMapLatest kotlinx.coroutines.flow.flowOf(emptyList<GroupWithMetadata>())
+                    if (groups.isEmpty()) {
+                        return@flatMapLatest kotlinx.coroutines.flow.flowOf(
+                            emptyList<GroupWithMetadata>(),
+                        )
+                    }
 
                     val flows = groups.map { group ->
                         manageLinkedSourceGroup.subscribeMembers(group.id).map { members ->
@@ -42,7 +45,7 @@ class LinkedSourcesViewModel(
                                 group = group,
                                 representativeManga = members.firstOrNull(),
                                 sourceNames = members.map { sourceManager.getOrStub(it.source).name },
-                                memberTitles = members.map { it.title }
+                                memberTitles = members.map { it.title },
                             )
                         }
                     }
@@ -59,7 +62,9 @@ class LinkedSourcesViewModel(
                     LibraryPreferences.LinkedSourceGroupSort.Newest -> groups.sortedByDescending { it.group.id }
                     LibraryPreferences.LinkedSourceGroupSort.Oldest -> groups.sortedBy { it.group.id }
                     LibraryPreferences.LinkedSourceGroupSort.TitleAZ -> groups.sortedBy { it.group.name.lowercase() }
-                    LibraryPreferences.LinkedSourceGroupSort.TitleZA -> groups.sortedByDescending { it.group.name.lowercase() }
+                    LibraryPreferences.LinkedSourceGroupSort.TitleZA -> groups.sortedByDescending {
+                        it.group.name.lowercase()
+                    }
                 }
 
                 if (q.isNullOrBlank()) return@combine sortedGroups

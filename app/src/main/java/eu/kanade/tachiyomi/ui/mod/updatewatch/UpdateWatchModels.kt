@@ -1,11 +1,11 @@
 package eu.kanade.tachiyomi.ui.mod.updatewatch
 
 import androidx.compose.runtime.Immutable
-import tachiyomi.domain.history.model.UpdateWatch
-import tachiyomi.domain.history.model.UpdateWatchInboxItem
-import tachiyomi.domain.history.model.UpdateWatchHistory
-import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.chapter.model.Chapter
+import tachiyomi.domain.history.model.UpdateWatch
+import tachiyomi.domain.history.model.UpdateWatchHistory
+import tachiyomi.domain.history.model.UpdateWatchInboxItem
+import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.source.linked.model.LinkedSourceGroup
 
 @Immutable

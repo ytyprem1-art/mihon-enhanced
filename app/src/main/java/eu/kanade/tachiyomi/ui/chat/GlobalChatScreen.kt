@@ -88,18 +88,18 @@ import coil3.request.ImageRequest
 import coil3.request.crossfade
 import eu.kanade.presentation.manga.components.DotSeparatorText
 import eu.kanade.presentation.manga.components.MangaCover
+import eu.kanade.tachiyomi.ui.mod.EnhancedPreferences
 import kotlinx.coroutines.launch
-import tachiyomi.domain.manga.model.MangaCover as MangaCoverModel
 import tachiyomi.presentation.core.components.material.Scaffold
+import tachiyomi.presentation.core.util.collectAsState
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
-import eu.kanade.tachiyomi.ui.mod.EnhancedPreferences
-import tachiyomi.presentation.core.util.collectAsState
-import kotlin.time.Duration.Companion.milliseconds
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import kotlin.time.Duration.Companion.milliseconds
+import tachiyomi.domain.manga.model.MangaCover as MangaCoverModel
 
 @Composable
 fun GlobalChatScreen(
@@ -229,7 +229,7 @@ private fun PresenceHeader(
             Text(
                 text = "Global Chat",
                 style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
             )
             if (unreadCount > 0) {
                 Badge { Text(unreadCount.toString()) }
@@ -241,7 +241,7 @@ private fun PresenceHeader(
                 .fillMaxWidth()
                 .padding(bottom = 8.dp),
             contentPadding = PaddingValues(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             items(users) { user ->
                 OnlineUserItem(user)
@@ -256,14 +256,27 @@ private fun OnlineUserItem(user: ChatUser) {
     val color = remember(user.username) { getUserColor(user.username) }
     var showProfile by remember(user.uid) { mutableStateOf(false) }
     if (showProfile) {
-        eu.kanade.tachiyomi.ui.mod.chatprofile.ChatUserProfile(user.username, user.appVersion, user.uid, user.avatarBase64, user.avatarPhotoVersion) { showProfile = false }
+        eu.kanade.tachiyomi.ui.mod.chatprofile.ChatUserProfile(
+            user.username,
+            user.appVersion,
+            user.uid,
+            user.avatarBase64,
+            user.avatarPhotoVersion,
+        ) {
+            showProfile =
+                false
+        }
     }
     Column(
         modifier = Modifier.clickable(onClickLabel = "Open profile") { showProfile = true },
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Box {
-            eu.kanade.tachiyomi.ui.mod.chatprofile.ChatAvatar(user.username, user.avatarBase64, color = color.copy(alpha = 0.2f))
+            eu.kanade.tachiyomi.ui.mod.chatprofile.ChatAvatar(
+                user.username,
+                user.avatarBase64,
+                color = color.copy(alpha = 0.2f),
+            )
 
             if (user.isOnline) {
                 Box(
@@ -272,7 +285,7 @@ private fun OnlineUserItem(user: ChatUser) {
                         .clip(CircleShape)
                         .background(Color.Green)
                         .align(Alignment.BottomEnd)
-                        .border(1.dp, MaterialTheme.colorScheme.surface, CircleShape)
+                        .border(1.dp, MaterialTheme.colorScheme.surface, CircleShape),
                 )
             }
         }
@@ -282,7 +295,7 @@ private fun OnlineUserItem(user: ChatUser) {
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.width(40.dp),
-            textAlign = TextAlign.Center
+            textAlign = TextAlign.Center,
         )
     }
 }
@@ -442,14 +455,14 @@ private fun ColumnScope.ChatRoomContent(
             exit = androidx.compose.animation.fadeOut() + androidx.compose.animation.scaleOut(),
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(16.dp)
+                .padding(16.dp),
         ) {
             BadgedBox(
                 badge = {
                     if (state.unreadCount > 0) {
                         Badge { Text(state.unreadCount.toString()) }
                     }
-                }
+                },
             ) {
                 FloatingActionButton(
                     onClick = {
@@ -473,7 +486,7 @@ private fun ColumnScope.ChatRoomContent(
             text = "${state.typingIndicator} is typing...",
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
         )
     }
 
@@ -686,7 +699,16 @@ private fun ChatBubble(
     var showProfile by remember(message.senderUid) { mutableStateOf(false) }
     if (showProfile) {
         val user = allUsers.firstOrNull { message.senderUid.isNotBlank() && it.uid == message.senderUid }
-        eu.kanade.tachiyomi.ui.mod.chatprofile.ChatUserProfile(user?.username ?: message.sender, user?.appVersion, message.senderUid, user?.avatarBase64, user?.avatarPhotoVersion) { showProfile = false }
+        eu.kanade.tachiyomi.ui.mod.chatprofile.ChatUserProfile(
+            user?.username ?: message.sender,
+            user?.appVersion,
+            message.senderUid,
+            user?.avatarBase64,
+            user?.avatarPhotoVersion,
+        ) {
+            showProfile =
+                false
+        }
     }
 
     Column(
@@ -729,7 +751,15 @@ private fun ChatBubble(
                                 DotSeparatorText()
                             }
                             Text(
-                                text = if (message.hasPanel) "Shared a panel" else if (message.chapterName != null) "Shared a chapter" else "Shared a manga",
+                                text = if (message.hasPanel) {
+                                    "Shared a panel"
+                                } else if (message.chapterName !=
+                                    null
+                                ) {
+                                    "Shared a chapter"
+                                } else {
+                                    "Shared a manga"
+                                },
                                 style = MaterialTheme.typography.labelSmall,
                                 color = textColor.copy(alpha = 0.6f),
                             )
@@ -739,7 +769,8 @@ private fun ChatBubble(
 
                 // Reply info
                 if (message.replyToMessageId != null) {
-                    val replyUserColor = remember(message.replyToSenderName) { getUserColor(message.replyToSenderName ?: "") }
+                    val replyUserColor =
+                        remember(message.replyToSenderName) { getUserColor(message.replyToSenderName ?: "") }
                     Surface(
                         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                         shape = RoundedCornerShape(4.dp),
@@ -803,7 +834,7 @@ private fun ChatBubble(
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.End,
-                    modifier = Modifier.align(Alignment.End)
+                    modifier = Modifier.align(Alignment.End),
                 ) {
                     val timeText = remember(message.timestamp) {
                         SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(message.timestamp))
@@ -822,7 +853,7 @@ private fun ChatBubble(
                             modifier = Modifier
                                 .size(12.dp)
                                 .clickable { showReadReceipts = true },
-                            tint = labelColor.copy(alpha = 0.7f)
+                            tint = labelColor.copy(alpha = 0.7f),
                         )
                     }
                 }
@@ -860,7 +891,7 @@ private fun ReadReceiptsDialog(
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 text = timeFormatter.format(Date(timestamp)),
-                                style = MaterialTheme.typography.bodySmall
+                                style = MaterialTheme.typography.bodySmall,
                             )
                         }
                     }
@@ -871,7 +902,7 @@ private fun ReadReceiptsDialog(
             TextButton(onClick = onDismiss) {
                 Text("Close")
             }
-        }
+        },
     )
 }
 

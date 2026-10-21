@@ -40,7 +40,7 @@ class BookmarkMatchTest {
             createChapter(1.0, "Ch 1.0"),
             createChapter(1.3, "Ch 1.3"),
             createChapter(1.5, "Ch 1.5"),
-            createChapter(2.0, "Ch 2.0")
+            createChapter(2.0, "Ch 2.0"),
         )
 
         val toMarkRead = chapters.filter { it.chapterNumber >= 0 && it.chapterNumber <= viewedChapter }
@@ -57,7 +57,7 @@ class BookmarkMatchTest {
         val entries = listOf(
             createEntry("1", ManganatoCsvParser.MatchResult.IMPORTED),
             createEntry("2", ManganatoCsvParser.MatchResult.MATCHED),
-            createEntry("3", ManganatoCsvParser.MatchResult.UNCHECKED)
+            createEntry("3", ManganatoCsvParser.MatchResult.UNCHECKED),
         )
 
         // Find items that need matching
@@ -74,7 +74,7 @@ class BookmarkMatchTest {
             createEntry("1", ManganatoCsvParser.MatchResult.NETWORK_TIMEOUT),
             createEntry("2", ManganatoCsvParser.MatchResult.SOURCE_ERROR),
             createEntry("3", ManganatoCsvParser.MatchResult.NOT_FOUND),
-            createEntry("4", ManganatoCsvParser.MatchResult.IMPORT_FAILED)
+            createEntry("4", ManganatoCsvParser.MatchResult.IMPORT_FAILED),
         )
 
         // Matching retry
@@ -87,7 +87,8 @@ class BookmarkMatchTest {
         // Import retry
         val retryImportIndices = entries.indices.filter { i ->
             val res = entries[i].matchResult
-            res == ManganatoCsvParser.MatchResult.IMPORT_FAILED || res == ManganatoCsvParser.MatchResult.CHAPTER_SYNC_FAILED
+            res == ManganatoCsvParser.MatchResult.IMPORT_FAILED ||
+                res == ManganatoCsvParser.MatchResult.CHAPTER_SYNC_FAILED
         }
         assertEquals(listOf(3), retryImportIndices)
     }
@@ -103,7 +104,7 @@ class BookmarkMatchTest {
             "Ch. 11: Subtitle with 55 number" to 11.0,
             "Chapter 20" to 20.0,
             "11" to 11.0,
-            "No Number Here" to null
+            "No Number Here" to null,
         )
 
         names.forEach { (name, expected) ->
@@ -123,7 +124,7 @@ class BookmarkMatchTest {
             // Case 3: invalid source chapterNumber, unrelated number in name
             createChapter(-1.0, "Chapter 11: MATCH 10"),
             // Case 4: outside range
-            createChapter(12.0, "Chapter 12")
+            createChapter(12.0, "Chapter 12"),
         )
 
         val toMarkRead = chapters.filter { chapter ->
@@ -146,7 +147,7 @@ class BookmarkMatchTest {
         return Chapter.create().copy(
             chapterNumber = number,
             name = name,
-            read = false
+            read = false,
         )
     }
 
@@ -159,7 +160,7 @@ class BookmarkMatchTest {
             domain = "example.com",
             mangaPath = "/$id",
             isValid = true,
-            matchResult = result
+            matchResult = result,
         )
     }
 }

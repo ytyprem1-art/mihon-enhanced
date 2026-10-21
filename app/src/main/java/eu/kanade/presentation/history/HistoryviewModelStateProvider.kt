@@ -56,7 +56,7 @@ class HistoryviewModelStateProvider : PreviewParameterProvider<HistoryViewModel.
         list = emptyList(),
         dialog = null,
         historyCategories = emptyList(),
-        selectedCategoryId = 0L
+        selectedCategoryId = 0L,
     )
 
     private val loading = HistoryViewModel.State(
@@ -64,7 +64,7 @@ class HistoryviewModelStateProvider : PreviewParameterProvider<HistoryViewModel.
         list = emptyList(), // 👈 UBAH DARI null MENJADI emptyList()
         dialog = null,
         historyCategories = emptyList(),
-        selectedCategoryId = 0L
+        selectedCategoryId = 0L,
     )
 
     override val values: Sequence<HistoryViewModel.State> = sequenceOf(

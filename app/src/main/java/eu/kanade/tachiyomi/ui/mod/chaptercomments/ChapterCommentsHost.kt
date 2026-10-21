@@ -1,8 +1,20 @@
 package eu.kanade.tachiyomi.ui.mod.chaptercomments
 
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -10,8 +22,26 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -38,18 +68,25 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import tachiyomi.domain.chapter.model.Chapter
 import java.text.DateFormat
 import java.util.Date
-import okhttp3.HttpUrl.Companion.toHttpUrl
 
 class ChapterCommentsController {
     var chapter by mutableStateOf<Chapter?>(null)
         private set
     internal var release: (() -> Unit)? = null
 
-    fun open(chapter: Chapter) { close(); this.chapter = chapter }
-    fun close() { release?.invoke(); release = null; chapter = null }
+    fun open(chapter: Chapter) {
+        close()
+        this.chapter = chapter
+    }
+    fun close() {
+        release?.invoke()
+        release = null
+        chapter = null
+    }
 }
 
 @Composable
@@ -74,9 +111,15 @@ private fun CommentsPopup(controller: ChapterCommentsController, chapter: Chapte
     val media = remember { CommentImages(context.applicationContext, transport.client) }
     val images = media.loader
     DisposableEffect(Unit) {
-        val close = { transport.close(); media.close() }
+        val close = {
+            transport.close()
+            media.close()
+        }
         controller.release = close
-        onDispose { close(); controller.release = null }
+        onDispose {
+            close()
+            controller.release = null
+        }
     }
     var target by remember { mutableStateOf<CommentTarget?>(null) }
     var provider by remember { mutableStateOf<ChapterCommentsProvider?>(null) }
@@ -100,32 +143,53 @@ private fun CommentsPopup(controller: ChapterCommentsController, chapter: Chapte
 
     LaunchedEffect(retry) {
         if (provider != null) return@LaunchedEffect
-        loading = true; error = null
+        loading = true
+        error = null
         try {
             val resolved = resolveCommentTarget(graph, chapter)
             target = resolved
             val active = withContext(Dispatchers.IO) { chapterCommentsProvider(resolved, transport).prepare() }
             if (sort !in active.supportedSorts) sort = active.supportedSorts.first()
             provider = active
-        } catch (e: CancellationException) { throw e
-        } catch (e: Exception) { error = e.message ?: "Tidak bisa membuka komentar."; loading = false }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            error = e.message ?: "Tidak bisa membuka komentar."
+            loading = false
+        }
     }
     LaunchedEffect(provider, sort, retry) {
         val active = provider ?: return@LaunchedEffect
-        loading = true; error = null; page = 1; comments = emptyList(); total = null; hasMore = false
+        loading = true
+        error = null
+        page = 1
+        comments = emptyList()
+        total = null
+        hasMore = false
         supervisorScope {
             val reactionJob = async(Dispatchers.IO) {
-                try { active.reactions() } catch (e: CancellationException) { throw e
-                } catch (_: Exception) { null }
+                try {
+                    active.reactions()
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    null
+                }
             }
             try {
                 val result = withContext(Dispatchers.IO) { active.comments(sort, 1) }
-                comments = result.comments.distinctBy { it.id }; total = result.total.takeIf { result.totalKnown }; hasMore = result.hasMore
-            } catch (e: CancellationException) { throw e
+                comments = result.comments.distinctBy { it.id }
+                total = result.total.takeIf { result.totalKnown }
+                hasMore =
+                    result.hasMore
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 android.util.Log.w("ChapterComments", "Unable to read comments for ${target?.sourceName}", e)
                 error = e.message?.takeIf { it.isNotBlank() } ?: "Komentar gagal dimuat (${e.javaClass.simpleName})."
-            } finally { loading = false }
+            } finally {
+                loading = false
+            }
             val counts = reactionJob.await()
             reactionError = counts == null
             reactions = counts.orEmpty()
@@ -138,23 +202,34 @@ private fun CommentsPopup(controller: ChapterCommentsController, chapter: Chapte
             val identity = withContext(Dispatchers.IO) { voting.chapterVoteIdentity() }
             voteKey = identity
             selectedReaction = savedVotes.get(identity, voting.reactionOptions)
-        } catch (e: CancellationException) { throw e
+        } catch (e: CancellationException) {
+            throw e
         } catch (_: Exception) { /* The read path reports identity failures and allows retry. */ }
     }
 
     Dialog(onDismissRequest = controller::close, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Surface(modifier = Modifier.fillMaxWidth(.94f).widthIn(max = 840.dp).fillMaxHeight(.86f), shape = MaterialTheme.shapes.extraLarge) {
+        Surface(
+            modifier = Modifier.fillMaxWidth(.94f).widthIn(max = 840.dp).fillMaxHeight(.86f),
+            shape = MaterialTheme.shapes.extraLarge,
+        ) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text("Komentar", style = MaterialTheme.typography.titleLarge)
-                        Text("${target?.sourceName ?: ""} · ${chapter.name}", style = MaterialTheme.typography.bodySmall, maxLines = 2)
+                        Text(
+                            "${target?.sourceName ?: ""} · ${chapter.name}",
+                            style = MaterialTheme.typography.bodySmall,
+                            maxLines = 2,
+                        )
                     }
                     IconButton(onClick = controller::close) { Icon(Icons.Outlined.Close, "Tutup komentar") }
                 }
                 val voting = provider as? ChapterReactionsProvider
                 if (voting != null) {
-                    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(
+                        Modifier.horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
                         voting.reactionOptions.forEach { option ->
                             val count = reactions.firstOrNull { it.label == option.countLabel }?.count
                             FilterChip(
@@ -163,12 +238,20 @@ private fun CommentsPopup(controller: ChapterCommentsController, chapter: Chapte
                                 label = { Text(count?.toString() ?: "…") },
                                 leadingIcon = {
                                     if (option.imageUrl != null) {
-                                        AsyncImage(model = option.imageUrl, imageLoader = images, contentDescription = option.countLabel, modifier = Modifier.size(30.dp))
-                                    } else Text(option.emoji, style = MaterialTheme.typography.titleMedium)
+                                        AsyncImage(
+                                            model = option.imageUrl,
+                                            imageLoader = images,
+                                            contentDescription = option.countLabel,
+                                            modifier = Modifier.size(30.dp),
+                                        )
+                                    } else {
+                                        Text(option.emoji, style = MaterialTheme.typography.titleMedium)
+                                    }
                                 },
                                 onClick = {
                                     if (voteBusy) return@FilterChip
-                                    voteBusy = true; voteError = null
+                                    voteBusy = true
+                                    voteError = null
                                     val previous = selectedReaction
                                     val next = option.key.takeUnless { it == previous }
                                     scope.launch {
@@ -176,7 +259,8 @@ private fun CommentsPopup(controller: ChapterCommentsController, chapter: Chapte
                                             withContext(Dispatchers.IO) { voting.setChapterReaction(previous, next) }
                                             voteKey?.let { savedVotes.set(it, next) }
                                             selectedReaction = next
-                                        } catch (e: CancellationException) { throw e
+                                        } catch (e: CancellationException) {
+                                            throw e
                                         } catch (e: Exception) {
                                             if (e is ChapterReactionUpdateException) {
                                                 selectedReaction = e.confirmedSelection
@@ -187,32 +271,53 @@ private fun CommentsPopup(controller: ChapterCommentsController, chapter: Chapte
                                         try {
                                             reactions = withContext(Dispatchers.IO) { provider?.reactions().orEmpty() }
                                             reactionError = false
-                                        } catch (e: CancellationException) { throw e
-                                        } catch (_: Exception) { reactionError = true
-                                        } finally { voteBusy = false }
+                                        } catch (e: CancellationException) {
+                                            throw e
+                                        } catch (_: Exception) {
+                                            reactionError = true
+                                        } finally {
+                                            voteBusy = false
+                                        }
                                     }
                                 },
                             )
                         }
                     }
                     if (voteBusy) LinearProgressIndicator(Modifier.fillMaxWidth())
-                    voteError?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
-                } else if (reactions.isNotEmpty()) {
-                    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        reactions.forEach { Text("${it.label} ${it.count}", style = MaterialTheme.typography.labelMedium) }
+                    voteError?.let {
+                        Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
                     }
-                } else if (reactionError) { Text("Jumlah reaksi belum tersedia.", style = MaterialTheme.typography.bodySmall) }
-                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                } else if (reactions.isNotEmpty()) {
+                    Row(
+                        Modifier.horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        reactions.forEach {
+                            Text("${it.label} ${it.count}", style = MaterialTheme.typography.labelMedium)
+                        }
+                    }
+                } else if (reactionError) {
+                    Text("Jumlah reaksi belum tersedia.", style = MaterialTheme.typography.bodySmall)
+                }
+                Row(
+                    Modifier.horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
                     (provider?.supportedSorts ?: CommentSort.entries).forEach { value ->
-                        FilterChip(selected = value == sort, onClick = { if (!loading) sort = value }, label = { Text(value.label) })
+                        FilterChip(selected = value == sort, onClick = {
+                            if (!loading) sort = value
+                        }, label = { Text(value.label) })
                     }
                 }
                 HorizontalDivider()
                 if (comments.isNotEmpty()) {
                     val knownTotal = total?.takeIf { it >= comments.size }
                     Text(
-                        if (knownTotal != null) "${comments.size} komentar dimuat dari $knownTotal komentar"
-                        else "${comments.size} komentar dimuat · total belum tersedia",
+                        if (knownTotal != null) {
+                            "${comments.size} komentar dimuat dari $knownTotal komentar"
+                        } else {
+                            "${comments.size} komentar dimuat · total belum tersedia"
+                        },
                         style = MaterialTheme.typography.labelMedium,
                     )
                 }
@@ -221,37 +326,61 @@ private fun CommentsPopup(controller: ChapterCommentsController, chapter: Chapte
                         key(sort) { CommentItem(comment, images, provider, threadStates, scope) }
                         HorizontalDivider(Modifier.padding(top = 12.dp))
                     }
-                    if (loading) item { Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-                        CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp)
-                        Spacer(Modifier.width(12.dp)); Text(if (comments.isEmpty()) "Menghubungkan…" else "Memuat…")
-                    } }
-                    error?.let { message -> item {
-                        Text(message, color = MaterialTheme.colorScheme.error)
-                        TextButton(onClick = { retry++ }) { Text("Coba lagi") }
-                    } }
-                    if (!loading && error == null && provider != null && comments.isEmpty()) item { Text("Belum ada komentar di chapter ini.") }
-                    if (hasMore && !loading && error == null) item {
-                        TextButton(onClick = {
-                            val active = provider ?: return@TextButton
-                            scope.launch {
-                                loading = true
-                                try {
-                                    val result = withContext(Dispatchers.IO) { active.comments(sort, page + 1) }
-                                    comments = (comments + result.comments).distinctBy { it.id }; page++
-                                    if (result.totalKnown) total = result.total
-                                    hasMore = result.hasMore
-                                } catch (e: CancellationException) { throw e
-                                } catch (e: Exception) { error = e.message ?: "Komentar gagal dimuat."
-                                } finally { loading = false }
+                    if (loading) {
+                        item {
+                            Row(
+                                Modifier.fillMaxWidth().padding(16.dp),
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp)
+                                Spacer(Modifier.width(12.dp))
+                                Text(if (comments.isEmpty()) "Menghubungkan…" else "Memuat…")
                             }
-                        }, modifier = Modifier.fillMaxWidth()) { Text("Muat komentar berikutnya") }
+                        }
+                    }
+                    error?.let { message ->
+                        item {
+                            Text(message, color = MaterialTheme.colorScheme.error)
+                            TextButton(onClick = { retry++ }) { Text("Coba lagi") }
+                        }
+                    }
+                    if (!loading && error == null && provider != null &&
+                        comments.isEmpty()
+                    ) {
+                        item { Text("Belum ada komentar di chapter ini.") }
+                    }
+                    if (hasMore && !loading && error == null) {
+                        item {
+                            TextButton(onClick = {
+                                val active = provider ?: return@TextButton
+                                scope.launch {
+                                    loading = true
+                                    try {
+                                        val result = withContext(Dispatchers.IO) { active.comments(sort, page + 1) }
+                                        comments = (comments + result.comments).distinctBy { it.id }
+                                        page++
+                                        if (result.totalKnown) total = result.total
+                                        hasMore = result.hasMore
+                                    } catch (e: CancellationException) {
+                                        throw e
+                                    } catch (e: Exception) {
+                                        error = e.message ?: "Komentar gagal dimuat."
+                                    } finally {
+                                        loading = false
+                                    }
+                                }
+                            }, modifier = Modifier.fillMaxWidth()) { Text("Muat komentar berikutnya") }
+                        }
                     }
                 }
                 target?.let { resolved ->
                     TextButton(onClick = {
                         controller.close()
                         val url = provider?.discussionUrl ?: resolved.url
-                        val sourceId = resolved.sourceId.takeIf { url.toHttpUrl().host == resolved.url.toHttpUrl().host }
+                        val sourceId = resolved.sourceId.takeIf {
+                            url.toHttpUrl().host == resolved.url.toHttpUrl().host
+                        }
                         context.startActivity(WebViewActivity.newIntent(context, url, sourceId, resolved.sourceName))
                     }, modifier = Modifier.align(Alignment.End)) { Text("Buka web") }
                 }
@@ -282,63 +411,159 @@ private fun CommentItem(
     Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             comment.avatar?.let { url ->
-                AsyncImage(model = url, imageLoader = images, contentDescription = null, modifier = Modifier.size(28.dp).clip(CircleShape))
+                AsyncImage(
+                    model = url,
+                    imageLoader = images,
+                    contentDescription = null,
+                    modifier = Modifier.size(28.dp).clip(CircleShape),
+                )
             }
             Column(Modifier.weight(1f)) {
                 Text(comment.author, style = MaterialTheme.typography.labelLarge)
                 val time = remember(comment.createdAt) { commentTime(comment.createdAt) }
-                if (time.isNotBlank()) Text(time, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (time.isNotBlank()) {
+                    Text(
+                        time,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
-            if (comment.voteCountsAvailable && comment.reactionCounts.isEmpty()) Text("↑ ${comment.upvotes}" + if (comment.downvotes > 0) "  ↓ ${comment.downvotes}" else "", style = MaterialTheme.typography.labelSmall)
+            if (comment.voteCountsAvailable &&
+                comment.reactionCounts.isEmpty()
+            ) {
+                Text(
+                    "↑ ${comment.upvotes}" + if (comment.downvotes >
+                        0
+                    ) {
+                        "  ↓ ${comment.downvotes}"
+                    } else {
+                        ""
+                    },
+                    style = MaterialTheme.typography.labelSmall,
+                )
+            }
         }
-        if (comment.reactionCounts.isNotEmpty()) Text(comment.reactionCounts.joinToString("  ") { "${it.label} ${it.count}" }, style = MaterialTheme.typography.labelSmall)
+        if (comment.reactionCounts.isNotEmpty()) {
+            Text(
+                comment.reactionCounts.joinToString("  ") {
+                    "${it.label} ${it.count}"
+                },
+                style = MaterialTheme.typography.labelSmall,
+            )
+        }
         if (!reveal) {
             TextButton(onClick = { reveal = true }) { Text("Tampilkan spoiler") }
         } else {
-            comment.replyTo?.let { Text("↳ $it", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary) }
-            if (body.text.isNotBlank()) SelectionContainer { Text(body.text, style = MaterialTheme.typography.bodyMedium) }
+            comment.replyTo?.let {
+                Text("↳ $it", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+            }
+            if (body.text.isNotBlank()) {
+                SelectionContainer {
+                    Text(body.text, style = MaterialTheme.typography.bodyMedium)
+                }
+            }
             body.media.forEach { url ->
                 val context = LocalContext.current
-                val request = remember(url) { ImageRequest.Builder(context).data(url).size(640, 640)
-                    .memoryCachePolicy(CachePolicy.ENABLED).diskCachePolicy(CachePolicy.ENABLED).build() }
+                val request = remember(url) {
+                    ImageRequest.Builder(context).data(url).size(640, 640)
+                        .memoryCachePolicy(CachePolicy.ENABLED).diskCachePolicy(CachePolicy.ENABLED).build()
+                }
                 var mediaLoading by remember(url) { mutableStateOf(true) }
                 var mediaError by remember(url) { mutableStateOf(false) }
-                Box(Modifier.fillMaxWidth().height(180.dp).clickable { previewImage = url }, contentAlignment = Alignment.Center) {
-                    AsyncImage(model = request, imageLoader = images, contentDescription = "Gambar komentar", contentScale = ContentScale.Fit,
-                        onLoading = { mediaLoading = true; mediaError = false },
-                        onSuccess = { mediaLoading = false; mediaError = false },
-                        onError = { mediaLoading = false; mediaError = true },
-                        modifier = Modifier.fillMaxSize())
+                Box(
+                    Modifier.fillMaxWidth().height(180.dp).clickable {
+                        previewImage = url
+                    },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    AsyncImage(
+                        model = request,
+                        imageLoader = images,
+                        contentDescription = "Gambar komentar",
+                        contentScale = ContentScale.Fit,
+                        onLoading = {
+                            mediaLoading = true
+                            mediaError = false
+                        },
+                        onSuccess = {
+                            mediaLoading = false
+                            mediaError = false
+                        },
+                        onError = {
+                            mediaLoading = false
+                            mediaError = true
+                        },
+                        modifier = Modifier.fillMaxSize(),
+                    )
                     if (mediaLoading) CircularProgressIndicator(Modifier.size(24.dp))
-                    if (mediaError) Text("Gambar gagal dimuat. Ketuk untuk membuka.", style = MaterialTheme.typography.bodySmall)
+                    if (mediaError) {
+                        Text(
+                            "Gambar gagal dimuat. Ketuk untuk membuka.",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
                 }
             }
         }
         if (!isReply && (comment.replyCount > 0 || replies.isNotEmpty())) {
             TextButton(enabled = !loading, onClick = {
-                if (expanded) { expanded = false } else popupScope.launch {
-                    loading = true; error = null
-                    try {
-                        if (replies.size < comment.replyCount) replies = withContext(Dispatchers.IO) { provider?.replies(comment).orEmpty() }
-                        expanded = true
-                    } catch (e: CancellationException) { throw e
-                    } catch (e: Exception) { error = e.message ?: "Balasan gagal dimuat."
-                    } finally { loading = false }
-                }
-            }) { Text(if (loading) "Memuat balasan…" else if (expanded) "Tutup balasan" else "${maxOf(comment.replyCount, replies.size)} balasan") }
-            error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
-            val threadLine = MaterialTheme.colorScheme.primary.copy(alpha = .35f)
-            if (expanded) Column(Modifier.padding(start = 24.dp).drawBehind {
-                drawLine(threadLine, Offset.Zero, Offset(0f, size.height), strokeWidth = 2.dp.toPx())
-            }.padding(start = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                val thread = remember(replies) { flattenCommentReplies(replies, comment.author) }
-                thread.take(visibleReplies).forEach { reply ->
-                    key(reply.id) {
-                        HorizontalDivider()
-                        CommentItem(reply, images, provider, threadStates, popupScope, isReply = true)
+                if (expanded) {
+                    expanded = false
+                } else {
+                    popupScope.launch {
+                        loading = true
+                        error = null
+                        try {
+                            if (replies.size <
+                                comment.replyCount
+                            ) {
+                                replies =
+                                    withContext(Dispatchers.IO) { provider?.replies(comment).orEmpty() }
+                            }
+                            expanded = true
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (e: Exception) {
+                            error = e.message ?: "Balasan gagal dimuat."
+                        } finally {
+                            loading = false
+                        }
                     }
                 }
-                if (visibleReplies < thread.size) TextButton(onClick = { visibleReplies += 10 }) { Text("Lihat balasan berikutnya") }
+            }) {
+                Text(
+                    if (loading) {
+                        "Memuat balasan…"
+                    } else if (expanded) {
+                        "Tutup balasan"
+                    } else {
+                        "${maxOf(comment.replyCount, replies.size)} balasan"
+                    },
+                )
+            }
+            error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+            val threadLine = MaterialTheme.colorScheme.primary.copy(alpha = .35f)
+            if (expanded) {
+                Column(
+                    Modifier.padding(start = 24.dp).drawBehind {
+                        drawLine(threadLine, Offset.Zero, Offset(0f, size.height), strokeWidth = 2.dp.toPx())
+                    }.padding(start = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    val thread = remember(replies) { flattenCommentReplies(replies, comment.author) }
+                    thread.take(visibleReplies).forEach { reply ->
+                        key(reply.id) {
+                            HorizontalDivider()
+                            CommentItem(reply, images, provider, threadStates, popupScope, isReply = true)
+                        }
+                    }
+                    if (visibleReplies <
+                        thread.size
+                    ) {
+                        TextButton(onClick = { visibleReplies += 10 }) { Text("Lihat balasan berikutnya") }
+                    }
+                }
             }
         }
     }

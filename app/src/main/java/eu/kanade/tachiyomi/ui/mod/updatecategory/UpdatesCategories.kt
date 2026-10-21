@@ -35,7 +35,9 @@ class UpdatesCategories(store: PreferenceStore) {
     private val json = Json { ignoreUnknownKeys = true }
     val changes = preference.changes().map { decode(it) }
     fun snapshot(): UpdatesCategoryConfig = decode(preference.get())
-    private fun decode(value: String) = runCatching { json.decodeFromString<UpdatesCategoryConfig>(value) }.getOrDefault(UpdatesCategoryConfig())
+    private fun decode(
+        value: String,
+    ) = runCatching { json.decodeFromString<UpdatesCategoryConfig>(value) }.getOrDefault(UpdatesCategoryConfig())
     private fun write(config: UpdatesCategoryConfig) = preference.set(json.encodeToString(config))
 
     @Synchronized fun select(id: Long) {
@@ -47,18 +49,38 @@ class UpdatesCategories(store: PreferenceStore) {
         val current = snapshot()
         val trimmed = name.trim()
         require(trimmed.isNotEmpty()) { "Nama kategori tidak boleh kosong." }
-        require(current.categories.none { it.id != id && it.name.equals(trimmed, true) }) { "Nama kategori sudah dipakai." }
+        require(
+            current.categories.none {
+                it.id != id && it.name.equals(trimmed, true)
+            },
+        ) { "Nama kategori sudah dipakai." }
         require(id == null || current.categories.any { it.id == id }) { "Kategori sudah dihapus." }
         val categoryId = id ?: ((current.categories.maxOfOrNull { it.id } ?: 0) + 1)
         val assignedElsewhere = current.categories.filter { it.id != categoryId }.flatMap { it.sources }.toSet()
         val category = UpdatesCategory(categoryId, trimmed, sources - assignedElsewhere)
-        write(current.copy(categories = if (id == null) current.categories + category else current.categories.map { if (it.id == id) category else it }))
+        write(
+            current.copy(
+                categories = if (id ==
+                    null
+                ) {
+                    current.categories + category
+                } else {
+                    current.categories.map { if (it.id == id) category else it }
+                },
+            ),
+        )
         return categoryId
     }
 
     @Synchronized fun delete(id: Long) {
         val current = snapshot()
-        write(current.copy(categories = current.categories.filterNot { it.id == id }, selected = current.selected.takeUnless { it == id } ?: 0))
+        write(
+            current.copy(
+                categories = current.categories.filterNot { it.id == id },
+                selected =
+                current.selected.takeUnless { it == id } ?: 0,
+            ),
+        )
     }
 
     @Synchronized fun move(id: Long, offset: Int) {
@@ -70,7 +92,13 @@ class UpdatesCategories(store: PreferenceStore) {
         write(current.copy(categories = list))
     }
 
-    fun backup(enabled: Boolean) = if (enabled) snapshot().categories.map { UpdatesCategoryBackup(it.name, it.sources.sorted()) } else emptyList()
+    fun backup(enabled: Boolean) = if (enabled) {
+        snapshot().categories.map {
+            UpdatesCategoryBackup(it.name, it.sources.sorted())
+        }
+    } else {
+        emptyList()
+    }
 
     @Synchronized fun restore(categories: List<UpdatesCategoryBackup>, enabled: Boolean) {
         if (!enabled || categories.isEmpty()) return
@@ -85,7 +113,10 @@ class UpdatesCategories(store: PreferenceStore) {
 
     companion object {
         /** Existing/local source ownership wins a conflict; no source is placed in two tabs. */
-        fun mergeBackups(local: List<UpdatesCategoryBackup>, remote: List<UpdatesCategoryBackup>): List<UpdatesCategoryBackup> {
+        fun mergeBackups(
+            local: List<UpdatesCategoryBackup>,
+            remote: List<UpdatesCategoryBackup>,
+        ): List<UpdatesCategoryBackup> {
             val groups = mutableListOf<UpdatesCategoryBackup>()
             val owners = mutableSetOf<Long>()
             (local + remote).forEach { incoming ->

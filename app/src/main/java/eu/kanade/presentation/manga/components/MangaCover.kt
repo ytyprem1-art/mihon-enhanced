@@ -31,24 +31,24 @@ enum class MangaCover(val ratio: Float) {
         showPersonalFavorite: Boolean = true,
     ) {
         PersonalFavoriteCover(data, modifier.aspectRatio(ratio).clip(shape), showPersonalFavorite) {
-        AsyncImage(
-            model = data,
-            placeholder = ColorPainter(CoverPlaceholderColor),
-            error = rememberResourceBitmapPainter(id = R.drawable.cover_error),
-            contentDescription = contentDescription,
-            modifier = Modifier.matchParentSize()
-                .then(
-                    if (onClick != null) {
-                        Modifier.clickable(
-                            role = Role.Button,
-                            onClick = onClick,
-                        )
-                    } else {
-                        Modifier
-                    },
-                ),
-            contentScale = ContentScale.Crop,
-        )
+            AsyncImage(
+                model = data,
+                placeholder = ColorPainter(CoverPlaceholderColor),
+                error = rememberResourceBitmapPainter(id = R.drawable.cover_error),
+                contentDescription = contentDescription,
+                modifier = Modifier.matchParentSize()
+                    .then(
+                        if (onClick != null) {
+                            Modifier.clickable(
+                                role = Role.Button,
+                                onClick = onClick,
+                            )
+                        } else {
+                            Modifier
+                        },
+                    ),
+                contentScale = ContentScale.Crop,
+            )
         }
     }
 }

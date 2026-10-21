@@ -25,7 +25,7 @@ object UpdateWatchRefreshHelper {
         WAITING,
         ACTIVE,
         INVALID_DATE,
-        NOT_ENABLED
+        NOT_ENABLED,
     }
 
     enum class PriorityBucket {
@@ -33,7 +33,7 @@ object UpdateWatchRefreshHelper {
         WARM,
         COLD,
         STALE,
-        NONE
+        NONE,
     }
 
     data class RefreshEligibility(
@@ -143,7 +143,7 @@ object UpdateWatchRefreshHelper {
                     latestChapterUploadDate = latestDate,
                     lastCheckAt = tracking.lastBackgroundCheckAt,
                     now = now,
-                    zoneId = zoneId
+                    zoneId = zoneId,
                 )
                 eligibility.nextEligibleAt
             }

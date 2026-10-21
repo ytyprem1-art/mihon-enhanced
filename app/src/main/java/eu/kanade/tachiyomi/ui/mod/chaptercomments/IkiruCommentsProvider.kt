@@ -67,20 +67,29 @@ class IkiruCommentsProvider(
             val root = Json.parseToJsonElement(body) as? JsonObject ?: error("Respons reaksi Ikiru tidak valid")
             val status = root.number("code") ?: root.number("statusCode") ?: root.number("status")
             val message = root.text("message").ifBlank { root.text("statusMessage") }
-            if (status == 401 || status == 403 || Regex("unauthenticated|unauthorized|forbidden|login|log in", RegexOption.IGNORE_CASE).containsMatchIn(message)) {
+            if (status == 401 || status == 403 ||
+                Regex(
+                    "unauthenticated|unauthorized|forbidden|login|log in",
+                    RegexOption.IGNORE_CASE,
+                ).containsMatchIn(message)
+            ) {
                 error("Situs Ikiru meminta login untuk memberi reaksi.")
             }
-            check((root["success"] as? JsonPrimitive)?.booleanOrNull == true && (status == null || status in 200..299)) {
+            check(
+                (root["success"] as? JsonPrimitive)?.booleanOrNull == true && (status == null || status in 200..299),
+            ) {
                 message.ifBlank { "Gagal mengirim reaksi Ikiru" }
             }
             val data = root.obj("data") ?: error("Respons reaksi Ikiru tidak valid")
             val action = data.text("action")
             val selected = data.text("type")
-            check(if (next == null) {
-                action.isNotBlank() && action !in listOf("created", "updated") && selected.isBlank()
-            } else {
-                action in listOf("created", "updated") && selected == next
-            }) { "Situs Ikiru belum mengonfirmasi perubahan reaksi. Muat ulang komentar." }
+            check(
+                if (next == null) {
+                    action.isNotBlank() && action !in listOf("created", "updated") && selected.isBlank()
+                } else {
+                    action in listOf("created", "updated") && selected == next
+                },
+            ) { "Situs Ikiru belum mengonfirmasi perubahan reaksi. Muat ulang komentar." }
             firstPageLock.withLock { firstPage = null }
         }
     }
@@ -119,7 +128,9 @@ class IkiruCommentsProvider(
             CommentSort.NEWEST -> "newest"
             CommentSort.OLDEST -> "oldest"
         }
-        return response(transport.get("${id.origin}/api/public/comment/${id.chapterId}?orderby=$order&page=$page", target.url))
+        return response(
+            transport.get("${id.origin}/api/public/comment/${id.chapterId}?orderby=$order&page=$page", target.url),
+        )
             .obj("data") ?: error("Respons komentar Ikiru tidak valid")
     }
 
@@ -136,12 +147,25 @@ class IkiruCommentsProvider(
         val pinned = meta?.obj("pinned")?.let(::parseComment)
         val result = if (page == 1 && pinned != null) listOf(pinned) + roots.filterNot { it.id == pinned.id } else roots
         // Ikiru intentionally omits pageData on later pages; page length is its load-more contract.
-        return CommentsPage(result, (totalCount ?: result.size).coerceAtLeast(result.size), roots.size == 10, totalKnown = totalCount != null)
+        return CommentsPage(
+            result,
+            (totalCount ?: result.size).coerceAtLeast(result.size),
+            roots.size == 10,
+            totalKnown =
+            totalCount != null,
+        )
     }
 
     override suspend fun reactions(): List<ChapterReaction> {
         val counts = initial().obj("pageData")?.obj("reaction") ?: return emptyList()
-        return listOf("UPVOTE" to "👍", "FUNNY" to "😂", "LOVE" to "❤️", "SURPRISED" to "😮", "SAD" to "😢", "ANGRY" to "😡")
+        return listOf(
+            "UPVOTE" to "👍",
+            "FUNNY" to "😂",
+            "LOVE" to "❤️",
+            "SURPRISED" to "😮",
+            "SAD" to "😢",
+            "ANGRY" to "😡",
+        )
             .map { (key, label) -> ChapterReaction(label, counts.number(key) ?: 0) }
     }
 

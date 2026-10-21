@@ -35,7 +35,8 @@ object UpdateWatchDismissals {
         }.sortedWith(compareBy({ it.source }, { it.url }))
 
     fun filterBackupInbox(
-        items: List<BackupUpdateWatchInboxItem>, dismissals: List<UpdateWatchDismissal>,
+        items: List<BackupUpdateWatchInboxItem>,
+        dismissals: List<UpdateWatchDismissal>,
     ): List<BackupUpdateWatchInboxItem> {
         val byManga = dismissals.associateBy { it.source to it.url }
         return items.filter { item ->

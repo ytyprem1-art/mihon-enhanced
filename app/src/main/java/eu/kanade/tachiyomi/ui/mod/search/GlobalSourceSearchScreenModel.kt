@@ -1,6 +1,5 @@
 package eu.kanade.tachiyomi.ui.mod.search
 
-import kotlinx.coroutines.launch
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
@@ -20,6 +19,7 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import logcat.LogPriority
 import mihon.domain.manga.model.toDomainManga
@@ -44,9 +44,10 @@ class GlobalSourceSearchScreenModel(
     private val getMergedReferencesById: GetMergedReferencesById = Injekt.get(),
     private val smartSearchMerge: SmartSearchMerge = Injekt.get(),
 ) : androidx.lifecycle.ViewModel() {
-    private val mutableState = kotlinx.coroutines.flow.MutableStateFlow<GlobalSourceSearchScreenModel.State>(State(searchQuery = initialQuery))
+    private val mutableState = kotlinx.coroutines.flow.MutableStateFlow<GlobalSourceSearchScreenModel.State>(
+        State(searchQuery = initialQuery),
+    )
     val state: kotlinx.coroutines.flow.StateFlow<GlobalSourceSearchScreenModel.State> = mutableState
-
 
     val snackbarHostState = SnackbarHostState()
     private val activeParentIdState = MutableStateFlow(parentMangaId)
@@ -129,17 +130,17 @@ class GlobalSourceSearchScreenModel(
 
         val disabledSources = sourcePreferences.disabledSources.get()
         searchJob = viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-        val sources = sourceManager.getAll()
-            .filterIsInstance<CatalogueSource>()
-            .filter { "${it.id}" !in disabledSources }
-            .distinctBy { it.id }
-            .sortedBy { it.name }
+            val sources = sourceManager.getAll()
+                .filterIsInstance<CatalogueSource>()
+                .filter { "${it.id}" !in disabledSources }
+                .distinctBy { it.id }
+                .sortedBy { it.name }
 
-        mutableState.update {
-            it.copy(
-                items = sources.associateWith { SearchItemResult.Loading },
-            )
-        }
+            mutableState.update {
+                it.copy(
+                    items = sources.associateWith { SearchItemResult.Loading },
+                )
+            }
 
             sources.map { source ->
                 async {

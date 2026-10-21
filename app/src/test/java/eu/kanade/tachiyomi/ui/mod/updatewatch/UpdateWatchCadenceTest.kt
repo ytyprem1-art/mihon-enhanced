@@ -4,8 +4,8 @@ import eu.kanade.tachiyomi.ui.mod.updatewatch.helper.UpdateWatchRefreshHelper
 import eu.kanade.tachiyomi.ui.mod.updatewatch.worker.UpdateWatchPostRefreshHandler
 import eu.kanade.tachiyomi.ui.mod.updatewatch.worker.UpdateWatchRefreshState
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import tachiyomi.domain.chapter.model.Chapter
 import tachiyomi.domain.history.model.UpdateWatch
@@ -30,7 +30,7 @@ class UpdateWatchCadenceTest {
             latestChapterUploadDate = latestChapterDate,
             lastCheckAt = lastCheckAt,
             now = now,
-            zoneId = zoneId
+            zoneId = zoneId,
         )
 
         assertEquals(UpdateWatchRefreshHelper.PriorityBucket.HOT, eligibility.bucket)
@@ -51,7 +51,7 @@ class UpdateWatchCadenceTest {
             latestChapterUploadDate = t(2024, 5, 1, 0, 0),
             lastCheckAt = -enabledAt,
             now = now,
-            zoneId = zoneId
+            zoneId = zoneId,
         )
 
         assertEquals(UpdateWatchRefreshHelper.PriorityBucket.HOT, eligibility.bucket)
@@ -75,7 +75,7 @@ class UpdateWatchCadenceTest {
             latestChapterUploadDate = t(2024, 5, 1, 0, 0),
             lastCheckAt = -enabledAt,
             now = now,
-            zoneId = zoneId
+            zoneId = zoneId,
         )
 
         assertEquals(UpdateWatchRefreshHelper.PriorityBucket.HOT, eligibility.bucket)
@@ -98,7 +98,7 @@ class UpdateWatchCadenceTest {
             latestChapterUploadDate = t(2024, 5, 1, 0, 0),
             lastCheckAt = -enabledAt, // newly enabled
             now = now,
-            zoneId = zoneId
+            zoneId = zoneId,
         )
 
         // Slot is 10:00 AM. 10:00 < 10:01 -> NOT DUE.
@@ -119,7 +119,7 @@ class UpdateWatchCadenceTest {
             latestChapterUploadDate = t(2024, 5, 1, 0, 0),
             lastCheckAt = lastCheckAt,
             now = now,
-            zoneId = zoneId
+            zoneId = zoneId,
         )
 
         assertEquals(UpdateWatchRefreshHelper.PriorityBucket.HOT, eligibility.bucket)

@@ -1,3 +1,6 @@
+// Raw protocol fixtures intentionally preserve their original single-line payloads.
+@file:Suppress("ktlint:standard:max-line-length")
+
 package eu.kanade.tachiyomi.ui.mod.panelshare
 
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -23,13 +26,19 @@ class ImgUpscaleProtocolTest {
     @Test
     fun `invalid task ids and missing task fail before forming request`() {
         assertThrows(IllegalArgumentException::class.java) { ImgUpscaleProtocol.taskId("""{"taskId":"../x\""}""") }
-        assertThrows(IllegalArgumentException::class.java) { ImgUpscaleProtocol.taskId("""{"error":"Limit reached"}""") }
+        assertThrows(IllegalArgumentException::class.java) {
+            ImgUpscaleProtocol.taskId("""{"error":"Limit reached"}""")
+        }
         assertThrows(IllegalArgumentException::class.java) { ImgUpscaleProtocol.taskId("""{"taskId":null}""") }
     }
 
     @Test
     fun `waiting does not download incomplete results directory`() {
-        assertNull(ImgUpscaleProtocol.resultUrl("""{"status":"waiting","downloadUrls":["https://imgupscaler.com/results/"]}"""))
+        assertNull(
+            ImgUpscaleProtocol.resultUrl(
+                """{"status":"waiting","downloadUrls":["https://imgupscaler.com/results/"]}""",
+            ),
+        )
     }
 
     @Test
@@ -51,9 +60,12 @@ class ImgUpscaleProtocolTest {
     fun `only accepts https service result hosts and actual file paths`() {
         assertTrue(ImgUpscaleProtocol.isAllowedResultUrl("https://get2.imglarger.com/upscaler/results/test_4x.jpg"))
         listOf(
-            "http://get1.imglarger.com/test.jpg", "https://imglarger.com.evil.example/test.jpg",
-            "https://evil.example/imglarger.com/test.jpg", "file:///sdcard/test.jpg",
-            "https://user:password@get1.imglarger.com/test.jpg", "https://imgupscaler.com/results/",
+            "http://get1.imglarger.com/test.jpg",
+            "https://imglarger.com.evil.example/test.jpg",
+            "https://evil.example/imglarger.com/test.jpg",
+            "file:///sdcard/test.jpg",
+            "https://user:password@get1.imglarger.com/test.jpg",
+            "https://imgupscaler.com/results/",
             "https://get1.imglarger.com:8080/test.jpg",
         ).forEach { url -> assertFalse(ImgUpscaleProtocol.isAllowedResultUrl(url), url) }
     }

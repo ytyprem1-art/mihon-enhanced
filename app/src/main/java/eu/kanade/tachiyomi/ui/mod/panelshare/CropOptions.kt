@@ -1,12 +1,18 @@
 package eu.kanade.tachiyomi.ui.mod.panelshare
 
-import kotlin.math.roundToInt
-import kotlin.math.min
 import kotlin.math.max
+import kotlin.math.min
+import kotlin.math.roundToInt
 
 enum class CropHandle { TopLeft, TopRight, BottomRight, BottomLeft, Top, Bottom }
 
-fun resizeCropHandle(crop: DocumentCrop, handle: CropHandle, x: Double, y: Double, documentHeight: Double): DocumentCrop {
+fun resizeCropHandle(
+    crop: DocumentCrop,
+    handle: CropHandle,
+    x: Double,
+    y: Double,
+    documentHeight: Double,
+): DocumentCrop {
     val gap = min(.001, documentHeight / 2)
     return when (handle) {
         CropHandle.TopLeft -> crop.copy(left = min(x, crop.right - .001), top = min(y, crop.bottom - gap))
@@ -33,8 +39,11 @@ fun customCropViewport(crop: DocumentCrop, viewportAspect: Double, documentHeigh
     )
 
 enum class CropTemplate(val label: String, val ratio: Double?) {
-    Custom("Custom", null), Device("Device", null), Phone20("9:20", 9.0 / 20),
-    Phone195("9:19.5", 9.0 / 19.5), Phone16("9:16", 9.0 / 16),
+    Custom("Custom", null),
+    Device("Device", null),
+    Phone20("9:20", 9.0 / 20),
+    Phone195("9:19.5", 9.0 / 19.5),
+    Phone16("9:16", 9.0 / 16),
 }
 
 enum class CropEnhancement(val label: String, val contrast: Double, val saturation: Double, val sharpness: Double) {

@@ -5,10 +5,10 @@ import app.cash.sqldelight.async.coroutines.awaitAsOneOrNull
 import logcat.LogPriority
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.data.Database
+import tachiyomi.data.history.HistoryMapper
 import tachiyomi.domain.chapter.model.Chapter
 import tachiyomi.domain.history.model.History
 import tachiyomi.domain.manga.model.Manga
-import tachiyomi.data.history.HistoryMapper
 import java.util.Date
 import kotlin.math.max
 
@@ -19,14 +19,17 @@ object HistoryMigrationHelper {
      */
     suspend fun findCanonicalTarget(
         manga: Manga,
-        getDuplicateLibraryManga: suspend (Manga) -> List<tachiyomi.domain.manga.model.MangaWithChapterCount>
+        getDuplicateLibraryManga: suspend (Manga) -> List<tachiyomi.domain.manga.model.MangaWithChapterCount>,
     ): Manga? {
         // If current manga is in library, it is its own canonical record (Case B)
         if (manga.favorite) return null
 
         val duplicates = getDuplicateLibraryManga(manga)
 
-        logcat(LogPriority.DEBUG) { "Mod: Checking canonical target for ${manga.title} (ID: ${manga.id}). Duplicates found: ${duplicates.size}" }
+        logcat(LogPriority.DEBUG) {
+            "Mod: Checking canonical target for ${manga.title} " +
+                "(ID: ${manga.id}). Duplicates found: ${duplicates.size}"
+        }
 
         val candidates = duplicates
             .filter { it.manga.favorite }
@@ -35,11 +38,17 @@ object HistoryMigrationHelper {
         if (candidates.size == 1) {
             val candidate = candidates.first().manga
             if (isSafeTarget(manga, candidate)) {
-                logcat(LogPriority.INFO) { "Mod: Safe canonical target found: ${candidate.title} (ID: ${candidate.id})" }
+                logcat(LogPriority.INFO) {
+                    "Mod: Safe canonical target found: ${candidate.title} " +
+                        "(ID: ${candidate.id})"
+                }
                 return candidate
             }
         } else if (candidates.size > 1) {
-            logcat(LogPriority.DEBUG) { "Mod: Multiple library candidates for ${manga.title}. Ambiguous, skipping auto-migration." }
+            logcat(LogPriority.DEBUG) {
+                "Mod: Multiple library candidates for ${manga.title}. " +
+                    "Ambiguous, skipping auto-migration."
+            }
         }
         return null
     }
@@ -55,11 +64,18 @@ object HistoryMigrationHelper {
                 .awaitAsOneOrNull()
 
             if (targetCategory == null) {
-                logcat(LogPriority.INFO) { "Mod: Migrating History Category $oldCategory from manga $oldMangaId to $targetMangaId" }
+                logcat(LogPriority.INFO) {
+                    "Mod: Migrating History Category $oldCategory from " +
+                        "manga $oldMangaId to $targetMangaId"
+                }
                 database.historycategoriesQueries.insertMangaMapping(targetMangaId, oldCategory)
                 database.historycategoriesQueries.deleteMangaMapping(oldMangaId)
             } else {
-                logcat(LogPriority.INFO) { "Mod: Target manga $targetMangaId already has History Category $targetCategory. Skipping migration of category $oldCategory." }
+                logcat(LogPriority.INFO) {
+                    "Mod: Target manga $targetMangaId already has History " +
+                        "Category $targetCategory. Skipping migration of " +
+                        "category $oldCategory."
+                }
                 database.historycategoriesQueries.deleteMangaMapping(oldMangaId)
             }
         }
@@ -81,7 +97,7 @@ object HistoryMigrationHelper {
         targetChapters: List<Chapter>,
         getHistoryByMangaId: suspend (Long) -> List<History>,
         oldManga: Manga,
-        targetManga: Manga
+        targetManga: Manga,
     ) {
         val oldHistoryList = getHistoryByMangaId(oldManga.id)
         if (oldHistoryList.isEmpty()) {
@@ -90,7 +106,8 @@ object HistoryMigrationHelper {
         }
 
         logcat(LogPriority.INFO) {
-            "Mod: Migrating ${oldHistoryList.size} history/progress items from manga ${oldManga.id} to ${targetManga.id}"
+            "Mod: Migrating ${oldHistoryList.size} history/progress " +
+                "items from manga ${oldManga.id} to ${targetManga.id}"
         }
 
         val reboundChapterIds = mutableSetOf<Long>()
@@ -102,7 +119,10 @@ object HistoryMigrationHelper {
             for (history in oldHistoryList) {
                 val oldChapter = oldChapters.find { it.id == history.chapterId }
                 if (oldChapter == null) {
-                    logcat(LogPriority.WARN) { "Mod: Could not find chapter for history row ${history.id} (chapterId: ${history.chapterId}) in manga ${oldManga.id}" }
+                    logcat(LogPriority.WARN) {
+                        "Mod: Could not find chapter for history row ${history.id} " +
+                            "(chapterId: ${history.chapterId}) in manga ${oldManga.id}"
+                    }
                     continue
                 }
 
@@ -114,13 +134,19 @@ object HistoryMigrationHelper {
                     // Fallback to number only match if it's unique
                     it.isRecognizedNumber && oldChapter.isRecognizedNumber &&
                         it.chapterNumber == oldChapter.chapterNumber &&
-                        targetChapters.count { c -> c.isRecognizedNumber && c.chapterNumber == oldChapter.chapterNumber } == 1
+                        targetChapters.count { c ->
+                            c.isRecognizedNumber &&
+                                c.chapterNumber == oldChapter.chapterNumber
+                        } == 1
                 }
 
                 if (targetChapter != null) {
                     logcat(LogPriority.DEBUG) {
-                        "Mod: Rebinding history from chapter ${oldChapter.id} (manga ${oldChapter.mangaId}, num ${oldChapter.chapterNumber}) " +
-                            "to target chapter ${targetChapter.id} (manga ${targetChapter.mangaId}, num ${targetChapter.chapterNumber})"
+                        "Mod: Rebinding history from chapter ${oldChapter.id} " +
+                            "(manga ${oldChapter.mangaId}, num ${oldChapter.chapterNumber}) " +
+                            "" +
+                            "to target chapter ${targetChapter.id} (manga ${targetChapter.mangaId}, " +
+                            "num ${targetChapter.chapterNumber})"
                     }
                     // 1. Migrate History Row
                     val targetHistory = database.historyQueries
@@ -135,7 +161,11 @@ object HistoryMigrationHelper {
                         if (t1 > 0 || t2 > 0) kotlin.time.Instant.fromEpochMilliseconds(max(t1, t2)) else null
                     }
 
-                    database.historyQueries.upsert(chapterId = targetChapter.id, readAt = finalReadAt, readDuration = history.readDuration)
+                    database.historyQueries.upsert(
+                        chapterId = targetChapter.id,
+                        readAt = finalReadAt,
+                        readDuration = history.readDuration,
+                    )
 
                     // 2. Delete old history row to rebind identity to Record B
                     database.historyQueries.deleteHistoryByChapterId(history.chapterId)
@@ -152,7 +182,7 @@ object HistoryMigrationHelper {
                 } else {
                     logcat(LogPriority.DEBUG) {
                         "Mod: Could not find target chapter match for old chapter ${oldChapter.chapterNumber} " +
-                        "(URL: ${oldChapter.url}, Scanlator: ${oldChapter.scanlator})"
+                            "(URL: ${oldChapter.url}, Scanlator: ${oldChapter.scanlator})"
                     }
                 }
             }
@@ -160,7 +190,10 @@ object HistoryMigrationHelper {
             // MOD: After rebinding history to Record B, we should prune the rebound chapters from Record A
             // if we are in a manual migration flow (i.e. Record A is about to be replaced)
             if (oldManga.id != targetManga.id && reboundChapterIds.isNotEmpty()) {
-                logcat(LogPriority.INFO) { "Mod: Deleting ${reboundChapterIds.size} rebound chapters from Record A (${oldManga.id})" }
+                logcat(LogPriority.INFO) {
+                    "Mod: Deleting ${reboundChapterIds.size} rebound " +
+                        "chapters from Record A (${oldManga.id})"
+                }
                 database.chapterQueries.removeChaptersWithIds(reboundChapterIds.toList())
             }
         }

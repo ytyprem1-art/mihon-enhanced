@@ -12,7 +12,8 @@ data class UpdateWatch(
     enum class RefreshProfile {
         WEEKLY_STABLE,
         SLOW_PERIODIC,
-        RAPID_IRREGULAR;
+        RAPID_IRREGULAR,
+        ;
 
         companion object {
             fun fromInterval(days: Int): RefreshProfile {

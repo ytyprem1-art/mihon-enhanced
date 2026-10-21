@@ -2,16 +2,16 @@ package eu.kanade.tachiyomi.ui.mod.chaptercomments
 
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.contentOrNull
 
 /** The public HTMX comment template, discovered from page markup rather than a domain list. */
 class KiryuuCommentsProvider(
@@ -24,20 +24,48 @@ class KiryuuCommentsProvider(
     private var endpoint: HttpUrl? = null
     private val pages = mutableMapOf<Pair<CommentSort, Int>, Document>()
     private var reactionDocument: Document? = null
-    private data class ReactionCard(val key: String, val label: String, val image: String?, val url: HttpUrl, val chapter: String, val selected: Boolean, val count: Int?)
+    private data class ReactionCard(
+        val key: String,
+        val label: String,
+        val image: String?,
+        val url: HttpUrl,
+        val chapter: String,
+        val selected: Boolean,
+        val count: Int?,
+    )
     private var cards = emptyList<ReactionCard>()
 
     override val reactionOptions: List<ChapterReactionOption>
-        get() = cards.map { ChapterReactionOption(it.key, when (it.label.lowercase()) {
-            "upvote" -> "👍"; "funny" -> "😂"; "love" -> "❤️"; "surprised" -> "😮"; "angry" -> "😡"; "sad" -> "😢"; else -> "⭐"
-        }, it.label, it.image) }
+        get() = cards.map {
+            ChapterReactionOption(
+                it.key,
+                when (it.label.lowercase()) {
+                    "upvote" -> "👍"
+                    "funny" -> "😂"
+                    "love" -> "❤️"
+                    "surprised" -> "😮"
+                    "angry" -> "😡"
+                    "sad" -> "😢"
+                    else -> "⭐"
+                },
+                it.label,
+                it.image,
+            )
+        }
 
     override suspend fun prepare(): ChapterCommentsProvider = mutex.withLock {
         initial()
-        if (cards.isNotEmpty() && nonceLink() != null) this else object : ChapterCommentsProvider {
-            override suspend fun comments(sort: CommentSort, page: Int) = this@KiryuuCommentsProvider.comments(sort, page)
-            override suspend fun reactions() = this@KiryuuCommentsProvider.reactions()
-            override suspend fun replies(comment: ChapterComment) = comment.replies
+        if (cards.isNotEmpty() && nonceLink() != null) {
+            this
+        } else {
+            object : ChapterCommentsProvider {
+                override suspend fun comments(
+                    sort: CommentSort,
+                    page: Int,
+                ) = this@KiryuuCommentsProvider.comments(sort, page)
+                override suspend fun reactions() = this@KiryuuCommentsProvider.reactions()
+                override suspend fun replies(comment: ChapterComment) = comment.replies
+            }
         }
     }
 
@@ -56,12 +84,31 @@ class KiryuuCommentsProvider(
         require(next == null || cards.any { it.key == next })
         val choice = cards.firstOrNull { it.key == (next ?: previous) } ?: error("Reaksi tidak tersedia.")
         val nonceUrl = nonceLink() ?: error("Formulir reaksi tidak tersedia.")
-        val nonce = Jsoup.parse(transport.get(nonceUrl.toString(), target.url)).selectFirst("input[name=reaction_nonce]")?.attr("value")
-            ?.takeIf { it.matches(Regex("[A-Za-z0-9_-]{1,128}")) } ?: error("Tidak bisa menyiapkan reaksi situs. Coba lagi.")
-        val response = Jsoup.parse(transport.postReactionForm(choice.url.toString(), mapOf("id" to choice.chapter, "reaction" to choice.key, "reaction_nonce" to nonce), target.url), target.url)
+        val nonce =
+            Jsoup.parse(
+                transport.get(nonceUrl.toString(), target.url),
+            ).selectFirst("input[name=reaction_nonce]")?.attr("value")
+                ?.takeIf { it.matches(Regex("[A-Za-z0-9_-]{1,128}")) }
+                ?: error("Tidak bisa menyiapkan reaksi situs. Coba lagi.")
+        val response = Jsoup.parse(
+            transport.postReactionForm(
+                choice.url.toString(),
+                mapOf(
+                    "id" to choice.chapter,
+                    "reaction" to choice.key,
+                    "reaction_nonce" to nonce,
+                ),
+                target.url,
+            ),
+            target.url,
+        )
         val updated = readCards(response)
-        check(updated.map { it.key }.toSet() == cards.map { it.key }.toSet() && updated.map { it.key }.distinct().size == updated.size &&
-            updated.size == cards.size && updated.all { it.count != null } && updated.map { it.chapter }.toSet() == setOf(choice.chapter)) {
+        check(
+            updated.map { it.key }.toSet() == cards.map { it.key }.toSet() &&
+                updated.map { it.key }.distinct().size == updated.size &&
+                updated.size == cards.size && updated.all { it.count != null } &&
+                updated.map { it.chapter }.toSet() == setOf(choice.chapter),
+        ) {
             "Situs belum mengonfirmasi reaksi. Coba lagi lewat WebView."
         }
         val selected = updated.filter { it.selected }.map { it.key }
@@ -75,7 +122,14 @@ class KiryuuCommentsProvider(
         }
         cards = updated
         reactionDocument = response
-        if (!(selected.isNotEmpty() && selected == listOfNotNull(next)) && !countAcknowledged) throw ChapterReactionUpdateException(selected.singleOrNull(), IllegalStateException("Situs mengembalikan pilihan reaksi yang berbeda. Muat ulang komentar."))
+        if (!(selected.isNotEmpty() && selected == listOfNotNull(next)) &&
+            !countAcknowledged
+        ) {
+            throw ChapterReactionUpdateException(
+                selected.singleOrNull(),
+                IllegalStateException("Situs mengembalikan pilihan reaksi yang berbeda. Muat ulang komentar."),
+            )
+        }
     }
 
     private fun nonceLink(): HttpUrl? = initial?.select("[hx-get]")?.mapNotNull {
@@ -88,14 +142,39 @@ class KiryuuCommentsProvider(
         url.scheme == it.scheme && url.host == it.host && url.port == it.port && url.encodedPath == it.encodedPath
     } == true
 
-    private fun readCards(document: Document): List<ReactionCard> = document.select("#response-data [hx-post]").mapNotNull { card ->
-        val url = card.attr("hx-post").toHttpUrlOrNull()?.takeIf { sameEndpoint(it) && it.queryParameter("action") == "set_my_reaction" } ?: return@mapNotNull null
-        val data = runCatching { Json.parseToJsonElement(card.attr("hx-vals")) as? JsonObject }.getOrNull() ?: return@mapNotNull null
+    private fun readCards(document: Document): List<ReactionCard> = document.select(
+        "#response-data [hx-post]",
+    ).mapNotNull { card ->
+        val url =
+            card.attr("hx-post").toHttpUrlOrNull()?.takeIf {
+                sameEndpoint(it) &&
+                    it.queryParameter("action") == "set_my_reaction"
+            }
+                ?: return@mapNotNull null
+        val data =
+            runCatching { Json.parseToJsonElement(card.attr("hx-vals")) as? JsonObject }.getOrNull()
+                ?: return@mapNotNull null
         fun text(key: String) = (data[key] as? JsonPrimitive)?.contentOrNull.orEmpty()
-        val id = text("id").takeIf { it.toLongOrNull()?.let { n -> n > 0 } == true && it == endpoint!!.queryParameter("chapter_id") } ?: return@mapNotNull null
+        val id =
+            text("id").takeIf {
+                it.toLongOrNull()?.let { n -> n > 0 } == true &&
+                    it == endpoint!!.queryParameter("chapter_id")
+            }
+                ?: return@mapNotNull null
         val key = text("reaction").takeIf { it.toIntOrNull()?.let { n -> n > 0 } == true } ?: return@mapNotNull null
         val image = card.selectFirst("img[alt]") ?: return@mapNotNull null
-        ReactionCard(key, image.attr("alt"), image.absUrl("src").takeIf { it.startsWith("https://") }, url, id, card.attr("data-selected") == "true", card.select("span").firstOrNull()?.text()?.trim()?.toIntOrNull()?.takeIf { it >= 0 })
+        ReactionCard(
+            key,
+            image.attr("alt"),
+            image.absUrl("src").takeIf { it.startsWith("https://") },
+            url,
+            id,
+            card.attr("data-selected") == "true",
+            card.select("span").firstOrNull()?.text()?.trim()?.toIntOrNull()?.takeIf {
+                it >=
+                    0
+            },
+        )
     }
 
     private suspend fun initial(): Document {
@@ -139,7 +218,8 @@ class KiryuuCommentsProvider(
             var current = firstPage()
             for (number in 2..page) {
                 current = pages[sort to number] ?: run {
-                    val next = nextPage(current) ?: return@withLock CommentsPage(emptyList(), 0, false, totalKnown = false)
+                    val next =
+                        nextPage(current) ?: return@withLock CommentsPage(emptyList(), 0, false, totalKnown = false)
                     fetch(next, "get_comments_order_page").also { pages[sort to number] = it }
                 }
             }
@@ -190,7 +270,9 @@ class KiryuuCommentsProvider(
             downvotes = count("dislike"),
             replyCount = replies.size,
             replies = replies,
-            media = content?.select("img[src]")?.map { it.absUrl("src") }?.filter { it.startsWith("https://") }?.distinct().orEmpty(),
+            media = content?.select("img[src]")?.map {
+                it.absUrl("src")
+            }?.filter { it.startsWith("https://") }?.distinct().orEmpty(),
             replyTo = parentComment(element)?.id()?.removePrefix("comment-"),
         )
     }
@@ -198,7 +280,9 @@ class KiryuuCommentsProvider(
     private fun commentElements(element: Element): List<Element> = element.select("[id^=comment-]")
         .filter { it !== element && COMMENT_ID.matches(it.id()) }
 
-    private fun parentComment(element: Element): Element? = element.parents().firstOrNull { COMMENT_ID.matches(it.id()) }
+    private fun parentComment(element: Element): Element? = element.parents().firstOrNull {
+        COMMENT_ID.matches(it.id())
+    }
 
     private companion object {
         val COMMENT_ID = Regex("comment-\\d+")

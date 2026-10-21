@@ -8,7 +8,6 @@ import tachiyomi.data.subscribeToList
 import tachiyomi.domain.history.repository.HistoryCategory
 import tachiyomi.domain.history.repository.HistoryCategoryRepository
 
-
 @dev.zacsweers.metro.SingleIn(dev.zacsweers.metro.AppScope::class)
 @dev.zacsweers.metro.ContributesBinding(dev.zacsweers.metro.AppScope::class)
 @dev.zacsweers.metro.Inject

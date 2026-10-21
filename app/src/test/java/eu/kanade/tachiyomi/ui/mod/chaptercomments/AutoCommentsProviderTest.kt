@@ -1,7 +1,12 @@
+// Raw protocol fixtures intentionally preserve their original single-line payloads.
+@file:Suppress("ktlint:standard:max-line-length")
+
 package eu.kanade.tachiyomi.ui.mod.chaptercomments
 
 import kotlinx.coroutines.test.runTest
-import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class AutoCommentsProviderTest {
@@ -13,7 +18,11 @@ class AutoCommentsProviderTest {
                 return """<div id="comments"><ol class="comment-list"><li class="comment" id="comment-31"><b class="fn">Reader</b><div class="comment-content">Chapter31 comment</div></li></ol></div>"""
             }
         }
-        val generic = chapterCommentsProvider(CommentTarget("https://unlisted.example/chapter31", "31", "Other source"), transport)
+        val generic =
+            chapterCommentsProvider(
+                CommentTarget("https://unlisted.example/chapter31", "31", "Other source"),
+                transport,
+            )
         assertTrue(urls.isEmpty())
         val resolved = generic.prepare()
         assertTrue(resolved is HtmlCommentsProvider)
@@ -32,7 +41,10 @@ class AutoCommentsProviderTest {
                 return """<html id="XF" data-template="thread_view" data-content-key="thread-31"><body><article class="message--post" data-content="post-1" data-author="Reader"><div class="message-body"><div class="bbWrapper">Discussion</div></div></article></body></html>"""
             }
         }
-        val resolved = chapterCommentsProvider(CommentTarget("https://another.example/threads/topic.31/", "31", "Other forum"), transport).prepare()
+        val resolved = chapterCommentsProvider(
+            CommentTarget("https://another.example/threads/topic.31/", "31", "Other forum"),
+            transport,
+        ).prepare()
         assertTrue(resolved is XenForoCommentsProvider)
         assertEquals(listOf(CommentSort.OLDEST), resolved.supportedSorts)
         assertEquals("Reader", resolved.comments(CommentSort.OLDEST, 1).comments.single().author)

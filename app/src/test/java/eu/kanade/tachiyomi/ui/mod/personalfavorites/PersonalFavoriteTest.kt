@@ -32,9 +32,13 @@ class PersonalFavoriteTest {
         val source = store()
         val mark = PersonalFavorite(Long.MIN_VALUE, "/manga/test")
         source.toggle(mark)
-        val encoded = ProtoBuf.encodeToByteArray(Backup.serializer(), Backup(
-            backupManga = emptyList(), personalFavorites = PersonalFavoriteBackup.snapshot(true, source),
-        ))
+        val encoded = ProtoBuf.encodeToByteArray(
+            Backup.serializer(),
+            Backup(
+                backupManga = emptyList(),
+                personalFavorites = PersonalFavoriteBackup.snapshot(true, source),
+            ),
+        )
         val decoded = ProtoBuf.decodeFromByteArray(Backup.serializer(), encoded)
         val destination = store()
         PersonalFavoriteBackup.restore(decoded.personalFavorites, true, destination)
@@ -77,9 +81,13 @@ class PersonalFavoriteTest {
     @Test
     fun `personal favorite serialization never adds manga to library`() {
         val manga = BackupManga(source = 1, url = "/test", title = "Test", favorite = false)
-        val encoded = ProtoBuf.encodeToByteArray(Backup.serializer(), Backup(
-            backupManga = listOf(manga), personalFavorites = listOf(PersonalFavorite(1, "/test")),
-        ))
+        val encoded = ProtoBuf.encodeToByteArray(
+            Backup.serializer(),
+            Backup(
+                backupManga = listOf(manga),
+                personalFavorites = listOf(PersonalFavorite(1, "/test")),
+            ),
+        )
         val decoded = ProtoBuf.decodeFromByteArray(Backup.serializer(), encoded)
         assertFalse(decoded.backupManga.single().favorite)
         assertEquals(PersonalFavorite(1, "/test"), decoded.personalFavorites.single())
@@ -87,8 +95,16 @@ class PersonalFavoriteTest {
 
     @Test
     fun `option arrays keep old indices and roundtrip favorite flag`() {
-        assertFalse(BackupOptions.fromBooleanArray(BackupOptions(modPersonalFavorites = false).asBooleanArray()).modPersonalFavorites)
-        assertFalse(RestoreOptions.fromBooleanArray(RestoreOptions(modPersonalFavorites = false).asBooleanArray()).modPersonalFavorites)
+        assertFalse(
+            BackupOptions.fromBooleanArray(
+                BackupOptions(modPersonalFavorites = false).asBooleanArray(),
+            ).modPersonalFavorites,
+        )
+        assertFalse(
+            RestoreOptions.fromBooleanArray(
+                RestoreOptions(modPersonalFavorites = false).asBooleanArray(),
+            ).modPersonalFavorites,
+        )
         assertTrue(BackupOptions.fromBooleanArray(BooleanArray(14)).modPersonalFavorites)
         assertTrue(RestoreOptions.fromBooleanArray(BooleanArray(9)).modPersonalFavorites)
     }
@@ -105,11 +121,19 @@ class PersonalFavoriteTest {
         PersonalFavoriteStore(preferences).toggle(mark)
         val reopened = PersonalFavoriteStore(preferences)
         assertTrue(reopened.snapshot().isEmpty())
-        val bytes = ProtoBuf.encodeToByteArray(Backup.serializer(), Backup(
-            emptyList(), personalFavorites = PersonalFavoriteBackup.snapshot(true, reopened),
-        ))
+        val bytes = ProtoBuf.encodeToByteArray(
+            Backup.serializer(),
+            Backup(
+                emptyList(),
+                personalFavorites = PersonalFavoriteBackup.snapshot(true, reopened),
+            ),
+        )
         val destination = store()
-        PersonalFavoriteBackup.restore(ProtoBuf.decodeFromByteArray(Backup.serializer(), bytes).personalFavorites, true, destination)
+        PersonalFavoriteBackup.restore(
+            ProtoBuf.decodeFromByteArray(Backup.serializer(), bytes).personalFavorites,
+            true,
+            destination,
+        )
         assertTrue(destination.snapshot().isEmpty())
     }
 

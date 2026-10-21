@@ -1,12 +1,11 @@
 package eu.kanade.tachiyomi.ui.browse.source.linked
 
-import eu.kanade.tachiyomi.ui.mod.util.dateUploadMillis
-import kotlinx.coroutines.launch
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import eu.kanade.tachiyomi.ui.manga.LinkedMember
+import eu.kanade.tachiyomi.ui.mod.util.dateUploadMillis
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.firstOrNull
@@ -14,13 +13,14 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import logcat.LogPriority
 import mihon.domain.source.interactor.UpdateMangaFromRemote
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.chapter.repository.ChapterRepository
 import tachiyomi.domain.history.group.interactor.ManageHistoryGroups
-import tachiyomi.domain.history.repository.HistoryRepository
 import tachiyomi.domain.history.interactor.ManageUpdateWatch
+import tachiyomi.domain.history.repository.HistoryRepository
 import tachiyomi.domain.source.linked.interactor.ManageLinkedSourceGroup
 import tachiyomi.domain.source.linked.model.LinkedSourceGroup
 import tachiyomi.domain.source.service.SourceManager
@@ -39,7 +39,6 @@ class LinkedSourceDetailsViewModel(
 ) : androidx.lifecycle.ViewModel() {
     private val mutableState = kotlinx.coroutines.flow.MutableStateFlow<LinkedSourceDetailsViewModel.State>(State())
     val state: kotlinx.coroutines.flow.StateFlow<LinkedSourceDetailsViewModel.State> = mutableState
-
 
     companion object {
         val GROUP_ID_KEY = CreationExtras.Key<Long>()
@@ -106,8 +105,11 @@ class LinkedSourceDetailsViewModel(
                 val manga = manageLinkedSourceGroup.subscribeMembers(groupId).map { members ->
                     members.find { it.id == mangaId }
                 }.flatMapLatest { manga ->
-                    if (manga == null) kotlinx.coroutines.flow.flowOf(null)
-                    else kotlinx.coroutines.flow.flowOf(manga)
+                    if (manga == null) {
+                        kotlinx.coroutines.flow.flowOf(null)
+                    } else {
+                        kotlinx.coroutines.flow.flowOf(manga)
+                    }
                 }.firstOrNull() ?: return@launch
 
                 val source = sourceManager.getOrStub(manga.source)
@@ -143,7 +145,7 @@ class LinkedSourceDetailsViewModel(
             state.copy(
                 members = state.members.map {
                     if (it.manga.id == mangaId) it.copy(isTracking = !it.isTracking) else it
-                }
+                },
             )
         }
 
@@ -163,7 +165,7 @@ class LinkedSourceDetailsViewModel(
                     state.copy(
                         members = state.members.map {
                             if (it.manga.id == mangaId) it.copy(isTracking = !it.isTracking) else it
-                        }
+                        },
                     )
                 }
             }
@@ -202,7 +204,9 @@ class LinkedSourceDetailsViewModel(
             val trulyEligible = withHistory.filter { !memberships.containsKey(it.manga.id) }
 
             if (withoutHistory.isNotEmpty() || inOtherGroup.isNotEmpty() || trulyEligible.size < 2) {
-                mutableState.update { it.copy(dialog = Dialog.CreateHistoryGroupWarning(withoutHistory, inOtherGroup, trulyEligible)) }
+                mutableState.update {
+                    it.copy(dialog = Dialog.CreateHistoryGroupWarning(withoutHistory, inOtherGroup, trulyEligible))
+                }
             } else {
                 performCreateHistoryGroup(groupName, trulyEligible.map { it.manga.id })
             }
@@ -239,7 +243,7 @@ class LinkedSourceDetailsViewModel(
         data class CreateHistoryGroupWarning(
             val withoutHistory: List<LinkedMember>,
             val inOtherGroup: List<LinkedMember>,
-            val eligible: List<LinkedMember>
+            val eligible: List<LinkedMember>,
         ) : Dialog
 
         data object TrackingSourcePicker : Dialog

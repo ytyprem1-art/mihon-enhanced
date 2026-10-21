@@ -1,3 +1,6 @@
+// Raw protocol fixtures intentionally preserve their original single-line payloads.
+@file:Suppress("ktlint:standard:max-line-length")
+
 package eu.kanade.tachiyomi.ui.mod.chaptercomments
 
 import kotlinx.coroutines.async
@@ -27,7 +30,12 @@ class AsuraCommentsProviderTest {
             }
         }
         val provider = AsuraCommentsProvider(target, transport)
-        assertEquals(setOf("angry", "funny", "love", "sad", "surprised", "upvote"), provider.reactionOptions.map { it.key }.toSet())
+        assertEquals(
+            setOf("angry", "funny", "love", "sad", "surprised", "upvote"),
+            provider.reactionOptions.map {
+                it.key
+            }.toSet(),
+        )
         assertTrue(provider.reactionOptions.all { it.key == it.countLabel })
         provider.reactions()
         provider.setChapterReaction(null, null)
@@ -49,7 +57,10 @@ class AsuraCommentsProviderTest {
         var response = """{"data":{"reaction_counts":{"upvote":44},"user_reaction":"upvote"}}"""
         val transport = object : CommentsTransport {
             override suspend fun get(url: String, referer: String?): String {
-                if (url == target.url) { htmlRequests++; return HTML }
+                if (url == target.url) {
+                    htmlRequests++
+                    return HTML
+                }
                 return REACTIONS
             }
             override suspend fun write(method: String, url: String, json: String, referer: String?): String {
@@ -70,7 +81,12 @@ class AsuraCommentsProviderTest {
         provider.setChapterUpvote(false)
         assertEquals(listOf("""{"type":"upvote"}""", """{"type":null}"""), writes)
         assertEquals(1, htmlRequests)
-        for (error in listOf("""{"success":false,"error":"Denied"}""", """{"errno":401,"data":{}}""", """{}""", """{"success":true,"data":{}}""")) {
+        for (error in listOf(
+            """{"success":false,"error":"Denied"}""",
+            """{"errno":401,"data":{}}""",
+            """{}""",
+            """{"success":true,"data":{}}""",
+        )) {
             response = error
             assertTrue(runCatching { provider.setChapterUpvote(true) }.isFailure)
         }
@@ -105,11 +121,14 @@ class AsuraCommentsProviderTest {
 
     @Test
     fun `unconfirmed selection propagates confirmed server state instead of marking requested reaction successful`() = runTest {
-        val provider = AsuraCommentsProvider(target, object : CommentsTransport {
-            override suspend fun get(url: String, referer: String?): String = HTML
-            override suspend fun write(method: String, url: String, json: String, referer: String?): String =
-                """{"data":{"reaction_counts":{"upvote":48},"user_reaction":null}}"""
-        })
+        val provider = AsuraCommentsProvider(
+            target,
+            object : CommentsTransport {
+                override suspend fun get(url: String, referer: String?): String = HTML
+                override suspend fun write(method: String, url: String, json: String, referer: String?): String =
+                    """{"data":{"reaction_counts":{"upvote":48},"user_reaction":null}}"""
+            },
+        )
         val failure = runCatching { provider.setChapterReaction(null, "upvote") }.exceptionOrNull()
         assertTrue(failure is ChapterReactionUpdateException)
         assertEquals(null, (failure as ChapterReactionUpdateException).confirmedSelection)
@@ -131,7 +150,9 @@ class AsuraCommentsProviderTest {
         val reactions = async { provider.reactions() }
         val page = comments.await()
         assertEquals(1, fake.urls.count { it == target.url })
-        assertTrue(fake.urls.contains("https://api.asurascans.com/api/chapters/262359/comments?sort=top&limit=20&offset=0"))
+        assertTrue(
+            fake.urls.contains("https://api.asurascans.com/api/chapters/262359/comments?sort=top&limit=20&offset=0"),
+        )
         assertEquals(256, page.total)
         assertTrue(page.hasMore)
         val comment = page.comments.single()
@@ -149,7 +170,15 @@ class AsuraCommentsProviderTest {
 
     @Test
     fun `sort and page map to server offset without another chapter request`() = runTest {
-        val fake = FakeTransport { if (it == target.url) HTML else """{"data":[],"meta":{"total":0,"has_more":false},"success":true}""" }
+        val fake = FakeTransport {
+            if (it ==
+                target.url
+            ) {
+                HTML
+            } else {
+                """{"data":[],"meta":{"total":0,"has_more":false},"success":true}"""
+            }
+        }
         val provider = AsuraCommentsProvider(target, fake)
         assertFalse(provider.comments(CommentSort.NEWEST, 2).hasMore)
         provider.comments(CommentSort.OLDEST, 3)
@@ -160,7 +189,10 @@ class AsuraCommentsProviderTest {
 
     @Test
     fun `bare reply arrays retain parent identity and tolerate nullable presentation fields`() = runTest {
-        val fake = FakeTransport { """[{"id":13990294,"content":"A reply","upvotes":50,"downvotes":0,"user":null,"media_urls":null,"gif_url":null}]""" }
+        val fake =
+            FakeTransport {
+                """[{"id":13990294,"content":"A reply","upvotes":50,"downvotes":0,"user":null,"media_urls":null,"gif_url":null}]"""
+            }
         val provider = AsuraCommentsProvider(target, fake)
         val replies = provider.replies(ChapterComment("13990205", "Reader", "A comment", replyCount = 1))
         assertEquals("13990205", replies.single().replyTo)

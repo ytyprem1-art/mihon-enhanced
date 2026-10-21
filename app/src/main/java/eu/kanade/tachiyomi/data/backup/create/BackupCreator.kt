@@ -7,7 +7,6 @@ import dev.zacsweers.metro.Assisted
 import dev.zacsweers.metro.AssistedFactory
 import dev.zacsweers.metro.AssistedInject
 import eu.kanade.tachiyomi.BuildConfig
-import eu.kanade.tachiyomi.ui.mod.personalfavorites.PersonalFavoriteBackup
 import eu.kanade.tachiyomi.data.backup.BackupFileValidator
 import eu.kanade.tachiyomi.data.backup.create.creators.CategoriesBackupCreator
 import eu.kanade.tachiyomi.data.backup.create.creators.ExtensionStoresBackupCreator
@@ -19,35 +18,36 @@ import eu.kanade.tachiyomi.data.backup.models.BackupCategory
 import eu.kanade.tachiyomi.data.backup.models.BackupExtensionStore
 import eu.kanade.tachiyomi.data.backup.models.BackupHistoryCategory
 import eu.kanade.tachiyomi.data.backup.models.BackupLinkedSourceGroup
+import eu.kanade.tachiyomi.data.backup.models.BackupManga
 import eu.kanade.tachiyomi.data.backup.models.BackupManualHistoryGroup
 import eu.kanade.tachiyomi.data.backup.models.BackupModMember
-import eu.kanade.tachiyomi.data.backup.models.BackupUpdateWatch
-import eu.kanade.tachiyomi.data.backup.models.BackupUpdateWatchHistory
-import eu.kanade.tachiyomi.data.backup.models.BackupUpdateWatchInboxItem
-import eu.kanade.tachiyomi.data.backup.models.BackupManga
 import eu.kanade.tachiyomi.data.backup.models.BackupPreference
 import eu.kanade.tachiyomi.data.backup.models.BackupSource
 import eu.kanade.tachiyomi.data.backup.models.BackupSourcePreferences
+import eu.kanade.tachiyomi.data.backup.models.BackupUpdateWatch
+import eu.kanade.tachiyomi.data.backup.models.BackupUpdateWatchHistory
+import eu.kanade.tachiyomi.data.backup.models.BackupUpdateWatchInboxItem
+import eu.kanade.tachiyomi.ui.mod.personalfavorites.PersonalFavoriteBackup
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.serialization.protobuf.ProtoBuf
 import logcat.LogPriority
 import okio.buffer
-import tachiyomi.domain.history.interactor.ManageHistoryCategory
-import tachiyomi.domain.history.group.interactor.ManageHistoryGroups
-import tachiyomi.domain.source.linked.interactor.ManageLinkedSourceGroup
-import tachiyomi.domain.history.interactor.ManageUpdateWatch
-import tachiyomi.domain.history.interactor.GetUpdateWatchInbox
-import tachiyomi.domain.history.interactor.GetUpdateWatchHistory
-import tachiyomi.domain.chapter.repository.ChapterRepository
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.firstOrNull
 import okio.gzip
 import okio.sink
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.backup.service.BackupPreferences
+import tachiyomi.domain.chapter.repository.ChapterRepository
+import tachiyomi.domain.history.group.interactor.ManageHistoryGroups
+import tachiyomi.domain.history.interactor.GetUpdateWatchHistory
+import tachiyomi.domain.history.interactor.GetUpdateWatchInbox
+import tachiyomi.domain.history.interactor.ManageHistoryCategory
+import tachiyomi.domain.history.interactor.ManageUpdateWatch
 import tachiyomi.domain.manga.interactor.GetFavorites
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.manga.repository.MangaRepository
+import tachiyomi.domain.source.linked.interactor.ManageLinkedSourceGroup
 import tachiyomi.i18n.MR
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat
@@ -116,7 +116,14 @@ class BackupCreator(
                 emptyList()
             }
             val backupManga = backupMangas(
-                (getFavorites.await() + nonFavoriteManga + personalFavoriteManga + modMangaCollector(options)).distinctBy { it.source to it.url },
+                (
+                    getFavorites.await() + nonFavoriteManga + personalFavoriteManga + modMangaCollector(
+                        options,
+                    )
+                    ).distinctBy {
+                    it.source to
+                        it.url
+                },
                 options,
             )
 
@@ -132,14 +139,16 @@ class BackupCreator(
                         refreshProfile = it.refreshProfile.ordinal,
                         lastBackgroundCheckAt = it.lastBackgroundCheckAt,
                         lastWarnedMilestone = it.lastWarnedMilestone,
-                    )
+                    ),
                 )
             }
 
             val backupUpdateWatchInbox = mutableListOf<BackupUpdateWatchInboxItem>()
             getUpdateWatchInbox.await().forEach { item ->
                 val member = getModMember(item.mangaId) ?: return@forEach
-                val latestChapterUrl = if (item.type == tachiyomi.domain.history.model.UpdateWatchInboxItem.TYPE_INACTIVITY_WARNING) {
+                val latestChapterUrl = if (item.type ==
+                    tachiyomi.domain.history.model.UpdateWatchInboxItem.TYPE_INACTIVITY_WARNING
+                ) {
                     ""
                 } else {
                     checkNotNull(chapterRepository.getChapterById(item.latestChapterId)) {
@@ -163,7 +172,7 @@ class BackupCreator(
                         latestChapterUploadAt = item.latestChapterUploadAt,
                         type = item.type,
                         milestone = item.milestone,
-                    )
+                    ),
                 )
             }
 
@@ -178,7 +187,7 @@ class BackupCreator(
                         newChapters = it.newChapters,
                         category = it.category.ordinal,
                         detail = it.detail,
-                    )
+                    ),
                 )
             }
 
@@ -205,7 +214,7 @@ class BackupCreator(
                             name = group.name,
                             members = manageLinkedSourceGroup.subscribeMemberIds(group.id).first().mapNotNull {
                                 getModMember(it)
-                            }
+                            },
                         )
                     }
                 } else {
@@ -217,7 +226,7 @@ class BackupCreator(
                             name = group.name,
                             members = manageHistoryGroups.subscribeMembers(group.id).first().mapNotNull {
                                 getModMember(it)
-                            }
+                            },
                         )
                     }
                 } else {

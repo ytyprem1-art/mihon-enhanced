@@ -24,7 +24,10 @@ class CommentImages(context: Context, client: OkHttpClient) : Closeable {
     internal val cleanupComplete = CompletableDeferred<Unit>()
     private val disk = DiskCache.Builder().directory(directory.toOkioPath()).maxSizeBytes(32L * 1024 * 1024).build()
     val loader = ImageLoader.Builder(context.applicationContext)
-        .components { add(OkHttpNetworkFetcherFactory(callFactory = { client })); add(GifDecoder.Factory()) }
+        .components {
+            add(OkHttpNetworkFetcherFactory(callFactory = { client }))
+            add(GifDecoder.Factory())
+        }
         .memoryCache(MemoryCache.Builder().maxSizeBytes(12L * 1024 * 1024).build())
         .diskCache(disk)
         .fetcherCoroutineContext(Dispatchers.IO.limitedParallelism(4))
@@ -39,7 +42,9 @@ class CommentImages(context: Context, client: OkHttpClient) : Closeable {
                 disk.shutdown()
                 directory.deleteRecursively()
                 cleanupComplete.complete(Unit)
-            } catch (exception: Exception) { cleanupComplete.completeExceptionally(exception) }
+            } catch (exception: Exception) {
+                cleanupComplete.completeExceptionally(exception)
+            }
         }
     }
 }

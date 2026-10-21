@@ -29,10 +29,18 @@ object EnhancedDatabaseSchema : SqlSchema<QueryResult.AsyncValue<Unit>> {
             }
             val inboxColumns = columns(driver, "update_watch_inbox")
             if ("latest_chapter_upload_at" !in inboxColumns) {
-                driver.execute(null, "ALTER TABLE update_watch_inbox ADD COLUMN latest_chapter_upload_at INTEGER NOT NULL DEFAULT 0", 0).await()
+                driver.execute(
+                    null,
+                    "ALTER TABLE update_watch_inbox ADD COLUMN latest_chapter_upload_at INTEGER NOT NULL DEFAULT 0",
+                    0,
+                ).await()
             }
             if ("chapter_ids" !in inboxColumns) {
-                driver.execute(null, "ALTER TABLE update_watch_inbox ADD COLUMN chapter_ids TEXT NOT NULL DEFAULT ''", 0).await()
+                driver.execute(
+                    null,
+                    "ALTER TABLE update_watch_inbox ADD COLUMN chapter_ids TEXT NOT NULL DEFAULT ''",
+                    0,
+                ).await()
             }
         }
         if (newVersion > boundary) {

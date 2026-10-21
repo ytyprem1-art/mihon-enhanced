@@ -1,15 +1,15 @@
 package eu.kanade.tachiyomi.ui.browse.source.linked
 
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.launch
 import androidx.lifecycle.viewModelScope
-import eu.kanade.tachiyomi.ui.browse.source.globalsearch.SearchViewModel
 import eu.kanade.tachiyomi.ui.browse.source.globalsearch.SearchItemResult
+import eu.kanade.tachiyomi.ui.browse.source.globalsearch.SearchViewModel
 import eu.kanade.tachiyomi.ui.browse.source.globalsearch.SourceFilter
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.source.linked.interactor.ManageLinkedSourceGroup
 
@@ -25,8 +25,12 @@ class LinkedSourceSearchViewModel(
     getManga: tachiyomi.domain.manga.interactor.GetManga,
 ) : SearchViewModel(
     State(searchQuery = initialQuery),
-    sourcePreferences = sourcePreferences, sourceManager = sourceManager, extensionManager = extensionManager,
-    networkToLocalManga = networkToLocalManga, getManga = getManga, preferences = sourcePreferences,
+    sourcePreferences = sourcePreferences,
+    sourceManager = sourceManager,
+    extensionManager = extensionManager,
+    networkToLocalManga = networkToLocalManga,
+    getManga = getManga,
+    preferences = sourcePreferences,
 ) {
     @dev.zacsweers.metro.AssistedFactory
     @dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactoryKey

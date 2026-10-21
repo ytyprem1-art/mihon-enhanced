@@ -7,7 +7,7 @@ import tachiyomi.domain.history.repository.HistoryCategoryRepository
 
 @dev.zacsweers.metro.Inject
 class ManageHistoryCategory(
-    private val repository: HistoryCategoryRepository
+    private val repository: HistoryCategoryRepository,
 ) {
     fun subscribe(): Flow<List<HistoryCategory>> {
         return repository.getHistoryCategories()

@@ -283,7 +283,11 @@ private fun GroupHeader(
                 Icon(
                     imageVector = Icons.Outlined.DensityMedium,
                     contentDescription = if (isWideCompact) "Disable wide compact view" else "Enable wide compact view",
-                    tint = if (isWideCompact) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                    tint = if (isWideCompact) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    },
                 )
             }
 
@@ -326,10 +330,23 @@ private fun RowScope.sourceModifier(isWideCompact: Boolean) =
     } else {
         Modifier.width(120.dp)
     }
-private fun RowScope.readModifier(isWideCompact: Boolean) = if (isWideCompact) Modifier.weight(1f) else Modifier.width(90.dp)
-private fun RowScope.latestModifier(isWideCompact: Boolean) = if (isWideCompact) Modifier.weight(1f) else Modifier.width(80.dp)
-private fun RowScope.statusModifier(isWideCompact: Boolean) = if (isWideCompact) Modifier.weight(1.2f) else Modifier.width(100.dp)
-private fun RowScope.lastCheckModifier(isWideCompact: Boolean) = if (isWideCompact) Modifier.weight(1.2f) else Modifier.width(100.dp)
+private fun RowScope.readModifier(isWideCompact: Boolean) = if (isWideCompact) {
+    Modifier.weight(1f)
+} else {
+    Modifier.width(90.dp)
+}
+private fun RowScope.latestModifier(isWideCompact: Boolean) = if (isWideCompact) {
+    Modifier.weight(1f)
+} else {
+    Modifier.width(80.dp)
+}
+private fun RowScope.statusModifier(isWideCompact: Boolean) = if (isWideCompact) {
+    Modifier.weight(1.2f)
+} else {
+    Modifier.width(100.dp)
+}
+private fun RowScope.lastCheckModifier(isWideCompact: Boolean) =
+    if (isWideCompact) Modifier.weight(1.2f) else Modifier.width(100.dp)
 private fun actionsModifier() = Modifier.width(actionsAreaWidth)
 
 @Composable
@@ -399,7 +416,7 @@ private fun MemberTableRow(
                         Modifier
                     } else {
                         Modifier.clickable { onOpen() }
-                    }
+                    },
                 ),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -454,7 +471,7 @@ private fun MemberTableRow(
                         Modifier.clickable { onRead(member.lastReadChapterId) }
                     } else {
                         Modifier
-                    }
+                    },
                 ),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
@@ -466,7 +483,11 @@ private fun MemberTableRow(
                 Text(
                     text = member.lastRead?.let { decimalFormat.format(it) } ?: "—",
                     style = MaterialTheme.typography.bodySmall,
-                    color = if (isReadClickable) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = if (isReadClickable) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
                     maxLines = 1,
                 )
                 if (isReadClickable) {
@@ -496,7 +517,7 @@ private fun MemberTableRow(
                         Modifier.clickable { onLatest(member.latestChapterId) }
                     } else {
                         Modifier
-                    }
+                    },
                 ),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
@@ -508,7 +529,11 @@ private fun MemberTableRow(
                 Text(
                     text = member.latestChapter?.let { decimalFormat.format(it) } ?: "—",
                     style = MaterialTheme.typography.bodySmall,
-                    color = if (isLatestClickable) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = if (isLatestClickable) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
                     maxLines = 1,
                 )
                 if (isLatestClickable) {

@@ -24,7 +24,10 @@ class UpdateWatchInboxRepositoryImpl(
     }
 
     override suspend fun getByMangaId(mangaId: Long): UpdateWatchInboxItem? {
-        return database.update_watch_inboxQueries.getInboxItemById(mangaId, ::mapUpdateWatchInboxItem).awaitAsOneOrNull()
+        return database.update_watch_inboxQueries.getInboxItemById(
+            mangaId,
+            ::mapUpdateWatchInboxItem,
+        ).awaitAsOneOrNull()
     }
 
     override suspend fun insert(item: UpdateWatchInboxItem) {

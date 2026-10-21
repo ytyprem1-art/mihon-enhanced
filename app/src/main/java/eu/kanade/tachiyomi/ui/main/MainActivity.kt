@@ -83,9 +83,6 @@ import eu.kanade.presentation.util.DefaultNavigatorScreenTransition
 import eu.kanade.tachiyomi.data.cache.ChapterCache
 import eu.kanade.tachiyomi.data.download.DownloadCache
 import eu.kanade.tachiyomi.data.notification.NotificationReceiver
-import eu.kanade.tachiyomi.ui.mod.EnhancedPreferences
-import eu.kanade.tachiyomi.ui.mod.welcome.WelcomeSheet
-import eu.kanade.tachiyomi.ui.mod.updatewatch.worker.UpdateWatchNotifier
 import eu.kanade.tachiyomi.data.updater.AppUpdateChecker
 import eu.kanade.tachiyomi.extension.ExtensionManager
 import eu.kanade.tachiyomi.ui.base.activity.BaseActivity
@@ -94,6 +91,9 @@ import eu.kanade.tachiyomi.ui.browse.source.globalsearch.GlobalSearchScreen
 import eu.kanade.tachiyomi.ui.deeplink.DeepLinkScreen
 import eu.kanade.tachiyomi.ui.home.HomeScreen
 import eu.kanade.tachiyomi.ui.manga.MangaScreen
+import eu.kanade.tachiyomi.ui.mod.EnhancedPreferences
+import eu.kanade.tachiyomi.ui.mod.updatewatch.worker.UpdateWatchNotifier
+import eu.kanade.tachiyomi.ui.mod.welcome.WelcomeSheet
 import eu.kanade.tachiyomi.ui.more.NewUpdateScreen
 import eu.kanade.tachiyomi.ui.more.OnboardingScreen
 import eu.kanade.tachiyomi.ui.setting.SettingsScreen
@@ -569,7 +569,7 @@ class MainActivity : BaseActivity() {
                         enhancedPreferences.lastDismissedWelcomeVersion.set(CURRENT_WELCOME_VERSION)
                     }
                     showWelcome = false
-                }
+                },
             )
         }
     }

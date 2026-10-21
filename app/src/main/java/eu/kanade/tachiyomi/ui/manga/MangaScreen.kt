@@ -38,7 +38,6 @@ import eu.kanade.presentation.components.NavigatorAdaptiveSheet
 import eu.kanade.presentation.manga.ChapterSettingsDialog
 import eu.kanade.presentation.manga.DuplicateMangaDialog
 import eu.kanade.presentation.manga.EditCoverAction
-import eu.kanade.presentation.manga.MangaScreen as MangaScreenContent
 import eu.kanade.presentation.manga.components.DeleteChaptersDialog
 import eu.kanade.presentation.manga.components.LinkedSourcesSheet
 import eu.kanade.presentation.manga.components.MangaCoverDialog
@@ -52,40 +51,41 @@ import eu.kanade.presentation.util.isTabletUi
 import eu.kanade.tachiyomi.source.Source
 import eu.kanade.tachiyomi.source.isLocalOrStub
 import eu.kanade.tachiyomi.source.online.HttpSource
-import tachiyomi.domain.source.service.SourceManager
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import eu.kanade.tachiyomi.ui.browse.source.browse.BrowseSourceScreen
 import eu.kanade.tachiyomi.ui.browse.source.globalsearch.GlobalSearchScreen
-import eu.kanade.tachiyomi.ui.mod.merge.EditMergedSettingsDialog
-import eu.kanade.tachiyomi.ui.mod.search.GlobalSourceSearchScreen
 import eu.kanade.tachiyomi.ui.browse.source.linked.LinkedSourceDetailsScreen
 import eu.kanade.tachiyomi.ui.browse.source.linked.LinkedSourceSearchScreen
 import eu.kanade.tachiyomi.ui.category.CategoryScreen
 import eu.kanade.tachiyomi.ui.home.HomeScreen
 import eu.kanade.tachiyomi.ui.manga.notes.MangaNotesScreen
-import eu.kanade.tachiyomi.ui.mod.EnhancedPreferences
-import java.net.URI
 import eu.kanade.tachiyomi.ui.manga.track.TrackInfoDialogHomeScreen
+import eu.kanade.tachiyomi.ui.mod.EnhancedPreferences
+import eu.kanade.tachiyomi.ui.mod.merge.EditMergedSettingsDialog
+import eu.kanade.tachiyomi.ui.mod.search.GlobalSourceSearchScreen
 import eu.kanade.tachiyomi.ui.reader.ReaderActivity
 import eu.kanade.tachiyomi.ui.setting.SettingsScreen
 import eu.kanade.tachiyomi.ui.webview.WebViewScreen
 import eu.kanade.tachiyomi.util.system.copyToClipboard
 import eu.kanade.tachiyomi.util.system.toShareIntent
 import eu.kanade.tachiyomi.util.system.toast
-import tachiyomi.core.common.i18n.stringResource
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import logcat.LogPriority
 import mihon.feature.migration.config.MigrationConfigScreen
 import mihon.feature.migration.dialog.MigrateMangaDialog
+import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.chapter.model.Chapter
 import tachiyomi.domain.manga.model.Manga
-import tachiyomi.presentation.core.screens.LoadingScreen
+import tachiyomi.domain.source.service.SourceManager
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.i18n.stringResource
+import tachiyomi.presentation.core.screens.LoadingScreen
+import uy.kohesive.injekt.Injekt
+import uy.kohesive.injekt.api.get
+import java.net.URI
+import eu.kanade.presentation.manga.MangaScreen as MangaScreenContent
 
 class MangaScreen(
     val mangaId: Long,
@@ -239,7 +239,7 @@ class MangaScreen(
                     GlobalSourceSearchScreen(
                         initialQuery = title,
                         parentMangaId = mangaId,
-                    )
+                    ),
                 )
             },
             // SY <--
@@ -276,8 +276,8 @@ class MangaScreen(
                             query,
                             title,
                             nextSessionId,
-                            anchorSourceId
-                        )
+                            anchorSourceId,
+                        ),
                     )
                 }
             },
@@ -481,7 +481,7 @@ class MangaScreen(
                         androidx.compose.material3.TextButton(onClick = onDismissRequest) {
                             androidx.compose.material3.Text(stringResource(MR.strings.action_cancel))
                         }
-                    }
+                    },
                 )
             }
             is MangaViewModel.Dialog.JoinLinkedGroup -> {
@@ -492,7 +492,7 @@ class MangaScreen(
                         androidx.compose.foundation.lazy.LazyColumn {
                             items(
                                 items = dialog.allGroups,
-                                key = { it.group.id }
+                                key = { it.group.id },
                             ) { item ->
                                 androidx.compose.material3.ListItem(
                                     modifier = Modifier.clickable {
@@ -506,7 +506,9 @@ class MangaScreen(
                                         )
                                     },
                                     headlineContent = { androidx.compose.material3.Text(item.group.name) },
-                                    supportingContent = { androidx.compose.material3.Text("${item.group.memberCount} sources") },
+                                    supportingContent = {
+                                        androidx.compose.material3.Text("${item.group.memberCount} sources")
+                                    },
                                 )
                             }
                         }
@@ -516,7 +518,7 @@ class MangaScreen(
                         androidx.compose.material3.TextButton(onClick = onDismissRequest) {
                             androidx.compose.material3.Text(stringResource(MR.strings.action_cancel))
                         }
-                    }
+                    },
                 )
             }
             is MangaViewModel.Dialog.RemoveLinkedMember -> {
@@ -531,7 +533,7 @@ class MangaScreen(
                                 "This is the last source in this group.\n\nRemoving it will also delete the linked source group."
                             } else {
                                 "Remove '$sourceName' from this group?"
-                            }
+                            },
                         )
                     },
                     confirmButton = {
@@ -548,7 +550,7 @@ class MangaScreen(
                         androidx.compose.material3.TextButton(onClick = onDismissRequest) {
                             androidx.compose.material3.Text(stringResource(MR.strings.action_cancel))
                         }
-                    }
+                    },
                 )
             }
             is MangaViewModel.Dialog.RenameLinkedGroup -> {
@@ -587,14 +589,16 @@ class MangaScreen(
                         androidx.compose.material3.TextButton(onClick = onDismissRequest) {
                             androidx.compose.material3.Text(stringResource(MR.strings.action_cancel))
                         }
-                    }
+                    },
                 )
             }
             is MangaViewModel.Dialog.DeleteLinkedGroup -> {
                 androidx.compose.material3.AlertDialog(
                     onDismissRequest = onDismissRequest,
                     title = { androidx.compose.material3.Text("Delete Group") },
-                    text = { androidx.compose.material3.Text("Are you sure you want to delete '${dialog.group.name}'?") },
+                    text = {
+                        androidx.compose.material3.Text("Are you sure you want to delete '${dialog.group.name}'?")
+                    },
                     confirmButton = {
                         androidx.compose.material3.TextButton(
                             onClick = {
@@ -609,7 +613,7 @@ class MangaScreen(
                         androidx.compose.material3.TextButton(onClick = onDismissRequest) {
                             androidx.compose.material3.Text(stringResource(MR.strings.action_cancel))
                         }
-                    }
+                    },
                 )
             }
             MangaViewModel.Dialog.TrackUpdateWatch -> {
@@ -655,13 +659,18 @@ class MangaScreen(
                             onClick = {
                                 scope.launch {
                                     try {
-                                        val mergedManga = viewModel.performSmartSearchMerge(dialog.manga, dialog.mergeWithMangaId)
+                                        val mergedManga = viewModel.performSmartSearchMerge(
+                                            dialog.manga,
+                                            dialog.mergeWithMangaId,
+                                        )
                                         if (mergedManga.id != mangaId) {
                                             navigator.replace(MangaScreen(mergedManga.id, true))
                                         }
                                         context.toast(context.stringResource(MR.strings.entry_merged))
                                     } catch (e: Exception) {
-                                        context.toast(context.stringResource(MR.strings.failed_merge, e.message.orEmpty()))
+                                        context.toast(
+                                            context.stringResource(MR.strings.failed_merge, e.message.orEmpty()),
+                                        )
                                     }
                                 }
                                 onDismissRequest()

@@ -1,10 +1,10 @@
 package eu.kanade.tachiyomi.ui.setting.track
 
-import kotlinx.coroutines.launch
 import android.net.Uri
 import android.widget.Toast
 import androidx.lifecycle.lifecycleScope
 import eu.kanade.tachiyomi.data.sync.service.GoogleDriveService
+import kotlinx.coroutines.launch
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 

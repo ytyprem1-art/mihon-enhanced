@@ -1,7 +1,5 @@
 package eu.kanade.tachiyomi
 
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import android.annotation.SuppressLint
 import android.app.Application
 import android.app.PendingIntent
@@ -46,6 +44,10 @@ import eu.kanade.tachiyomi.extension.ExtensionManager
 import eu.kanade.tachiyomi.network.NetworkHelper
 import eu.kanade.tachiyomi.network.NetworkPreferences
 import eu.kanade.tachiyomi.ui.base.delegate.SecureActivityDelegate
+import eu.kanade.tachiyomi.ui.chat.PresenceManager
+import eu.kanade.tachiyomi.ui.chat.PresenceStatus
+import eu.kanade.tachiyomi.ui.mod.updatewatch.worker.UpdateWatchForegroundBurst
+import eu.kanade.tachiyomi.ui.mod.updatewatch.worker.UpdateWatchRefreshScheduler
 import eu.kanade.tachiyomi.util.system.DeviceUtil
 import eu.kanade.tachiyomi.util.system.GLUtil
 import eu.kanade.tachiyomi.util.system.WebViewUtil
@@ -53,10 +55,6 @@ import eu.kanade.tachiyomi.util.system.animatorDurationScale
 import eu.kanade.tachiyomi.util.system.cancelNotification
 import eu.kanade.tachiyomi.util.system.isDebugBuildType
 import eu.kanade.tachiyomi.util.system.notify
-import eu.kanade.tachiyomi.ui.chat.PresenceManager
-import eu.kanade.tachiyomi.ui.chat.PresenceStatus
-import eu.kanade.tachiyomi.ui.mod.updatewatch.worker.UpdateWatchRefreshScheduler
-import eu.kanade.tachiyomi.ui.mod.updatewatch.worker.UpdateWatchForegroundBurst
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.launchIn
@@ -80,7 +78,9 @@ import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.source.service.SourceManager
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.widget.WidgetManager
+import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.InjektScope
+import uy.kohesive.injekt.api.get
 import java.security.Security
 import kotlin.concurrent.thread
 import mihon.icons.materialsymbols.R as MaterialSymbolsR
@@ -225,7 +225,16 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
         logcat {
             "Migration from ${preference.get()} to ${BuildConfig.VERSION_CODE} with ${migrations.size} migration(s)"
         }
-        val upstreamVersion = preferenceStore.getInt(Preference.appStateKey("last_upstream_version_code"), if (preference.get() > 0) 29 else 0)
+        val upstreamVersion = preferenceStore.getInt(
+            Preference.appStateKey("last_upstream_version_code"),
+            if (preference.get() >
+                0
+            ) {
+                29
+            } else {
+                0
+            },
+        )
         Migrator.initialize(
             old = upstreamVersion.get(),
             new = 38,
@@ -282,14 +291,14 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
 
     override fun onStart(owner: LifecycleOwner) {
         SecureActivityDelegate.onApplicationStart(this)
-        
+
         val presenceManager = Injekt.get<PresenceManager>()
         presenceManager.updateStatus(PresenceStatus.ONLINE)
     }
 
     override fun onStop(owner: LifecycleOwner) {
         SecureActivityDelegate.onApplicationStopped(this)
-        
+
         Injekt.get<PresenceManager>().updateStatus(PresenceStatus.OFFLINE)
     }
 

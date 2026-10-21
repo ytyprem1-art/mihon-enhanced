@@ -1,6 +1,8 @@
 package eu.kanade.tachiyomi.ui.mod.chaptercomments
 
-import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 import tachiyomi.core.common.preference.InMemoryPreferenceStore
 
@@ -11,8 +13,21 @@ class ChapterCommentIdentityTest {
         val base = "https://11.shinigami.asia"
         assertEquals("$base/chapter/$id", normalizeCommentChapterUrl(base, id, base + id))
         assertEquals("$base/chapter/$id", normalizeCommentChapterUrl(base, "/chapter/$id", "$base/chapter/$id"))
-        assertEquals("$base/chapter/$id", normalizeCommentChapterUrl(base, "https://08.shinigami.asia/chapter/$id", "https://08.shinigami.asia/chapter/$id"))
-        assertThrows(IllegalArgumentException::class.java) { normalizeCommentChapterUrl(base, "not-an-id", base + "not-an-id") }
+        assertEquals(
+            "$base/chapter/$id",
+            normalizeCommentChapterUrl(
+                base,
+                "https://08.shinigami.asia/chapter/$id",
+                "https://08.shinigami.asia/chapter/$id",
+            ),
+        )
+        assertThrows(IllegalArgumentException::class.java) {
+            normalizeCommentChapterUrl(
+                base,
+                "not-an-id",
+                base + "not-an-id",
+            )
+        }
     }
 
     @Test fun `other sources retain their own chapter URL`() {

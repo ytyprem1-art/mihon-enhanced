@@ -26,18 +26,32 @@ object ChatProfilePhotoStore {
         check(FirebaseAuth.getInstance().currentUser?.uid == uid) { "Please sign in again" }
         val db = FirebaseFirestore.getInstance()
         val batch = db.batch()
-        batch.set(db.collection("presence").document(uid), mapOf(
-            "username" to username, "appVersion" to BuildConfig.VERSION_NAME,
-            "avatarBase64" to (photo?.thumbnail ?: FieldValue.delete()),
-            "avatarPhotoVersion" to (photo?.version ?: FieldValue.delete()),
-        ), SetOptions.merge())
+        batch.set(
+            db.collection("presence").document(uid),
+            mapOf(
+                "username" to username,
+                "appVersion" to BuildConfig.VERSION_NAME,
+                "avatarBase64" to (photo?.thumbnail ?: FieldValue.delete()),
+                "avatarPhotoVersion" to (photo?.version ?: FieldValue.delete()),
+            ),
+            SetOptions.merge(),
+        )
         val ref = db.collection(COLLECTION).document(uid)
-        if (photo == null) batch.delete(ref) else {
+        if (photo == null) {
+            batch.delete(ref)
+        } else {
             require(photo.photo.size in 1..ChatAvatarPhoto.MAX_HD_BYTES)
             require(photo.thumbnail.length <= ChatAvatarPhoto.MAX_ENCODED)
-            batch.set(ref, mapOf("senderUid" to uid, "version" to photo.version,
-                "width" to ChatAvatarPhoto.HD_SIDE, "height" to ChatAvatarPhoto.HD_SIDE,
-                "data" to Blob.fromBytes(photo.photo)))
+            batch.set(
+                ref,
+                mapOf(
+                    "senderUid" to uid,
+                    "version" to photo.version,
+                    "width" to ChatAvatarPhoto.HD_SIDE,
+                    "height" to ChatAvatarPhoto.HD_SIDE,
+                    "data" to Blob.fromBytes(photo.photo),
+                ),
+            )
         }
         batch.commit().awaitPanelTask()
         images.snapshot().keys.filter { it.startsWith("$uid:") }.forEach { images.remove(it) }
@@ -49,6 +63,8 @@ object ChatProfilePhotoStore {
         val doc = FirebaseFirestore.getInstance().collection(COLLECTION).document(uid).get().awaitPanelTask()
         require(doc.getString("version") == version) { "Profile photo changed. Open the profile again." }
         val bytes = requireNotNull(doc.getBlob("data")) { "Profile photo is unavailable." }.toBytes()
-        return withContext(Dispatchers.Default) { ChatAvatarPhoto.decodeHd(bytes) }.also { images.put("$uid:$version", it) }
+        return withContext(Dispatchers.Default) {
+            ChatAvatarPhoto.decodeHd(bytes)
+        }.also { images.put("$uid:$version", it) }
     }
 }

@@ -22,17 +22,19 @@ class MetroInjektRegistrar(
 
     private val graph: AppGraph inline get() = graphProvider.graph
 
-    private val bindings by lazy { mapOf<Type, () -> Any>(
-        Application::class.java to { application },
-        Context::class.java to { application },
+    private val bindings by lazy {
+        mapOf<Type, () -> Any>(
+            Application::class.java to { application },
+            Context::class.java to { application },
 
-        Json::class.java to { graph.json },
-        ProtoBuf::class.java to { graph.protoBuf },
-        XML::class.java to { graph.xml },
+            Json::class.java to { graph.json },
+            ProtoBuf::class.java to { graph.protoBuf },
+            XML::class.java to { graph.xml },
 
-        NetworkHelper::class.java to { graph.networkHelper },
-        JavaScriptEngine::class.java to { graph.javaScriptEngine },
-    ) + eu.kanade.tachiyomi.ui.mod.di.enhancedInjektBindings(graph) }
+            NetworkHelper::class.java to { graph.networkHelper },
+            JavaScriptEngine::class.java to { graph.javaScriptEngine },
+        ) + eu.kanade.tachiyomi.ui.mod.di.enhancedInjektBindings(graph)
+    }
 
     override fun <R : Any> getInstance(forType: Type): R = getInstanceOrNull(forType)
         ?: throw InjektionException("$forType is not exposed to Injekt, add it to ${this::class.simpleName}")

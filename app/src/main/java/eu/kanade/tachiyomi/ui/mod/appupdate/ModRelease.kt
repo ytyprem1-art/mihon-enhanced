@@ -16,8 +16,13 @@ data class ModVersion(val major: Int, val minor: Int, val patch: Int = 0) {
 
 data class ModReleaseNote(val version: String, val notes: String)
 
-data class ModRelease(val version: String, val fileId: String, val notes: String,
-    val history: List<ModReleaseNote> = emptyList(), val historyAvailable: Boolean = true) {
+data class ModRelease(
+    val version: String,
+    val fileId: String,
+    val notes: String,
+    val history: List<ModReleaseNote> = emptyList(),
+    val historyAvailable: Boolean = true,
+) {
     init {
         require(version.matches(Regex("[0-9]{1,3}\\.[0-9]{1,3}(\\.[0-9]{1,3})?")))
         require(fileId.matches(Regex("[A-Za-z0-9_-]{10,150}")))
@@ -30,12 +35,18 @@ data class ModRelease(val version: String, val fileId: String, val notes: String
         val current = ModVersion.parse(installed)?.number ?: return emptyList()
         return (previous + ModReleaseNote(version, notes))
             .filter { note -> ModVersion.parse(note.version)?.number?.let { it > current && it <= number } == true }
-            .associateBy { ModVersion.parse(it.version)!!.number }.toSortedMap(compareByDescending { it }).values.toList()
+            .associateBy {
+                ModVersion.parse(it.version)!!.number
+            }.toSortedMap(compareByDescending { it }).values.toList()
     }
     companion object {
         fun driveFileId(link: String): String? {
             val url = link.trim().toHttpUrlOrNull() ?: return null
-            if (url.scheme != "https" || url.host !in setOf("drive.google.com", "drive.usercontent.google.com")) return null
+            if (url.scheme != "https" ||
+                url.host !in setOf("drive.google.com", "drive.usercontent.google.com")
+            ) {
+                return null
+            }
             val parts = url.pathSegments
             val id = if (parts.take(2) == listOf("file", "d")) parts.getOrNull(2) else url.queryParameter("id")
             return id?.takeIf { it.matches(Regex("[A-Za-z0-9_-]{10,150}")) }

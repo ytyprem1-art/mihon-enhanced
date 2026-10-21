@@ -14,7 +14,7 @@ object UpdateWatchRefreshState {
     private val _queuedMangaIds = MutableStateFlow<Set<Long>>(emptySet())
     val queuedMangaIds: StateFlow<Set<Long>> = _queuedMangaIds.asStateFlow()
 
-    private val _activeRunners = AtomicInteger(0)
+    private val activeRunners = AtomicInteger(0)
 
     /**
      * Atomically claims a set of manga IDs. Returns the IDs that were successfully claimed
@@ -52,12 +52,12 @@ object UpdateWatchRefreshState {
     }
 
     fun onRunStarted() {
-        _activeRunners.incrementAndGet()
+        activeRunners.incrementAndGet()
     }
 
     fun onRunFinished() {
-        _activeRunners.decrementAndGet()
+        activeRunners.decrementAndGet()
     }
 
-    fun getActiveRunnerCount(): Int = _activeRunners.get()
+    fun getActiveRunnerCount(): Int = activeRunners.get()
 }

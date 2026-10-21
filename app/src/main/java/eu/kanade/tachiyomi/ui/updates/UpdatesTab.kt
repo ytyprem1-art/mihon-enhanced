@@ -79,7 +79,12 @@ data object UpdatesTab : Tab {
             onFilterClicked = viewModel::showFilterDialog,
             hasActiveFilters = state.hasActiveFilters,
             categoryBar = {
-                eu.kanade.tachiyomi.ui.mod.updatecategory.UpdatesCategoryBar(viewModel.updatesCategories, viewModel.categorySources) { viewModel.toggleAllSelection(false) }
+                eu.kanade.tachiyomi.ui.mod.updatecategory.UpdatesCategoryBar(
+                    viewModel.updatesCategories,
+                    viewModel.categorySources,
+                ) {
+                    viewModel.toggleAllSelection(false)
+                }
             },
         )
 

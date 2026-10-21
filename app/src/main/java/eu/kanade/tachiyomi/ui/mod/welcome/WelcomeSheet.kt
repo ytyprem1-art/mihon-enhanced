@@ -82,43 +82,43 @@ fun WelcomeSheet(
                 )
                 FeatureItem(
                     title = stringResource(MR.strings.mod_welcome_feature_history_categories_title),
-                    desc = stringResource(MR.strings.mod_welcome_feature_history_categories_desc)
+                    desc = stringResource(MR.strings.mod_welcome_feature_history_categories_desc),
                 )
                 FeatureItem(
                     title = stringResource(MR.strings.mod_welcome_feature_history_groups_title),
-                    desc = stringResource(MR.strings.mod_welcome_feature_history_groups_desc)
+                    desc = stringResource(MR.strings.mod_welcome_feature_history_groups_desc),
                 )
                 FeatureItem(
                     title = stringResource(MR.strings.mod_welcome_feature_linked_sources_title),
-                    desc = stringResource(MR.strings.mod_welcome_feature_linked_sources_desc)
+                    desc = stringResource(MR.strings.mod_welcome_feature_linked_sources_desc),
                 )
                 FeatureItem(
                     title = stringResource(MR.strings.mod_welcome_feature_quick_switcher_title),
-                    desc = stringResource(MR.strings.mod_welcome_feature_quick_switcher_desc)
+                    desc = stringResource(MR.strings.mod_welcome_feature_quick_switcher_desc),
                 )
                 FeatureItem(
                     title = stringResource(MR.strings.mod_welcome_feature_update_watch_title),
-                    desc = stringResource(MR.strings.mod_welcome_feature_update_watch_desc)
+                    desc = stringResource(MR.strings.mod_welcome_feature_update_watch_desc),
                 )
                 FeatureItem(
                     title = stringResource(MR.strings.mod_welcome_feature_bookmark_import_title),
-                    desc = stringResource(MR.strings.mod_welcome_feature_bookmark_import_desc)
+                    desc = stringResource(MR.strings.mod_welcome_feature_bookmark_import_desc),
                 )
                 FeatureItem(
                     title = stringResource(MR.strings.mod_welcome_feature_backup_restore_title),
-                    desc = stringResource(MR.strings.mod_welcome_feature_backup_restore_desc)
+                    desc = stringResource(MR.strings.mod_welcome_feature_backup_restore_desc),
                 )
                 FeatureItem(
                     title = stringResource(MR.strings.mod_welcome_feature_migration_title),
-                    desc = stringResource(MR.strings.mod_welcome_feature_migration_desc)
+                    desc = stringResource(MR.strings.mod_welcome_feature_migration_desc),
                 )
                 FeatureItem(
                     title = stringResource(MR.strings.mod_welcome_feature_cloudflare_title),
-                    desc = stringResource(MR.strings.mod_welcome_feature_cloudflare_desc)
+                    desc = stringResource(MR.strings.mod_welcome_feature_cloudflare_desc),
                 )
                 FeatureItem(
                     title = stringResource(MR.strings.mod_welcome_feature_grid_columns_title),
-                    desc = stringResource(MR.strings.mod_welcome_feature_grid_columns_desc)
+                    desc = stringResource(MR.strings.mod_welcome_feature_grid_columns_desc),
                 )
 
                 FeatureItem(
@@ -171,12 +171,12 @@ fun WelcomeSheet(
                 Hyperlink(
                     text = "Current project",
                     url = currentProjectLink,
-                    onClick = { uriHandler.openUri(currentProjectLink) }
+                    onClick = { uriHandler.openUri(currentProjectLink) },
                 )
                 Hyperlink(
                     text = "Previous project / v1.x",
                     url = previousProjectLink,
-                    onClick = { uriHandler.openUri(previousProjectLink) }
+                    onClick = { uriHandler.openUri(previousProjectLink) },
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -266,8 +266,8 @@ private fun Hyperlink(text: String, url: String, onClick: () -> Unit) {
             style = SpanStyle(
                 color = MaterialTheme.colorScheme.primary,
                 textDecoration = TextDecoration.Underline,
-                fontWeight = FontWeight.Medium
-            )
+                fontWeight = FontWeight.Medium,
+            ),
         ) {
             append(text)
         }
@@ -276,12 +276,12 @@ private fun Hyperlink(text: String, url: String, onClick: () -> Unit) {
         ClickableText(
             text = annotatedString,
             onClick = { onClick() },
-            style = MaterialTheme.typography.bodyMedium
+            style = MaterialTheme.typography.bodyMedium,
         )
         Text(
             text = url,
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }

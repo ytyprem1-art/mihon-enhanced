@@ -1,10 +1,19 @@
+// Raw protocol fixtures intentionally preserve their original single-line payloads.
+@file:Suppress("ktlint:standard:max-line-length")
+
 package eu.kanade.tachiyomi.ui.mod.chaptercomments
 
 import kotlinx.coroutines.async
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.yield
-import kotlinx.serialization.json.*
-import org.junit.jupiter.api.Assertions.*
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class KomikuAsiaCommentsProviderTest {
@@ -13,20 +22,25 @@ class KomikuAsiaCommentsProviderTest {
     @Test fun `stored comic and chapter ID route resolves number through API without fetching obsolete HTML`() = runTest {
         val stored = target.copy(url = "https://01.komiku.asia/85049/517833")
         val urls = mutableListOf<String>()
-        val provider = KomikuAsiaCommentsProvider(stored, object : CommentsTransport {
-            override suspend fun get(url: String, referer: String?): String {
-                assertEquals(stored.url, referer)
-                urls += url
-                yield()
-                return when {
-                    url.endsWith("/chapters/id/517833") -> """{"id":517833,"comicId":85049,"n":334,"pages":[]}"""
-                    url.contains("/comics?ids=85049&perPage=1") -> """{"items":[{"id":85049,"slug":"nano-machine"}],"total":1}"""
-                    url.endsWith("/chapters/334/comments") -> COMMENTS
-                    url.endsWith("/chapters/334/reactions") -> """{"upvote":33,"love":3}"""
-                    else -> error("Unexpected request: $url")
+        val provider = KomikuAsiaCommentsProvider(
+            stored,
+            object : CommentsTransport {
+                override suspend fun get(url: String, referer: String?): String {
+                    assertEquals(stored.url, referer)
+                    urls += url
+                    yield()
+                    return when {
+                        url.endsWith("/chapters/id/517833") -> """{"id":517833,"comicId":85049,"n":334,"pages":[]}"""
+                        url.contains(
+                            "/comics?ids=85049&perPage=1",
+                        ) -> """{"items":[{"id":85049,"slug":"nano-machine"}],"total":1}"""
+                        url.endsWith("/chapters/334/comments") -> COMMENTS
+                        url.endsWith("/chapters/334/reactions") -> """{"upvote":33,"love":3}"""
+                        else -> error("Unexpected request: $url")
+                    }
                 }
-            }
-        })
+            },
+        )
         val page = async { provider.comments(CommentSort.POPULAR, 1) }
         val reactions = async { provider.reactions() }
         assertEquals(3, page.await().total)
@@ -41,32 +55,44 @@ class KomikuAsiaCommentsProviderTest {
 
     @Test fun `stored route rejects chapter identity mismatch and optional slug failure does not prevent reading`() = runTest {
         val stored = target.copy(url = "https://01.komiku.asia/85049/517833")
-        val wrong = KomikuAsiaCommentsProvider(stored, object : CommentsTransport {
-            override suspend fun get(url: String, referer: String?): String = """{"id":517834,"comicId":85049,"n":334}"""
-        })
+        val wrong = KomikuAsiaCommentsProvider(
+            stored,
+            object : CommentsTransport {
+                override suspend fun get(
+                    url: String,
+                    referer: String?,
+                ): String = """{"id":517834,"comicId":85049,"n":334}"""
+            },
+        )
         assertTrue(runCatching { wrong.comments(CommentSort.POPULAR, 1) }.isFailure)
-        val valid = KomikuAsiaCommentsProvider(stored, object : CommentsTransport {
-            override suspend fun get(url: String, referer: String?): String = when {
-                url.endsWith("/chapters/id/517833") -> """{"id":517833,"comicId":85049,"n":334}"""
-                url.contains("/comics?") -> error("Slug lookup unavailable")
-                url.endsWith("/chapters/334/comments") -> COMMENTS
-                else -> error("Unexpected request")
-            }
-        })
+        val valid = KomikuAsiaCommentsProvider(
+            stored,
+            object : CommentsTransport {
+                override suspend fun get(url: String, referer: String?): String = when {
+                    url.endsWith("/chapters/id/517833") -> """{"id":517833,"comicId":85049,"n":334}"""
+                    url.contains("/comics?") -> error("Slug lookup unavailable")
+                    url.endsWith("/chapters/334/comments") -> COMMENTS
+                    else -> error("Unexpected request")
+                }
+            },
+        )
         assertEquals(3, valid.comments(CommentSort.POPULAR, 1).total)
         assertNull(valid.discussionUrl)
     }
 
     @Test fun `canonical chapter uses numeric comic identity and chapter number from inert flight data`() = runTest {
         val urls = mutableListOf<String>()
-        val provider = KomikuAsiaCommentsProvider(target, fake { url ->
-            urls += url
-            when {
-                url == target.url -> html()
-                url.endsWith("/comments") -> COMMENTS
-                else -> """{"upvote":33,"funny":2,"love":3,"surprised":3,"angry":1,"sad":1}"""
-            }
-        })
+        val provider = KomikuAsiaCommentsProvider(
+            target,
+            fake { url ->
+                urls += url
+                when {
+                    url == target.url -> html()
+                    url.endsWith("/comments") -> COMMENTS
+                    else -> """{"upvote":33,"funny":2,"love":3,"surprised":3,"angry":1,"sad":1}"""
+                }
+            },
+        )
         assertTrue(urls.isEmpty())
         val comments = async { provider.comments(CommentSort.POPULAR, 1) }
         val reactions = async { provider.reactions() }
@@ -90,13 +116,29 @@ class KomikuAsiaCommentsProviderTest {
 
     @Test fun `all comments are fetched once and best newest oldest with local pages match shipped ordering`() = runTest {
         var reads = 0
-        val records = JsonArray((1..21).map { id -> buildJsonObject {
-            put("id", id); put("at", id * 1000L); put("user", "Reader"); put("text", "Comment")
-            put("up", if (id == 2) 100 else id); put("down", if (id == 2) 99 else 0)
-        } }).toString()
-        val provider = KomikuAsiaCommentsProvider(target, fake { url ->
-            if (url == target.url) html() else { reads++; records }
-        })
+        val records = JsonArray(
+            (1..21).map { id ->
+                buildJsonObject {
+                    put("id", id)
+                    put("at", id * 1000L)
+                    put("user", "Reader")
+                    put("text", "Comment")
+                    put("up", if (id == 2) 100 else id)
+                    put("down", if (id == 2) 99 else 0)
+                }
+            },
+        ).toString()
+        val provider = KomikuAsiaCommentsProvider(
+            target,
+            fake { url ->
+                if (url == target.url) {
+                    html()
+                } else {
+                    reads++
+                    records
+                }
+            },
+        )
         val best = provider.comments(CommentSort.POPULAR, 1)
         assertEquals("21", best.comments.first().id)
         assertTrue(best.hasMore)
@@ -121,8 +163,17 @@ class KomikuAsiaCommentsProviderTest {
     }
 
     private fun fake(response: (String) -> String) = object : CommentsTransport {
-        override suspend fun get(url: String, referer: String?): String { assertEquals(target.url, referer); yield(); return response(url) }
-        override suspend fun write(method: String, url: String, json: String, referer: String?): String = error("Unexpected write")
+        override suspend fun get(url: String, referer: String?): String {
+            assertEquals(target.url, referer)
+            yield()
+            return response(url)
+        }
+        override suspend fun write(
+            method: String,
+            url: String,
+            json: String,
+            referer: String?,
+        ): String = error("Unexpected write")
     }
 
     private fun html(chapterId: Int = 517833): String {

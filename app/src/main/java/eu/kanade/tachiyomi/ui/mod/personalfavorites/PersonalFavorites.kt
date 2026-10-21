@@ -30,10 +30,12 @@ object PersonalFavorites {
             if (favorites.isEmpty()) {
                 flowOf(emptySet())
             } else {
-                combine(favorites.map { identity ->
-                    repository.getMangaByUrlAndSourceIdAsFlow(identity.url, identity.source)
-                        .map { manga -> manga?.let { it.source to it.id } }
-                }) { matches -> matches.filterNotNull().toSet() }
+                combine(
+                    favorites.map { identity ->
+                        repository.getMangaByUrlAndSourceIdAsFlow(identity.url, identity.source)
+                            .map { manga -> manga?.let { it.source to it.id } }
+                    },
+                ) { matches -> matches.filterNotNull().toSet() }
             }
         }.distinctUntilChanged().stateIn(scope, SharingStarted.WhileSubscribed(5_000), emptySet())
     }

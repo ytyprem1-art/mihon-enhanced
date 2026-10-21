@@ -9,12 +9,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.CompareArrows
 import androidx.compose.material.icons.outlined.CollectionsBookmark
 import androidx.compose.material.icons.outlined.Favorite
 import androidx.compose.material.icons.outlined.FilterList
 import androidx.compose.material.icons.outlined.NewReleases
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -29,6 +31,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -41,12 +44,15 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.CreationExtras
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.paging.LoadState
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import dev.zacsweers.metrox.viewmodel.assistedMetroViewModel
+import eu.kanade.domain.source.interactor.GetEnabledSources
 import eu.kanade.presentation.browse.BrowseSourceContent
 import eu.kanade.presentation.browse.MissingSourceScreen
 import eu.kanade.presentation.browse.components.BrowseSourceToolbar
+import eu.kanade.presentation.browse.components.QuickSourceSwitcherDialog
 import eu.kanade.presentation.browse.components.RemoveMangaDialog
 import eu.kanade.presentation.category.components.ChangeCategoryDialog
 import eu.kanade.presentation.manga.DuplicateMangaDialog
@@ -57,17 +63,14 @@ import eu.kanade.tachiyomi.ui.browse.extension.details.SourcePreferencesScreen
 import eu.kanade.tachiyomi.ui.browse.source.browse.BrowseSourceViewModel.Listing
 import eu.kanade.tachiyomi.ui.category.CategoryScreen
 import eu.kanade.tachiyomi.ui.manga.MangaScreen
-import tachiyomi.domain.manga.model.Manga
-import androidx.paging.LoadState
-import androidx.compose.runtime.saveable.rememberSaveable
-import eu.kanade.tachiyomi.ui.webview.WebViewScreen
-import eu.kanade.tachiyomi.ui.mod.helper.TitleMatchHelper
 import eu.kanade.tachiyomi.ui.mod.helper.CloudflareChallengeHelper
-import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.first
+import eu.kanade.tachiyomi.ui.mod.helper.TitleMatchHelper
+import eu.kanade.tachiyomi.ui.webview.WebViewScreen
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import mihon.feature.migration.dialog.MigrateMangaDialog
@@ -77,20 +80,17 @@ import mihon.icons.materialsymbols.rounded.Verified
 import mihon.icons.materialsymbols.roundedfilled.Favorite
 import mihon.presentation.core.util.collectAsLazyPagingItems
 import tachiyomi.core.common.Constants
-import tachiyomi.domain.source.model.StubSource
-import androidx.compose.material.icons.automirrored.outlined.CompareArrows
-import androidx.compose.material3.FloatingActionButton
-import eu.kanade.domain.source.interactor.GetEnabledSources
-import eu.kanade.presentation.browse.components.QuickSourceSwitcherDialog
+import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.source.interactor.GetRemoteManga
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
+import tachiyomi.domain.source.model.StubSource
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.components.material.Scaffold
 import tachiyomi.presentation.core.components.material.padding
 import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.screens.LoadingScreen
 import tachiyomi.source.local.LocalSource
+import uy.kohesive.injekt.Injekt
+import uy.kohesive.injekt.api.get
 
 data class BrowseSourceScreen(
     val sourceId: Long,
@@ -147,8 +147,8 @@ data class BrowseSourceScreen(
                         bestMatches.first().id,
                         true,
                         smartJumpSessionId,
-                        smartJumpAnchorSourceId
-                    )
+                        smartJumpAnchorSourceId,
+                    ),
                 )
             }
         }
@@ -192,7 +192,8 @@ data class BrowseSourceScreen(
                         isReturningFromWebView = false
                         mangaLazyPagingItems.refresh()
                     } else if (viewModel.hasAutoTriggeredCloudflare &&
-                        mangaLazyPagingItems.loadState.refresh !is LoadState.NotLoading) {
+                        mangaLazyPagingItems.loadState.refresh !is LoadState.NotLoading
+                    ) {
                         // If we auto-triggered but are still stuck in loading or error, force refresh
                         mangaLazyPagingItems.refresh()
                     }
@@ -437,8 +438,8 @@ data class BrowseSourceScreen(
                             it.id,
                             true,
                             smartJumpSessionId,
-                            smartJumpAnchorSourceId
-                        )
+                            smartJumpAnchorSourceId,
+                        ),
                     )
                 },
                 onMangaLongClick = { manga ->

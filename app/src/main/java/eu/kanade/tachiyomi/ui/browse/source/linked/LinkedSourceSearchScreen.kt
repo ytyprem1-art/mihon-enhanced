@@ -47,7 +47,10 @@ class LinkedSourceSearchScreen(
         val navigator = LocalNavigator.currentOrThrow
         val context = LocalContext.current
 
-        val viewModel = dev.zacsweers.metrox.viewmodel.assistedMetroViewModel<LinkedSourceSearchViewModel, LinkedSourceSearchViewModel.Factory> {
+        val viewModel = dev.zacsweers.metrox.viewmodel.assistedMetroViewModel<
+            LinkedSourceSearchViewModel,
+            LinkedSourceSearchViewModel.Factory,
+            > {
             create(linkedGroupId = linkedGroupId, initialQuery = searchQuery)
         }
         val state by viewModel.state.collectAsState()
@@ -96,11 +99,12 @@ class LinkedSourceSearchScreen(
                                 when (result) {
                                     AddResult.Success -> context.toast("Added to group")
                                     AddResult.AlreadyInThisGroup -> {}
-                                    is AddResult.InAnotherGroup -> context.toast("Already in group: ${result.groupName}")
+                                    is AddResult.InAnotherGroup ->
+                                        context.toast("Already in group: ${result.groupName}")
                                     is AddResult.Error -> context.toast("Error: ${result.message}")
                                 }
                             }
-                        }
+                        },
                     )
                 },
             )
@@ -141,13 +145,16 @@ private fun SearchResultAction(
             contentColor = MaterialTheme.colorScheme.onPrimary,
             tonalElevation = 4.dp,
             shadowElevation = 4.dp,
-            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.5f))
+            border = androidx.compose.foundation.BorderStroke(
+                1.dp,
+                MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.5f),
+            ),
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Icon(
                     imageVector = Icons.Outlined.Add,
                     contentDescription = "Add to group",
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(18.dp),
                 )
             }
         }

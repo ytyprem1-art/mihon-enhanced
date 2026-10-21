@@ -17,11 +17,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource as androidStringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import eu.kanade.tachiyomi.source.Source
 import eu.kanade.tachiyomi.R
+import eu.kanade.tachiyomi.source.Source
 import eu.kanade.tachiyomi.source.mod.MERGED_SOURCE_ID
 import eu.kanade.tachiyomi.source.online.HttpSource
 import kotlinx.coroutines.flow.Flow
@@ -29,6 +28,7 @@ import tachiyomi.domain.history.repository.HistoryCategory
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.components.LabeledCheckbox
 import tachiyomi.presentation.core.i18n.stringResource
+import androidx.compose.ui.res.stringResource as androidStringResource
 
 @Composable
 fun HistorySourceLinksDialog(
@@ -45,7 +45,10 @@ fun HistorySourceLinksDialog(
     val available = installedSources.filterIsInstance<HttpSource>()
         .filter { it.id != MERGED_SOURCE_ID }
         .sortedWith(compareBy({ it.name.lowercase() }, { it.lang }))
-        .filter { query.isBlank() || it.name.contains(query, ignoreCase = true) || it.lang.contains(query, ignoreCase = true) }
+        .filter {
+            query.isBlank() || it.name.contains(query, ignoreCase = true) ||
+                it.lang.contains(query, ignoreCase = true)
+        }
 
     AlertDialog(
         onDismissRequest = onDismissRequest,
@@ -75,7 +78,10 @@ fun HistorySourceLinksDialog(
                                 },
                             )
                             if (otherCategory != null) {
-                                Text(androidStringResource(R.string.history_sources_other_category, otherCategory.name), style = MaterialTheme.typography.bodySmall)
+                                Text(
+                                    androidStringResource(R.string.history_sources_other_category, otherCategory.name),
+                                    style = MaterialTheme.typography.bodySmall,
+                                )
                             }
                         }
                     }

@@ -1,13 +1,30 @@
 package eu.kanade.tachiyomi.ui.mod.updatewatch.components
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -28,13 +45,13 @@ fun TrackedMangaHelpSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = MaterialTheme.padding.medium)
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(rememberScrollState()),
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = MaterialTheme.padding.medium),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 if (page > 1) {
                     IconButton(onClick = { page-- }) {
@@ -53,7 +70,7 @@ fun TrackedMangaHelpSheet(
                         else -> "Difference from Auto Refresh"
                     },
                     style = MaterialTheme.typography.titleLarge,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
                 )
 
                 IconButton(onClick = onDismissRequest) {
@@ -80,11 +97,11 @@ fun TrackedMangaHelpSheet(
 private fun PageOne(onNext: () -> Unit) {
     Column(
         modifier = Modifier.padding(MaterialTheme.padding.medium),
-        verticalArrangement = Arrangement.spacedBy(MaterialTheme.padding.medium)
+        verticalArrangement = Arrangement.spacedBy(MaterialTheme.padding.medium),
     ) {
         Text(
             text = "Tracking uses locally known chapter release data to predict when the next update may arrive.",
-            style = MaterialTheme.typography.bodyLarge
+            style = MaterialTheme.typography.bodyLarge,
         )
 
         BulletItem("It does not contact the source in the background when Auto Refresh is OFF.")
@@ -103,11 +120,11 @@ private fun PageOne(onNext: () -> Unit) {
 private fun PageTwo(onNext: () -> Unit) {
     Column(
         modifier = Modifier.padding(MaterialTheme.padding.medium),
-        verticalArrangement = Arrangement.spacedBy(MaterialTheme.padding.medium)
+        verticalArrangement = Arrangement.spacedBy(MaterialTheme.padding.medium),
     ) {
         Text(
             text = "Manga move through different sections of Update Watch based on the expected interval (N days):",
-            style = MaterialTheme.typography.bodyLarge
+            style = MaterialTheme.typography.bodyLarge,
         )
 
         TimelineItem("Before day N-1", "Hidden from Update Watch to keep your list clean.")
@@ -119,7 +136,7 @@ private fun PageTwo(onNext: () -> Unit) {
             text = "Examples:",
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(top = 8.dp)
+            modifier = Modifier.padding(top = 8.dp),
         )
 
         ExampleItem("2-day interval", "Day 1: Upcoming · Day 2: Due · Day 3+: Overdue")
@@ -137,11 +154,11 @@ private fun PageTwo(onNext: () -> Unit) {
 private fun PageThree(onNext: () -> Unit) {
     Column(
         modifier = Modifier.padding(MaterialTheme.padding.medium),
-        verticalArrangement = Arrangement.spacedBy(MaterialTheme.padding.medium)
+        verticalArrangement = Arrangement.spacedBy(MaterialTheme.padding.medium),
     ) {
         Text(
             text = "The interval represents how often you expect a new chapter to be released.",
-            style = MaterialTheme.typography.bodyLarge
+            style = MaterialTheme.typography.bodyLarge,
         )
 
         BulletItem("It is not a manual refresh timer.")
@@ -160,12 +177,12 @@ private fun PageThree(onNext: () -> Unit) {
 private fun PageFour() {
     Column(
         modifier = Modifier.padding(MaterialTheme.padding.medium),
-        verticalArrangement = Arrangement.spacedBy(MaterialTheme.padding.medium)
+        verticalArrangement = Arrangement.spacedBy(MaterialTheme.padding.medium),
     ) {
         Text(
             text = "Tracking-only",
             style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold
+            fontWeight = FontWeight.Bold,
         )
         BulletItem("Predicts from local chapter dates.")
         BulletItem("No background source checks.")
@@ -176,7 +193,7 @@ private fun PageFour() {
         Text(
             text = "Auto Refresh (Optional Extension)",
             style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold
+            fontWeight = FontWeight.Bold,
         )
         BulletItem("Actively checks the source in the background.")
         BulletItem("Adds priority status (HOT/WARM/COLD/STALE).")
@@ -185,12 +202,14 @@ private fun PageFour() {
         Surface(
             color = MaterialTheme.colorScheme.surfaceVariant,
             shape = MaterialTheme.shapes.medium,
-            modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
         ) {
             Text(
-                text = "Turning Auto Refresh off does not remove the tracking interval. Your manga will still appear as Upcoming, Due, or Overdue based on local data.",
+                text = "Turning Auto Refresh off does not remove the tracking " +
+                    "interval. Your manga will still appear as Upcoming, " +
+                    "Due, or Overdue based on local data.",
                 style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(MaterialTheme.padding.medium)
+                modifier = Modifier.padding(MaterialTheme.padding.medium),
             )
         }
     }
@@ -216,6 +235,11 @@ private fun TimelineItem(label: String, description: String) {
 private fun ExampleItem(title: String, details: String) {
     Column(modifier = Modifier.padding(bottom = 4.dp)) {
         Text(text = title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-        Text(text = details, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(
+            text = details,
+            style = MaterialTheme.typography.bodySmall,
+            color =
+            MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }

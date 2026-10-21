@@ -4,30 +4,32 @@ import android.content.Context
 import androidx.compose.animation.graphics.res.animatedVectorResource
 import androidx.compose.animation.graphics.res.rememberAnimatedVectorPainter
 import androidx.compose.animation.graphics.vector.AnimatedImageVector
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.Navigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import cafe.adriel.voyager.navigator.tab.LocalTabNavigator
 import cafe.adriel.voyager.navigator.tab.TabOptions
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.width
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material.icons.outlined.Edit
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource as androidStringResource
-import androidx.compose.ui.unit.dp
 import dev.zacsweers.metrox.viewmodel.metroViewModel
 import eu.kanade.presentation.category.components.ChangeCategoryDialog
 import eu.kanade.presentation.history.HistoryScreen
@@ -37,26 +39,24 @@ import eu.kanade.presentation.history.components.HistoryDeleteDialog
 import eu.kanade.presentation.manga.DuplicateMangaDialog
 import eu.kanade.presentation.util.Tab
 import eu.kanade.tachiyomi.R
-import eu.kanade.tachiyomi.ui.category.CategoryScreen
 import eu.kanade.tachiyomi.ui.browse.source.linked.LinkedSourcesScreen
-import eu.kanade.tachiyomi.ui.mod.historygroup.HistoryGroupDetailScreen
-import eu.kanade.tachiyomi.ui.mod.historycategory.HistorySourceLinksDialog
+import eu.kanade.tachiyomi.ui.category.CategoryScreen
 import eu.kanade.tachiyomi.ui.main.MainActivity
 import eu.kanade.tachiyomi.ui.manga.MangaScreen
+import eu.kanade.tachiyomi.ui.mod.historycategory.HistorySourceLinksDialog
+import eu.kanade.tachiyomi.ui.mod.historygroup.HistoryGroupDetailScreen
 import eu.kanade.tachiyomi.ui.reader.ReaderActivity
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.launch
 import mihon.feature.migration.dialog.MigrateMangaDialog
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.domain.chapter.model.Chapter
 import tachiyomi.domain.history.group.model.HistoryGroup
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.i18n.stringResource
-import kotlinx.coroutines.launch
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.ui.res.stringResource as androidStringResource
 
 data object HistoryTab : Tab {
 
@@ -104,18 +104,21 @@ data object HistoryTab : Tab {
 
         val onDismissRequest = { viewModel.setDialog(null) }
         when (val dialog = state.dialog) {
-
             is HistoryViewModel.Dialog.CreateHistoryCategory -> {
                 var categoryName by remember { mutableStateOf("") }
                 androidx.compose.material3.AlertDialog(
                     onDismissRequest = onDismissRequest,
-                    title = { androidx.compose.material3.Text(androidStringResource(R.string.history_categories_create_title)) },
+                    title = {
+                        androidx.compose.material3.Text(androidStringResource(R.string.history_categories_create_title))
+                    },
                     text = {
                         androidx.compose.material3.OutlinedTextField(
                             value = categoryName,
                             onValueChange = { categoryName = it },
-                            label = { androidx.compose.material3.Text(androidStringResource(R.string.history_categories_name)) },
-                            singleLine = true
+                            label = {
+                                androidx.compose.material3.Text(androidStringResource(R.string.history_categories_name))
+                            },
+                            singleLine = true,
                         )
                     },
                     confirmButton = {
@@ -125,7 +128,7 @@ data object HistoryTab : Tab {
                                     viewModel.createHistoryCategory(categoryName)
                                     onDismissRequest()
                                 }
-                            }
+                            },
                         ) {
                             androidx.compose.material3.Text(androidStringResource(R.string.history_categories_save))
                         }
@@ -134,7 +137,7 @@ data object HistoryTab : Tab {
                         androidx.compose.material3.TextButton(onClick = onDismissRequest) {
                             androidx.compose.material3.Text(stringResource(MR.strings.action_cancel))
                         }
-                    }
+                    },
                 )
             }
 
@@ -152,37 +155,46 @@ data object HistoryTab : Tab {
             is HistoryViewModel.Dialog.ManageHistoryCategory -> {
                 androidx.compose.material3.AlertDialog(
                     onDismissRequest = onDismissRequest,
-                    title = { androidx.compose.material3.Text(androidStringResource(R.string.history_categories_edit_title)) },
+                    title = {
+                        androidx.compose.material3.Text(androidStringResource(R.string.history_categories_edit_title))
+                    },
                     text = {
                         androidx.compose.foundation.layout.Column {
                             androidx.compose.material3.Text(
                                 text = androidStringResource(R.string.history_categories_current, dialog.category.name),
-                                style = androidx.compose.material3.MaterialTheme.typography.bodyMedium
+                                style = androidx.compose.material3.MaterialTheme.typography.bodyMedium,
                             )
                             Spacer(modifier = Modifier.height(16.dp))
                             androidx.compose.material3.TextButton(
                                 onClick = {
                                     viewModel.setDialog(HistoryViewModel.Dialog.RenameHistoryCategory(dialog.category))
                                 },
-                                modifier = Modifier.fillMaxWidth()
+                                modifier = Modifier.fillMaxWidth(),
                             ) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
-                                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
                                 ) {
                                     androidx.compose.material3.Icon(
                                         imageVector = Icons.Outlined.Edit,
-                                        contentDescription = null
+                                        contentDescription = null,
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
-                                    androidx.compose.material3.Text(androidStringResource(R.string.history_categories_rename))
+                                    androidx.compose.material3.Text(
+                                        androidStringResource(R.string.history_categories_rename),
+                                    )
                                 }
                             }
                             androidx.compose.material3.TextButton(
-                                onClick = { viewModel.setDialog(HistoryViewModel.Dialog.LinkHistorySources(dialog.category)) },
+                                onClick = {
+                                    viewModel.setDialog(HistoryViewModel.Dialog.LinkHistorySources(dialog.category))
+                                },
                                 modifier = Modifier.fillMaxWidth(),
                             ) {
-                                androidx.compose.material3.Text(androidStringResource(R.string.history_sources_link), modifier = Modifier.fillMaxWidth())
+                                androidx.compose.material3.Text(
+                                    androidStringResource(R.string.history_sources_link),
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
                             }
                             Row(modifier = Modifier.fillMaxWidth()) {
                                 androidx.compose.material3.OutlinedButton(
@@ -190,9 +202,11 @@ data object HistoryTab : Tab {
                                         viewModel.moveHistoryCategoryLeft(dialog.category)
                                         onDismissRequest()
                                     },
-                                    modifier = Modifier.weight(1f)
+                                    modifier = Modifier.weight(1f),
                                 ) {
-                                    androidx.compose.material3.Text(androidStringResource(R.string.history_categories_move_left))
+                                    androidx.compose.material3.Text(
+                                        androidStringResource(R.string.history_categories_move_left),
+                                    )
                                 }
                                 Spacer(modifier = Modifier.width(8.dp))
                                 androidx.compose.material3.OutlinedButton(
@@ -200,9 +214,11 @@ data object HistoryTab : Tab {
                                         viewModel.moveHistoryCategoryRight(dialog.category)
                                         onDismissRequest()
                                     },
-                                    modifier = Modifier.weight(1f)
+                                    modifier = Modifier.weight(1f),
                                 ) {
-                                    androidx.compose.material3.Text(androidStringResource(R.string.history_categories_move_right))
+                                    androidx.compose.material3.Text(
+                                        androidStringResource(R.string.history_categories_move_right),
+                                    )
                                 }
                             }
                             Spacer(modifier = Modifier.height(8.dp))
@@ -212,19 +228,21 @@ data object HistoryTab : Tab {
                                 },
                                 modifier = Modifier.fillMaxWidth(),
                                 colors = androidx.compose.material3.ButtonDefaults.textButtonColors(
-                                    contentColor = androidx.compose.material3.MaterialTheme.colorScheme.error
-                                )
+                                    contentColor = androidx.compose.material3.MaterialTheme.colorScheme.error,
+                                ),
                             ) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
-                                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
                                 ) {
                                     androidx.compose.material3.Icon(
                                         imageVector = Icons.Outlined.Delete,
-                                        contentDescription = null
+                                        contentDescription = null,
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
-                                    androidx.compose.material3.Text(androidStringResource(R.string.history_categories_delete))
+                                    androidx.compose.material3.Text(
+                                        androidStringResource(R.string.history_categories_delete),
+                                    )
                                 }
                             }
                         }
@@ -233,7 +251,7 @@ data object HistoryTab : Tab {
                         androidx.compose.material3.TextButton(onClick = onDismissRequest) {
                             androidx.compose.material3.Text(stringResource(MR.strings.action_ok))
                         }
-                    }
+                    },
                 )
             }
 
@@ -241,13 +259,17 @@ data object HistoryTab : Tab {
                 var categoryName by remember { mutableStateOf(dialog.category.name) }
                 androidx.compose.material3.AlertDialog(
                     onDismissRequest = onDismissRequest,
-                    title = { androidx.compose.material3.Text(androidStringResource(R.string.history_categories_rename_title)) },
+                    title = {
+                        androidx.compose.material3.Text(androidStringResource(R.string.history_categories_rename_title))
+                    },
                     text = {
                         androidx.compose.material3.OutlinedTextField(
                             value = categoryName,
                             onValueChange = { categoryName = it },
-                            label = { androidx.compose.material3.Text(androidStringResource(R.string.history_categories_name)) },
-                            singleLine = true
+                            label = {
+                                androidx.compose.material3.Text(androidStringResource(R.string.history_categories_name))
+                            },
+                            singleLine = true,
                         )
                     },
                     confirmButton = {
@@ -257,7 +279,7 @@ data object HistoryTab : Tab {
                                     viewModel.renameHistoryCategory(dialog.category.id, categoryName)
                                     onDismissRequest()
                                 }
-                            }
+                            },
                         ) {
                             androidx.compose.material3.Text(androidStringResource(R.string.history_categories_save))
                         }
@@ -266,20 +288,24 @@ data object HistoryTab : Tab {
                         androidx.compose.material3.TextButton(onClick = onDismissRequest) {
                             androidx.compose.material3.Text(stringResource(MR.strings.action_cancel))
                         }
-                    }
+                    },
                 )
             }
             is HistoryViewModel.Dialog.DeleteHistoryCategory -> {
                 androidx.compose.material3.AlertDialog(
                     onDismissRequest = onDismissRequest,
-                    title = { androidx.compose.material3.Text(androidStringResource(R.string.history_categories_delete_title)) },
-                    text = { androidx.compose.material3.Text(androidStringResource(R.string.history_categories_delete_msg)) },
+                    title = {
+                        androidx.compose.material3.Text(androidStringResource(R.string.history_categories_delete_title))
+                    },
+                    text = {
+                        androidx.compose.material3.Text(androidStringResource(R.string.history_categories_delete_msg))
+                    },
                     confirmButton = {
                         androidx.compose.material3.TextButton(
                             onClick = {
                                 viewModel.deleteHistoryCategory(dialog.category.id)
                                 onDismissRequest()
-                            }
+                            },
                         ) {
                             androidx.compose.material3.Text(androidStringResource(R.string.history_categories_delete))
                         }
@@ -288,7 +314,7 @@ data object HistoryTab : Tab {
                         androidx.compose.material3.TextButton(onClick = onDismissRequest) {
                             androidx.compose.material3.Text(stringResource(MR.strings.action_cancel))
                         }
-                    }
+                    },
                 )
             }
 
@@ -307,14 +333,18 @@ data object HistoryTab : Tab {
             is HistoryViewModel.Dialog.DeleteSelected -> {
                 androidx.compose.material3.AlertDialog(
                     onDismissRequest = onDismissRequest,
-                    title = { androidx.compose.material3.Text(androidStringResource(R.string.history_delete_selected_title)) },
-                    text = { androidx.compose.material3.Text(androidStringResource(R.string.history_delete_selected_msg)) },
+                    title = {
+                        androidx.compose.material3.Text(androidStringResource(R.string.history_delete_selected_title))
+                    },
+                    text = {
+                        androidx.compose.material3.Text(androidStringResource(R.string.history_delete_selected_msg))
+                    },
                     confirmButton = {
                         androidx.compose.material3.TextButton(
                             onClick = {
                                 viewModel.removeSelectedFromHistory(dialog.mangaIds)
                                 onDismissRequest()
-                            }
+                            },
                         ) {
                             androidx.compose.material3.Text(androidStringResource(R.string.history_categories_delete))
                         }
@@ -323,7 +353,7 @@ data object HistoryTab : Tab {
                         androidx.compose.material3.TextButton(onClick = onDismissRequest) {
                             androidx.compose.material3.Text(stringResource(MR.strings.action_cancel))
                         }
-                    }
+                    },
                 )
             }
             is HistoryViewModel.Dialog.DeleteAll -> {
@@ -371,7 +401,7 @@ data object HistoryTab : Tab {
                             value = groupName,
                             onValueChange = { groupName = it },
                             label = { androidx.compose.material3.Text("Group Name") },
-                            singleLine = true
+                            singleLine = true,
                         )
                     },
                     confirmButton = {
@@ -380,7 +410,7 @@ data object HistoryTab : Tab {
                                 if (groupName.isNotBlank()) {
                                     viewModel.createHistoryGroup(groupName, dialog.mangaIds)
                                 }
-                            }
+                            },
                         ) {
                             androidx.compose.material3.Text(stringResource(MR.strings.action_ok))
                         }
@@ -389,7 +419,7 @@ data object HistoryTab : Tab {
                         androidx.compose.material3.TextButton(onClick = onDismissRequest) {
                             androidx.compose.material3.Text(stringResource(MR.strings.action_cancel))
                         }
-                    }
+                    },
                 )
             }
             is HistoryViewModel.Dialog.AddToHistoryGroup -> {
@@ -403,7 +433,7 @@ data object HistoryTab : Tab {
                             androidx.compose.foundation.lazy.LazyColumn {
                                 items(
                                     items = dialog.groups,
-                                    key = { it.id }
+                                    key = { it.id },
                                 ) { group ->
                                     androidx.compose.material3.ListItem(
                                         modifier = Modifier.clickable {
@@ -420,7 +450,7 @@ data object HistoryTab : Tab {
                         androidx.compose.material3.TextButton(onClick = onDismissRequest) {
                             androidx.compose.material3.Text(stringResource(MR.strings.action_cancel))
                         }
-                    }
+                    },
                 )
             }
             is HistoryViewModel.Dialog.RenameHistoryGroup -> {
@@ -433,7 +463,7 @@ data object HistoryTab : Tab {
                             value = groupName,
                             onValueChange = { groupName = it },
                             label = { androidx.compose.material3.Text("Group Name") },
-                            singleLine = true
+                            singleLine = true,
                         )
                     },
                     confirmButton = {
@@ -442,7 +472,7 @@ data object HistoryTab : Tab {
                                 if (groupName.isNotBlank()) {
                                     viewModel.renameHistoryGroup(dialog.group.id, groupName)
                                 }
-                            }
+                            },
                         ) {
                             androidx.compose.material3.Text(stringResource(MR.strings.action_ok))
                         }
@@ -451,20 +481,24 @@ data object HistoryTab : Tab {
                         androidx.compose.material3.TextButton(onClick = onDismissRequest) {
                             androidx.compose.material3.Text(stringResource(MR.strings.action_cancel))
                         }
-                    }
+                    },
                 )
             }
             is HistoryViewModel.Dialog.DeleteHistoryGroup -> {
                 androidx.compose.material3.AlertDialog(
                     onDismissRequest = onDismissRequest,
                     title = { androidx.compose.material3.Text("Delete history group?") },
-                    text = { androidx.compose.material3.Text("Members will return to the normal History list. Reading history will not be deleted.") },
+                    text = {
+                        androidx.compose.material3.Text(
+                            "Members will return to the normal History list. Reading history will not be deleted.",
+                        )
+                    },
                     confirmButton = {
                         androidx.compose.material3.TextButton(
                             onClick = {
                                 viewModel.deleteHistoryGroup(dialog.group.id)
                                 onDismissRequest()
-                            }
+                            },
                         ) {
                             androidx.compose.material3.Text(stringResource(MR.strings.action_ok))
                         }
@@ -473,7 +507,7 @@ data object HistoryTab : Tab {
                         androidx.compose.material3.TextButton(onClick = onDismissRequest) {
                             androidx.compose.material3.Text(stringResource(MR.strings.action_cancel))
                         }
-                    }
+                    },
                 )
             }
             is HistoryViewModel.Dialog.ChangeCategory -> {

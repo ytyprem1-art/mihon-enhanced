@@ -142,7 +142,7 @@ android {
                 "**/libconscrypt_jni.so",
                 "**/libimagedecoder.so",
                 "**/libquickjs.so",
-                "**/libsqlite3x.so"
+                "**/libsqlite3x.so",
             )
             keepDebugSymbols.addAll(debugLibs)
         }

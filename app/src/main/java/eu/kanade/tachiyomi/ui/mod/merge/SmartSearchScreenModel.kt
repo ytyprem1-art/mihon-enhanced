@@ -1,11 +1,11 @@
 package eu.kanade.tachiyomi.ui.mod.merge
 
-import kotlinx.coroutines.launch
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import mihon.feature.migration.list.search.SmartSourceSearchEngine
 import tachiyomi.domain.manga.interactor.NetworkToLocalManga
 import tachiyomi.domain.manga.model.Manga
@@ -21,7 +21,6 @@ class SmartSearchScreenModel(
 ) : androidx.lifecycle.ViewModel() {
     private val mutableState = kotlinx.coroutines.flow.MutableStateFlow<SmartSearchScreenModel.SearchResults?>(null)
     val state: kotlinx.coroutines.flow.StateFlow<SmartSearchScreenModel.SearchResults?> = mutableState
-
 
     private val smartSearchEngine = SmartSourceSearchEngine(null)
 

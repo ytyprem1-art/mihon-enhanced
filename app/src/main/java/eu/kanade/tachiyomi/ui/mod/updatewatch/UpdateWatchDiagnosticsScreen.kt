@@ -3,7 +3,12 @@ package eu.kanade.tachiyomi.ui.mod.updatewatch
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -11,8 +16,21 @@ import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.ExpandLess
 import androidx.compose.material.icons.outlined.ExpandMore
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -26,6 +44,7 @@ import eu.kanade.presentation.components.AppBar
 import eu.kanade.presentation.util.Screen
 import eu.kanade.tachiyomi.ui.mod.updatewatch.worker.MangaDiagnosticDetail
 import eu.kanade.tachiyomi.ui.mod.updatewatch.worker.UpdateWatchDiagnosticsManager
+import eu.kanade.tachiyomi.ui.mod.updatewatch.worker.UpdateWatchDiagnosticsManager.formatTimestamp
 import eu.kanade.tachiyomi.ui.mod.updatewatch.worker.UpdateWatchSchedulerDiagnostic
 import eu.kanade.tachiyomi.util.system.copyToClipboard
 import kotlinx.coroutines.flow.update
@@ -65,42 +84,58 @@ class UpdateWatchDiagnosticsScreen : Screen() {
                                     val title = when (diag.type) {
                                         UpdateWatchSchedulerDiagnostic.RunType.WORKER_RUN -> "WORKER RUN"
                                         UpdateWatchSchedulerDiagnostic.RunType.SCHEDULER_EVENT -> "SCHEDULER EVENT"
-                                        UpdateWatchSchedulerDiagnostic.RunType.FOREGROUND_HOT_BURST -> "FOREGROUND HOT BURST"
+                                        UpdateWatchSchedulerDiagnostic.RunType.FOREGROUND_HOT_BURST ->
+                                            "FOREGROUND HOT BURST"
                                     }
-                                    appendLine("$title [${UpdateWatchDiagnosticsManager.formatTimestamp(diag.timestamp)}]")
+                                    appendLine("$title [${formatTimestamp(diag.timestamp)}]")
                                     if (diag.eventName != null) appendLine("Event: ${diag.eventName}")
                                     if (diag.type == UpdateWatchSchedulerDiagnostic.RunType.WORKER_RUN) {
-                                        appendLine("Scheduled: ${UpdateWatchDiagnosticsManager.formatTimestamp(diag.scheduledAt)}")
-                                        appendLine("Started: ${UpdateWatchDiagnosticsManager.formatTimestamp(diag.startedAt)}")
-                                        appendLine("Completed: ${UpdateWatchDiagnosticsManager.formatTimestamp(diag.completedAt)}")
+                                        appendLine("Scheduled: ${formatTimestamp(diag.scheduledAt)}")
+                                        appendLine("Started: ${formatTimestamp(diag.startedAt)}")
+                                        appendLine("Completed: ${formatTimestamp(diag.completedAt)}")
                                         appendLine("Eligible: ${diag.eligibleCount} | Selected: ${diag.selectedCount}")
-                                        appendLine("Updates: ${diag.updatedCount} | No update: ${diag.noUpdateCount} | Failed: ${diag.failedCount}")
+                                        appendLine(
+                                            "Updates: ${diag.updatedCount} | No update: ${diag.noUpdateCount} " +
+                                                "| Failed: ${diag.failedCount}",
+                                        )
                                         appendLine("Sources: ${diag.sourceCount}")
 
                                         if (diag.nextWorkerTargetAt != null) {
-                                            appendLine("Final scheduled target: ${UpdateWatchDiagnosticsManager.formatTimestamp(diag.nextWorkerTargetAt)}")
+                                            appendLine(
+                                                "Final scheduled target: ${formatTimestamp(diag.nextWorkerTargetAt)}",
+                                            )
                                         }
-                                        if (diag.proposedTargetAt != null && diag.proposedTargetAt != diag.nextWorkerTargetAt) {
-                                            appendLine("Proposed target: ${UpdateWatchDiagnosticsManager.formatTimestamp(diag.proposedTargetAt)} (+${diag.proposedMarginMinutes} min margin)")
+                                        if (diag.proposedTargetAt != null &&
+                                            diag.proposedTargetAt != diag.nextWorkerTargetAt
+                                        ) {
+                                            appendLine(
+                                                "Proposed target: ${formatTimestamp(diag.proposedTargetAt)} " +
+                                                    "(+${diag.proposedMarginMinutes} min margin)",
+                                            )
                                         }
 
                                         if (diag.mangaDetails.isNotEmpty()) {
                                             appendLine("\nManga Details:")
                                             diag.mangaDetails.forEach { m ->
-                                                appendLine("- [${UpdateWatchDiagnosticsManager.formatTimestamp(m.checkedAt)}] ${m.title} (${m.sourceName}): ${m.result}")
+                                                appendLine(
+                                                    "- [${formatTimestamp(m.checkedAt)}] " +
+                                                        "${m.title} (${m.sourceName}): ${m.result}",
+                                                )
                                                 if (m.errorReason != null) appendLine("  Error: ${m.errorReason}")
-                                                appendLine("  Next eligible: ${UpdateWatchDiagnosticsManager.formatTimestamp(m.nextEligibleAt)}")
+                                                appendLine("  Next eligible: ${formatTimestamp(m.nextEligibleAt)}")
                                             }
                                         }
                                     } else {
                                         if (diag.wallClockBaseSlot != null) {
-                                            appendLine("Base slot: ${UpdateWatchDiagnosticsManager.formatTimestamp(diag.wallClockBaseSlot)}")
+                                            appendLine("Base slot: ${formatTimestamp(diag.wallClockBaseSlot)}")
                                         }
                                         if (diag.safetyMarginMinutes > 0) {
                                             appendLine("Margin: +${diag.safetyMarginMinutes} min")
                                         }
                                         if (diag.nextWorkerTargetAt != null) {
-                                            appendLine("Final scheduled target: ${UpdateWatchDiagnosticsManager.formatTimestamp(diag.nextWorkerTargetAt)}")
+                                            appendLine(
+                                                "Final scheduled target: ${formatTimestamp(diag.nextWorkerTargetAt)}",
+                                            )
                                         }
                                     }
                                 }
@@ -127,12 +162,12 @@ class UpdateWatchDiagnosticsScreen : Screen() {
             if (state.diagnostics.isEmpty()) {
                 EmptyScreen(
                     message = "No diagnostic records yet.",
-                    modifier = Modifier.padding(contentPadding)
+                    modifier = Modifier.padding(contentPadding),
                 )
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = contentPadding
+                    contentPadding = contentPadding,
                 ) {
                     items(state.diagnostics, key = { it.id }) { diagnostic ->
                         val isSelected = diagnostic.id in state.selection
@@ -145,7 +180,7 @@ class UpdateWatchDiagnosticsScreen : Screen() {
                                 if (state.selection.isNotEmpty()) {
                                     viewModel.toggleSelection(diagnostic.id)
                                 }
-                            }
+                            },
                         )
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                     }
@@ -169,7 +204,7 @@ class UpdateWatchDiagnosticsScreen : Screen() {
                         }
                     },
                     title = { Text("Clear all diagnostics?") },
-                    text = { Text("This will permanently delete all diagnostic logs.") }
+                    text = { Text("This will permanently delete all diagnostic logs.") },
                 )
             }
 
@@ -190,7 +225,7 @@ class UpdateWatchDiagnosticsScreen : Screen() {
                         }
                     },
                     title = { Text("Delete selected diagnostics?") },
-                    text = { Text("Delete ${state.selection.size} selected items?") }
+                    text = { Text("Delete ${state.selection.size} selected items?") },
                 )
             }
         }
@@ -218,12 +253,12 @@ class UpdateWatchDiagnosticsScreen : Screen() {
                             expanded = !expanded
                         }
                     },
-                    onLongClick = onLongClick
-                )
+                    onLongClick = onLongClick,
+                ),
         ) {
             Column(
                 modifier = Modifier
-                    .padding(MaterialTheme.padding.medium)
+                    .padding(MaterialTheme.padding.medium),
             ) {
                 val title = when (diagnostic.type) {
                     UpdateWatchSchedulerDiagnostic.RunType.WORKER_RUN -> "Worker run"
@@ -234,9 +269,9 @@ class UpdateWatchDiagnosticsScreen : Screen() {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "$title · ${UpdateWatchDiagnosticsManager.formatTimestamp(diagnostic.timestamp)}",
+                            text = "$title · ${formatTimestamp(diagnostic.timestamp)}",
                             style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                         if (diagnostic.type == UpdateWatchSchedulerDiagnostic.RunType.SCHEDULER_EVENT) {
                             val eventTitle = diagnostic.eventName?.substringBefore("\n") ?: "Unknown event"
@@ -247,46 +282,64 @@ class UpdateWatchDiagnosticsScreen : Screen() {
                         IconButton(onClick = { expanded = !expanded }) {
                             Icon(
                                 imageVector = if (expanded) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore,
-                                contentDescription = null
+                                contentDescription = null,
                             )
                         }
                     }
                 }
 
-                if (diagnostic.type == UpdateWatchSchedulerDiagnostic.RunType.WORKER_RUN || diagnostic.type == UpdateWatchSchedulerDiagnostic.RunType.FOREGROUND_HOT_BURST) {
+                if (diagnostic.type == UpdateWatchSchedulerDiagnostic.RunType.WORKER_RUN ||
+                    diagnostic.type == UpdateWatchSchedulerDiagnostic.RunType.FOREGROUND_HOT_BURST
+                ) {
                     val delay = if (diagnostic.scheduledAt != null && diagnostic.startedAt != null) {
                         (diagnostic.startedAt - diagnostic.scheduledAt) / 1000 / 60
-                    } else null
+                    } else {
+                        null
+                    }
 
                     val duration = if (diagnostic.startedAt != null && diagnostic.completedAt != null) {
                         (diagnostic.completedAt - diagnostic.startedAt) / 1000 / 60
-                    } else null
+                    } else {
+                        null
+                    }
 
                     Text(
                         text = buildString {
-                            if (diagnostic.scheduledAt != null) append("Scheduled: ${UpdateWatchDiagnosticsManager.formatTimestamp(diagnostic.scheduledAt)}\n")
+                            if (diagnostic.scheduledAt !=
+                                null
+                            ) {
+                                append("Scheduled: ${formatTimestamp(diagnostic.scheduledAt)}\n")
+                            }
                             if (delay != null) append("Android delay: ${if (delay >= 0) "+" else ""}$delay min\n")
                             append("Eligible: ${diagnostic.eligibleCount} · Selected: ${diagnostic.selectedCount}\n")
-                            append("Updates: ${diagnostic.updatedCount} · No update: ${diagnostic.noUpdateCount} · Failed: ${diagnostic.failedCount}\n")
+                            append(
+                                "Updates: ${diagnostic.updatedCount} · No update: " +
+                                    "${diagnostic.noUpdateCount} · Failed: ${diagnostic.failedCount}\n",
+                            )
                             append("Sources: ${diagnostic.sourceCount} · Duration: ${duration ?: 0} min")
                         },
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
 
                     if (diagnostic.nextWorkerTargetAt != null) {
                         Text(
-                            text = "Final scheduled target: ${UpdateWatchDiagnosticsManager.formatTimestamp(diagnostic.nextWorkerTargetAt)}",
+                            text =
+                            "Final scheduled target: ${formatTimestamp(diagnostic.nextWorkerTargetAt)}",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                         // Only show proposed if it differs from final
-                        if (diagnostic.proposedTargetAt != null && diagnostic.proposedTargetAt != diagnostic.nextWorkerTargetAt) {
+                        if (diagnostic.proposedTargetAt != null &&
+                            diagnostic.proposedTargetAt != diagnostic.nextWorkerTargetAt
+                        ) {
                             Text(
-                                text = "Proposed target: ${UpdateWatchDiagnosticsManager.formatTimestamp(diagnostic.proposedTargetAt)} (+${diagnostic.proposedMarginMinutes} min margin)",
+                                text =
+                                "Proposed target: ${formatTimestamp(diagnostic.proposedTargetAt)} " +
+                                    "(+${diagnostic.proposedMarginMinutes} min margin)",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }
@@ -296,20 +349,20 @@ class UpdateWatchDiagnosticsScreen : Screen() {
                             text = "RECOVERY RUN: A backlog of due manga was detected.",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.error,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                     }
 
                     Text(
                         text = buildString {
                             if (diagnostic.wallClockBaseSlot != null) {
-                                append("Base slot: ${UpdateWatchDiagnosticsManager.formatTimestamp(diagnostic.wallClockBaseSlot)}\n")
+                                append("Base slot: ${formatTimestamp(diagnostic.wallClockBaseSlot)}\n")
                             }
                             if (diagnostic.safetyMarginMinutes > 0) {
                                 append("Margin: +${diagnostic.safetyMarginMinutes} min\n")
                             }
                             if (diagnostic.nextWorkerTargetAt != null) {
-                                append("Final scheduled target: ${UpdateWatchDiagnosticsManager.formatTimestamp(diagnostic.nextWorkerTargetAt)}\n")
+                                append("Final scheduled target: ${formatTimestamp(diagnostic.nextWorkerTargetAt)}\n")
                             }
                             if (diagnostic.timezone != null) {
                                 append("Zone: ${diagnostic.timezone}")
@@ -320,7 +373,7 @@ class UpdateWatchDiagnosticsScreen : Screen() {
                             }
                         }.trim(),
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
 
@@ -331,7 +384,7 @@ class UpdateWatchDiagnosticsScreen : Screen() {
                                 text = "${diagnostic.mangaDetails.size} manga refreshed:",
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(vertical = 4.dp)
+                                modifier = Modifier.padding(vertical = 4.dp),
                             )
                             diagnostic.mangaDetails.forEach { detail ->
                                 MangaDetailRow(detail)
@@ -348,10 +401,10 @@ class UpdateWatchDiagnosticsScreen : Screen() {
         Column(modifier = Modifier.padding(vertical = 4.dp, horizontal = 8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = "[${UpdateWatchDiagnosticsManager.formatTimestamp(detail.checkedAt)}] ${detail.title}",
+                    text = "[${formatTimestamp(detail.checkedAt)}] ${detail.title}",
                     style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.Medium,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
                 )
                 val color = when (detail.result) {
                     "Update found" -> MaterialTheme.colorScheme.primary
@@ -361,12 +414,17 @@ class UpdateWatchDiagnosticsScreen : Screen() {
                 Text(text = detail.result, style = MaterialTheme.typography.labelSmall, color = color)
             }
             Text(
-                text = "${detail.sourceName} · Next eligible: ${UpdateWatchDiagnosticsManager.formatTimestamp(detail.nextEligibleAt)}",
+                text =
+                "${detail.sourceName} · Next eligible: ${formatTimestamp(detail.nextEligibleAt)}",
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             if (detail.errorReason != null) {
-                Text(text = "Error: ${detail.errorReason}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
+                Text(
+                    text = "Error: ${detail.errorReason}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
             }
         }
     }

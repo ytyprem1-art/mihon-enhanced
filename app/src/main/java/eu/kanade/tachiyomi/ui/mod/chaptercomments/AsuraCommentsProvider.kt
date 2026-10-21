@@ -5,8 +5,8 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
@@ -21,6 +21,7 @@ class AsuraCommentsProvider(
 ) : ChapterCommentsProvider, ChapterReactionsProvider {
     private val chapterMutex = Mutex()
     private var resolvedChapterId: Long? = null
+
     @Volatile
     private var confirmedReactionCounts: List<ChapterReaction>? = null
 
@@ -56,12 +57,19 @@ class AsuraCommentsProvider(
         val counts = reactionCounts(data)
         check(data.containsKey("user_reaction")) { "Konfirmasi reaksi Asura tidak tersedia" }
         val confirmed = data.text("user_reaction")
-        check(confirmed == null || reactionOptions.any { it.key == confirmed }) { "Konfirmasi reaksi Asura tidak valid" }
+        check(
+            confirmed == null || reactionOptions.any {
+                it.key == confirmed
+            },
+        ) { "Konfirmasi reaksi Asura tidak valid" }
         // The web client uses these authoritative mutation counts directly. A following
         // anonymous GET can still contain the public cache's older counts.
         confirmedReactionCounts = counts
         if (confirmed != next) {
-            throw ChapterReactionUpdateException(confirmed, IllegalStateException("Server Asura belum mengonfirmasi pilihan reaksi."))
+            throw ChapterReactionUpdateException(
+                confirmed,
+                IllegalStateException("Server Asura belum mengonfirmasi pilihan reaksi."),
+            )
         }
     }
 
@@ -90,7 +98,8 @@ class AsuraCommentsProvider(
             CommentSort.OLDEST -> "oldest"
         }
         val offset = (page.toLong() - 1) * PAGE_SIZE
-        val response = readObject("$API/chapters/${chapterId()}/comments?sort=$sortValue&limit=$PAGE_SIZE&offset=$offset")
+        val response =
+            readObject("$API/chapters/${chapterId()}/comments?sort=$sortValue&limit=$PAGE_SIZE&offset=$offset")
         val comments = response.array("data").mapNotNull { parseComment(it) }
         val meta = response["meta"] as? JsonObject
         return CommentsPage(

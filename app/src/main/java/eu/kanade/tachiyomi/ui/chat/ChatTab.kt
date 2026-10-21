@@ -84,8 +84,8 @@ data object ChatTab : Tab {
                                 sourceId = source.id,
                                 listingQuery = mangaTitle,
                                 smartJumpTitle = mangaTitle,
-                                smartJumpSessionId = java.util.UUID.randomUUID().toString()
-                            )
+                                smartJumpSessionId = java.util.UUID.randomUUID().toString(),
+                            ),
                         )
                     } else {
                         context.toast("Error: Shared manga title is missing.")

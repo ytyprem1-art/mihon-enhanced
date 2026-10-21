@@ -78,15 +78,22 @@ class SyncChaptersWithSource(
 
         val dbChapters = chapterRepository.getChapterByMangaId(manga.id)
         val dbChaptersByUrl = dbChapters.associateBy { it.url }.toMutableMap()
-        val reconciliationCandidates = dbChapters.filterNot { old -> sourceChapters.any { it.url == old.url } }.toMutableList()
+        val reconciliationCandidates = dbChapters.filterNot { old ->
+            sourceChapters.any { it.url == old.url }
+        }.toMutableList()
         val reconciledIds = mutableSetOf<Long>()
-        val canonicalTarget = eu.kanade.tachiyomi.ui.mod.helper.HistoryMigrationHelper.findCanonicalTarget(manga, getDuplicateLibraryManga::invoke)
+        val canonicalTarget = eu.kanade.tachiyomi.ui.mod.helper.HistoryMigrationHelper.findCanonicalTarget(
+            manga,
+            getDuplicateLibraryManga::invoke,
+        )
         if (canonicalTarget != null) {
             eu.kanade.tachiyomi.ui.mod.helper.HistoryMigrationHelper.migrateHistoryAndProgress(
-                database = database, oldChapters = dbChapters,
+                database = database,
+                oldChapters = dbChapters,
                 targetChapters = chapterRepository.getChapterByMangaId(canonicalTarget.id),
                 getHistoryByMangaId = historyRepository::getHistoryByMangaId,
-                oldManga = manga, targetManga = canonicalTarget,
+                oldManga = manga,
+                targetManga = canonicalTarget,
             )
         }
 
@@ -122,7 +129,10 @@ class SyncChaptersWithSource(
 
             var dbChapter = dbChaptersByUrl[chapter.url]
             if (dbChapter == null) {
-                val candidate = eu.kanade.tachiyomi.ui.mod.helper.ChapterReconciliationHelper.findReconcilableCandidate(chapter, reconciliationCandidates)
+                val candidate = eu.kanade.tachiyomi.ui.mod.helper.ChapterReconciliationHelper.findReconcilableCandidate(
+                    chapter,
+                    reconciliationCandidates,
+                )
                 if (candidate != null) {
                     database.chapterQueries.reconcileChapterUrl(chapter.url, candidate.id)
                     reconciliationCandidates.remove(candidate)

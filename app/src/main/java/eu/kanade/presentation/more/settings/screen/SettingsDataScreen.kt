@@ -65,6 +65,7 @@ import eu.kanade.tachiyomi.data.sync.service.GoogleDriveService
 import eu.kanade.tachiyomi.data.sync.service.GoogleDriveSyncService
 import eu.kanade.tachiyomi.data.sync.service.SyncJob
 import eu.kanade.tachiyomi.ui.mod.bookmarkimport.BookmarkImportScreen
+import eu.kanade.tachiyomi.ui.mod.util.launchNonCancellable
 import eu.kanade.tachiyomi.util.system.DeviceUtil
 import eu.kanade.tachiyomi.util.system.toast
 import eu.kanade.tachiyomi.util.system.workManager
@@ -78,7 +79,6 @@ import mihon.icons.materialsymbols.MaterialSymbols
 import mihon.icons.materialsymbols.automirroredrounded.Help
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.storage.displayablePath
-import eu.kanade.tachiyomi.ui.mod.util.launchNonCancellable
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.backup.service.BackupPreferences
 import tachiyomi.domain.manga.model.Manga
@@ -176,7 +176,11 @@ object SettingsDataScreen : SearchableSettings {
             AlertDialog(
                 onDismissRequest = { showDeleteDialog = false },
                 title = { Text("Delete sync data from Google Drive?") },
-                text = { Text("This will delete all your Mihon sync data from Google Drive. Your local data will not be affected.") },
+                text = {
+                    Text(
+                        "This will delete all your Mihon sync data from Google Drive. Your local data will not be affected.",
+                    )
+                },
                 confirmButton = {
                     TextButton(
                         onClick = {
@@ -184,8 +188,12 @@ object SettingsDataScreen : SearchableSettings {
                                 val result = googleDriveSyncService.deleteSyncDataFromGoogleDrive()
                                 withContext(kotlinx.coroutines.Dispatchers.Main) {
                                     when (result) {
-                                        GoogleDriveSyncService.DeleteSyncDataStatus.SUCCESS -> context.toast("Sync data deleted successfully")
-                                        GoogleDriveSyncService.DeleteSyncDataStatus.NO_FILES -> context.toast("No sync data found on Google Drive")
+                                        GoogleDriveSyncService.DeleteSyncDataStatus.SUCCESS -> context.toast(
+                                            "Sync data deleted successfully",
+                                        )
+                                        GoogleDriveSyncService.DeleteSyncDataStatus.NO_FILES -> context.toast(
+                                            "No sync data found on Google Drive",
+                                        )
                                         else -> context.toast("Failed to delete sync data")
                                     }
                                 }
@@ -232,7 +240,10 @@ object SettingsDataScreen : SearchableSettings {
                         checked = enabled,
                         onCheckedChanged = { newValue ->
                             val before = syncPreferences.syncService().get()
-                            Log.d("SyncServiceDebug", "UI: Enable cloud sync toggle: $newValue. Current service value=$before")
+                            Log.d(
+                                "SyncServiceDebug",
+                                "UI: Enable cloud sync toggle: $newValue. Current service value=$before",
+                            )
                             scope.launch {
                                 syncPreferences.cloudSyncEnabled().set(newValue)
                                 if (newValue) {

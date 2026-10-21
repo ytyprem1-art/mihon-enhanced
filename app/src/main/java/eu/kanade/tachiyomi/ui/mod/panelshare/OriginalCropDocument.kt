@@ -48,7 +48,9 @@ class OriginalCropDocument(context: Context, private val chapter: ReaderChapter,
     val height get() = pages.lastOrNull()?.bottom ?: 0.0
     val hasNext get() = nextIndex < readerPages.size
 
-    init { chapter.ref() }
+    init {
+        chapter.ref()
+    }
 
     suspend fun loadNext() {
         if (closed || loading || !hasNext) return
@@ -64,11 +66,15 @@ class OriginalCropDocument(context: Context, private val chapter: ReaderChapter,
                         withTimeout(60_000) {
                             readerPage.statusFlow.first { it is Page.State.Ready || it is Page.State.Error }
                         }
-                        check(readerPage.status is Page.State.Ready) { "Page could not load. Return to the reader and retry this page." }
+                        check(readerPage.status is Page.State.Ready) {
+                            "Page could not load. Return to the reader and retry this page."
+                        }
                         requireNotNull(readerPage.stream) { "Original image is unavailable" }.invoke().use { input ->
                             file.outputStream().use { output -> input.copyTo(output) }
                         }
-                    } finally { job.cancel() }
+                    } finally {
+                        job.cancel()
+                    }
                 }
                 BitmapFactory.Options().apply {
                     inJustDecodeBounds = true
@@ -85,7 +91,9 @@ class OriginalCropDocument(context: Context, private val chapter: ReaderChapter,
             throw e
         } catch (e: Exception) {
             error = e.message ?: "Could not load the next image"
-        } finally { loading = false }
+        } finally {
+            loading = false
+        }
     }
 
     fun close() {
@@ -123,7 +131,10 @@ class OriginalCropDocument(context: Context, private val chapter: ReaderChapter,
                 try {
                     val x0 = floor(crop.left * page.width).toInt().coerceIn(0, page.width - 1)
                     val x1 = ceil(crop.right * page.width).toInt().coerceIn(x0 + 1, page.width)
-                    val y0 = floor((crop.top - page.top).coerceAtLeast(0.0) * page.width).toInt().coerceIn(0, page.height - 1)
+                    val y0 = floor((crop.top - page.top).coerceAtLeast(0.0) * page.width).toInt().coerceIn(
+                        0,
+                        page.height - 1,
+                    )
                     val y1 = ceil((crop.bottom - page.top) * page.width).toInt().coerceIn(y0 + 1, page.height)
                     var sample = 1
                     while ((x1 - x0) / (sample * 2) >= w) sample *= 2
@@ -131,7 +142,16 @@ class OriginalCropDocument(context: Context, private val chapter: ReaderChapter,
                     while (y < y1) {
                         currentCoroutineContext().ensureActive()
                         val end = min(y1, y + 512 * sample)
-                        val tile = requireNotNull(decoder.decodeRegion(Rect(x0, y, x1, end), BitmapFactory.Options().apply { inSampleSize = sample }))
+                        val tile =
+                            requireNotNull(
+                                decoder.decodeRegion(
+                                    Rect(x0, y, x1, end),
+                                    BitmapFactory.Options().apply {
+                                        inSampleSize =
+                                            sample
+                                    },
+                                ),
+                            )
                         try {
                             val target = RectF(
                                 ((x0.toDouble() / page.width - crop.left) / crop.width * w).toFloat(),
@@ -140,13 +160,20 @@ class OriginalCropDocument(context: Context, private val chapter: ReaderChapter,
                                 ((page.top + end.toDouble() / page.width - crop.top) / crop.height * h).toFloat(),
                             )
                             canvas.drawBitmap(tile, null, target, paint)
-                        } finally { tile.recycle() }
+                        } finally {
+                            tile.recycle()
+                        }
                         y = end
                     }
-                } finally { decoder.recycle() }
+                } finally {
+                    decoder.recycle()
+                }
             }
             result
-        } catch (e: Throwable) { result.recycle(); throw e }
+        } catch (e: Throwable) {
+            result.recycle()
+            throw e
+        }
     }
 }
 
@@ -164,7 +191,14 @@ suspend fun Bitmap.applyCropEnhancement(preset: CropEnhancement) {
             currentCoroutineContext().ensureActive()
             if (y + 1 < height) getPixels(next, 0, width, 0, y + 1, width, 1) else current.copyInto(next)
             for (x in 0 until width) {
-                output[x] = preset.pixel(current[x], current[(x - 1).coerceAtLeast(0)], current[(x + 1).coerceAtMost(width - 1)], previous[x], next[x])
+                output[x] =
+                    preset.pixel(
+                        current[x],
+                        current[(x - 1).coerceAtLeast(0)],
+                        current[(x + 1).coerceAtMost(width - 1)],
+                        previous[x],
+                        next[x],
+                    )
             }
             setPixels(output, 0, width, 0, y, width, 1)
             val spare = previous

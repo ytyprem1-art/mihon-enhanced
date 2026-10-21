@@ -5,16 +5,22 @@ import android.graphics.Canvas
 import android.graphics.Matrix
 import android.graphics.Paint
 import android.net.Uri
-import android.widget.ImageView
 import android.util.Base64
+import android.widget.ImageView
 import androidx.test.platform.app.InstrumentationRegistry
+import com.github.chrisbanes.photoview.PhotoView
 import eu.kanade.tachiyomi.ui.mod.chatprofile.ChatAvatarPhoto
 import eu.kanade.tachiyomi.ui.mod.chatprofile.captureAvatar
-import com.github.chrisbanes.photoview.PhotoView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
-import org.junit.Assert.*
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -41,9 +47,16 @@ class ChatAvatarDeviceTest {
                 assertTrue(android.graphics.Color.blue(hd.getPixel(384, 650)) > 240)
                 assertTrue(android.graphics.Color.red(thumbnail.getPixel(48, 12)) > 240)
                 assertTrue(android.graphics.Color.blue(thumbnail.getPixel(48, 82)) > 240)
-            } finally { hd.recycle(); thumbnail.recycle() }
-            assertThrows(IllegalArgumentException::class.java) { ChatAvatarPhoto.decodeHd(ByteArray(ChatAvatarPhoto.MAX_HD_BYTES + 1)) }
-            assertThrows(IllegalArgumentException::class.java) { ChatAvatarPhoto.decodeHd("invalid photo".toByteArray()) }
+            } finally {
+                hd.recycle()
+                thumbnail.recycle()
+            }
+            assertThrows(IllegalArgumentException::class.java) {
+                ChatAvatarPhoto.decodeHd(ByteArray(ChatAvatarPhoto.MAX_HD_BYTES + 1))
+            }
+            assertThrows(IllegalArgumentException::class.java) {
+                ChatAvatarPhoto.decodeHd("invalid photo".toByteArray())
+            }
             val pixels = IntArray(768 * 768)
             val random = java.util.Random(4)
             for (index in pixels.indices) pixels[index] = random.nextInt() or 0xff000000.toInt()
@@ -51,8 +64,11 @@ class ChatAvatarDeviceTest {
             val detailed = ChatAvatarPhoto.prepareUpload(square)
             assertTrue(detailed.photo.size <= ChatAvatarPhoto.MAX_HD_BYTES)
             assertNotEquals(upload.version, detailed.version)
-        } finally { square.recycle() }
+        } finally {
+            square.recycle()
+        }
     }
+
     @Test fun suppliedProblemPhotoCanBeDecodedAndCropped(): Unit = runBlocking {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val file = File(context.cacheDir, "avatar-regression-input.jpg")
@@ -68,10 +84,16 @@ class ChatAvatarDeviceTest {
                     captureAvatar(view).also { view.setImageDrawable(null) }
                 }
             }
-            try { assertNotNull(ChatAvatarPhoto.decode(ChatAvatarPhoto.encodeSquare(cropped))) }
-            finally { cropped.recycle() }
-        } finally { preview.recycle() }
+            try {
+                assertNotNull(ChatAvatarPhoto.decode(ChatAvatarPhoto.encodeSquare(cropped)))
+            } finally {
+                cropped.recycle()
+            }
+        } finally {
+            preview.recycle()
+        }
     }
+
     @Test fun largePhotoUsesBoundedPreviewAndCorruptPhotoReturnsError(): Unit = runBlocking {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val file = File(context.cacheDir, "avatar-large-${UUID.randomUUID()}.png")
@@ -80,19 +102,29 @@ class ChatAvatarDeviceTest {
             try {
                 large.eraseColor(android.graphics.Color.MAGENTA)
                 file.outputStream().use { assertTrue(large.compress(Bitmap.CompressFormat.PNG, 100, it)) }
-            } finally { large.recycle() }
+            } finally {
+                large.recycle()
+            }
             val preview = ChatAvatarPhoto.loadForCrop(context, Uri.fromFile(file))
             assertTrue(preview.width in 1..1024 && preview.height in 1..1024)
             assertEquals(android.graphics.Color.MAGENTA, preview.getPixel(preview.width / 2, preview.height / 2))
             preview.recycle()
             file.writeText("this is not a photo")
             var rejected = false
-            try { ChatAvatarPhoto.loadForCrop(context, Uri.fromFile(file)) }
-            catch (_: IllegalArgumentException) { rejected = true }
+            try {
+                ChatAvatarPhoto.loadForCrop(context, Uri.fromFile(file))
+            } catch (
+                _: IllegalArgumentException,
+            ) {
+                rejected = true
+            }
             assertTrue("Corrupt photo must return a recoverable error", rejected)
             assertFalse(context.cacheDir.listFiles().orEmpty().any { it.name.startsWith("chat-avatar-") })
-        } finally { file.delete() }
+        } finally {
+            file.delete()
+        }
     }
+
     @Test fun pickerImageBecomesBoundedSquareAndInvalidRemotePhotosFallBack(): Unit = runBlocking {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val file = File(context.cacheDir, "avatar-test-${UUID.randomUUID()}.png")
@@ -133,7 +165,10 @@ class ChatAvatarDeviceTest {
             assertNull(ChatAvatarPhoto.decode("invalid image"))
             assertNull(ChatAvatarPhoto.decode("A".repeat(ChatAvatarPhoto.MAX_ENCODED + 1)))
             // Small compressed input must still reject oversized decoded dimensions.
-            val oversized = ByteArrayOutputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it); it.toByteArray() }
+            val oversized = ByteArrayOutputStream().use {
+                bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)
+                it.toByteArray()
+            }
             assertNull(ChatAvatarPhoto.decode(Base64.encodeToString(oversized, Base64.NO_WRAP)))
         } finally {
             bitmap.recycle()

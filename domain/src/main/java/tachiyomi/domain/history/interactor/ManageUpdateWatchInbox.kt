@@ -2,8 +2,8 @@ package tachiyomi.domain.history.interactor
 
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import tachiyomi.domain.history.repository.UpdateWatchInboxDismissalPolicy
 import tachiyomi.domain.history.model.UpdateWatchInboxItem
+import tachiyomi.domain.history.repository.UpdateWatchInboxDismissalPolicy
 import tachiyomi.domain.history.repository.UpdateWatchInboxRepository
 
 @dev.zacsweers.metro.SingleIn(dev.zacsweers.metro.AppScope::class)
@@ -49,14 +49,21 @@ class ManageUpdateWatchInbox(
         onRemaining(repository.getAll())
     }
 
-    suspend fun deliverUndismissed(items: List<UpdateWatchInboxItem>, deliver: (List<UpdateWatchInboxItem>) -> Unit) = mutex.withLock {
+    suspend fun deliverUndismissed(
+        items: List<UpdateWatchInboxItem>,
+        deliver: (List<UpdateWatchInboxItem>) -> Unit,
+    ) = mutex.withLock {
         deliver(items.mapNotNull { dismissals.filter(it) })
     }
 
     suspend fun reconcileDismissed() = mutex.withLock {
         repository.getAll().forEach { item ->
             val retained = dismissals.filter(item)
-            if (retained == null) repository.delete(item.mangaId) else if (retained != item) repository.insert(retained)
+            if (retained == null) {
+                repository.delete(item.mangaId)
+            } else if (retained != item) {
+                repository.insert(retained)
+            }
         }
     }
 

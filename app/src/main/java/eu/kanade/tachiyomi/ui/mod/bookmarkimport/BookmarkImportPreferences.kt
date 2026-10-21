@@ -11,7 +11,7 @@ class BookmarkImportPreferences(
 ) {
     val importSession: Preference<String> = preferenceStore.getString(
         Preference.appStateKey("bookmark_import_session"),
-        ""
+        "",
     )
 }
 
@@ -20,5 +20,5 @@ data class BookmarkImportSession(
     val sessionId: String,
     val fileName: String,
     val entries: List<ManganatoCsvParser.BookmarkEntry>,
-    val timestamp: Long = System.currentTimeMillis()
+    val timestamp: Long = System.currentTimeMillis(),
 )

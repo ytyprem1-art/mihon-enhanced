@@ -24,7 +24,7 @@ class PresenceManager(private val context: android.content.Context) {
         mangaTitle: String? = null,
         mangaId: String? = null,
         sourceId: Long? = null,
-        chapter: String? = null
+        chapter: String? = null,
     ) {
         currentStatus = status
         writePresence()

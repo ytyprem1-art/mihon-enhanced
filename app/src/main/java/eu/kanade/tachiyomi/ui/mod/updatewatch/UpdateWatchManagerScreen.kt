@@ -1,18 +1,61 @@
 package eu.kanade.tachiyomi.ui.mod.updatewatch
 
-import eu.kanade.tachiyomi.ui.mod.util.dateUploadMillis
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowForwardIos
+import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.automirrored.outlined.Sort
-import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Face
+import androidx.compose.material.icons.outlined.KeyboardArrowDown
+import androidx.compose.material.icons.outlined.KeyboardArrowUp
+import androidx.compose.material.icons.outlined.SettingsBackupRestore
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -24,52 +67,35 @@ import eu.kanade.presentation.components.SearchToolbar
 import eu.kanade.presentation.history.components.HistoryItem
 import eu.kanade.presentation.util.Screen
 import eu.kanade.presentation.util.relativeTimeSpanString
+import eu.kanade.tachiyomi.ui.manga.MangaScreen
+import eu.kanade.tachiyomi.ui.mod.updatewatch.components.AutoRefreshInactivityWarningDialog
+import eu.kanade.tachiyomi.ui.mod.updatewatch.components.TrackedMangaHelpSheet
+import eu.kanade.tachiyomi.ui.mod.updatewatch.components.UpdateWatchHelpSheet
 import eu.kanade.tachiyomi.ui.mod.updatewatch.helper.UpdateWatchRefreshHelper
 import eu.kanade.tachiyomi.ui.mod.updatewatch.worker.UpdateWatchDiagnosticsManager
 import eu.kanade.tachiyomi.ui.mod.updatewatch.worker.UpdateWatchRefreshScheduler
 import eu.kanade.tachiyomi.ui.mod.updatewatch.worker.UpdateWatchRefreshWorker
-import eu.kanade.tachiyomi.ui.manga.MangaScreen
-import androidx.compose.material.icons.automirrored.outlined.ArrowForwardIos
-import androidx.compose.material.icons.automirrored.outlined.HelpOutline
-import androidx.compose.material.icons.outlined.Face
-import eu.kanade.tachiyomi.ui.mod.updatewatch.components.UpdateWatchHelpSheet
-import eu.kanade.tachiyomi.ui.mod.updatewatch.components.TrackedMangaHelpSheet
-import eu.kanade.tachiyomi.ui.mod.updatewatch.components.AutoRefreshInactivityWarningDialog
+import eu.kanade.tachiyomi.ui.mod.util.dateUploadMillis
 import kotlinx.coroutines.launch
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Error
-import tachiyomi.presentation.core.components.material.padding
 import tachiyomi.domain.history.model.HistoryWithRelations
 import tachiyomi.domain.history.model.UpdateWatch
+import tachiyomi.domain.history.model.UpdateWatchHistory
 import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.domain.manga.model.MangaCover
 import tachiyomi.domain.source.service.SourceManager
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.components.FastScrollLazyColumn
 import tachiyomi.presentation.core.components.material.Scaffold
+import tachiyomi.presentation.core.components.material.padding
 import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.screens.EmptyScreen
 import tachiyomi.presentation.core.screens.LoadingScreen
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
-
-import androidx.compose.material.icons.outlined.SettingsBackupRestore
-import androidx.compose.material.icons.outlined.KeyboardArrowDown
-import androidx.compose.material.icons.outlined.KeyboardArrowUp
-import androidx.compose.material3.HorizontalDivider
-import tachiyomi.domain.history.model.UpdateWatchHistory
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Switch
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.foundation.text.KeyboardOptions
 
 class UpdateWatchManagerScreen : Screen() {
 
@@ -115,17 +141,25 @@ class UpdateWatchManagerScreen : Screen() {
                                     DropdownMenuItem(
                                         text = { Text("Run normally (dry run)") },
                                         onClick = {
-                                            UpdateWatchRefreshScheduler.runNow(context, UpdateWatchRefreshWorker.SIM_NONE)
+                                            UpdateWatchRefreshScheduler.runNow(
+                                                context,
+                                                UpdateWatchRefreshWorker.SIM_NONE,
+                                            )
                                             showDebugMenu = false
                                             scope.launch {
-                                                viewModel.snackbarHostState.showSnackbar("Background refresh dry run started")
+                                                viewModel.snackbarHostState.showSnackbar(
+                                                    "Background refresh dry run started",
+                                                )
                                             }
                                         },
                                     )
                                     DropdownMenuItem(
                                         text = { Text("Simulate HTTP 429") },
                                         onClick = {
-                                            UpdateWatchRefreshScheduler.runNow(context, UpdateWatchRefreshWorker.SIM_HTTP_429)
+                                            UpdateWatchRefreshScheduler.runNow(
+                                                context,
+                                                UpdateWatchRefreshWorker.SIM_HTTP_429,
+                                            )
                                             showDebugMenu = false
                                             scope.launch {
                                                 viewModel.snackbarHostState.showSnackbar("Simulating HTTP 429")
@@ -135,7 +169,10 @@ class UpdateWatchManagerScreen : Screen() {
                                     DropdownMenuItem(
                                         text = { Text("Simulate HTTP 403 / Cloudflare") },
                                         onClick = {
-                                            UpdateWatchRefreshScheduler.runNow(context, UpdateWatchRefreshWorker.SIM_HTTP_403)
+                                            UpdateWatchRefreshScheduler.runNow(
+                                                context,
+                                                UpdateWatchRefreshWorker.SIM_HTTP_403,
+                                            )
                                             showDebugMenu = false
                                             scope.launch {
                                                 viewModel.snackbarHostState.showSnackbar("Simulating HTTP 403")
@@ -145,7 +182,10 @@ class UpdateWatchManagerScreen : Screen() {
                                     DropdownMenuItem(
                                         text = { Text("Simulate Transient Failure") },
                                         onClick = {
-                                            UpdateWatchRefreshScheduler.runNow(context, UpdateWatchRefreshWorker.SIM_TRANSIENT)
+                                            UpdateWatchRefreshScheduler.runNow(
+                                                context,
+                                                UpdateWatchRefreshWorker.SIM_TRANSIENT,
+                                            )
                                             showDebugMenu = false
                                             scope.launch {
                                                 viewModel.snackbarHostState.showSnackbar("Simulating Transient Failure")
@@ -155,7 +195,10 @@ class UpdateWatchManagerScreen : Screen() {
                                     DropdownMenuItem(
                                         text = { Text("Simulate Ordinary Failure") },
                                         onClick = {
-                                            UpdateWatchRefreshScheduler.runNow(context, UpdateWatchRefreshWorker.SIM_ORDINARY)
+                                            UpdateWatchRefreshScheduler.runNow(
+                                                context,
+                                                UpdateWatchRefreshWorker.SIM_ORDINARY,
+                                            )
                                             showDebugMenu = false
                                             scope.launch {
                                                 viewModel.snackbarHostState.showSnackbar("Simulating Ordinary Failure")
@@ -243,19 +286,19 @@ class UpdateWatchManagerScreen : Screen() {
                         editItem = null
                     },
                     onShowHelp = { showHelpSheet = true },
-                    onShowTrackedHelp = { showTrackedHelpSheet = true }
+                    onShowTrackedHelp = { showTrackedHelpSheet = true },
                 )
             }
 
             if (showHelpSheet) {
                 UpdateWatchHelpSheet(
-                    onDismissRequest = { showHelpSheet = false }
+                    onDismissRequest = { showHelpSheet = false },
                 )
             }
 
             if (showTrackedHelpSheet) {
                 TrackedMangaHelpSheet(
-                    onDismissRequest = { showTrackedHelpSheet = false }
+                    onDismissRequest = { showTrackedHelpSheet = false },
                 )
             }
         }
@@ -310,7 +353,7 @@ private fun UpdateWatchManagerContent(
                                 contentDescription = null,
                                 modifier = Modifier.size(16.dp),
                             )
-                        }
+                        },
                     )
                     ListItem(
                         modifier = Modifier.clickable(onClick = onShowHelp),
@@ -327,7 +370,7 @@ private fun UpdateWatchManagerContent(
                                 contentDescription = null,
                                 modifier = Modifier.size(16.dp),
                             )
-                        }
+                        },
                     )
                     ListItem(
                         modifier = Modifier.clickable(onClick = onShowDiagnostics),
@@ -344,7 +387,7 @@ private fun UpdateWatchManagerContent(
                                 contentDescription = null,
                                 modifier = Modifier.size(16.dp),
                             )
-                        }
+                        },
                     )
                     ListItem(
                         headlineContent = { Text(stringResource(MR.strings.pref_fun_overdue_messages)) },
@@ -355,16 +398,16 @@ private fun UpdateWatchManagerContent(
                         trailingContent = {
                             Switch(
                                 checked = viewModel.funOverdueMessages,
-                                onCheckedChange = { viewModel.toggleFunOverdueMessages(it) }
+                                onCheckedChange = { viewModel.toggleFunOverdueMessages(it) },
                             )
-                        }
+                        },
                     )
                 }
             }
 
             items(
                 items = items,
-                key = { "tracked-${it.trackingManga.id}" }
+                key = { "tracked-${it.trackingManga.id}" },
             ) { item ->
                 val sourceManager = remember { Injekt.get<SourceManager>() }
                 val sourceName = eu.kanade.tachiyomi.ui.mod.components.rememberSourceName(item.trackingManga.source)
@@ -392,11 +435,13 @@ private fun UpdateWatchManagerContent(
                                 isMangaFavorite = item.trackingManga.favorite,
                                 url = item.trackingManga.thumbnailUrl,
                                 lastModified = item.trackingManga.coverLastModified,
-                            )
+                            ),
                         ),
                         secondaryText = run {
                             val ch = if (item.latestChapter.chapterNumber >= 0) {
-                                "Ch. ${eu.kanade.presentation.util.formatChapterNumber(item.latestChapter.chapterNumber)}"
+                                "Ch. ${eu.kanade.presentation.util.formatChapterNumber(
+                                    item.latestChapter.chapterNumber,
+                                )}"
                             } else {
                                 "No chapters"
                             }
@@ -420,9 +465,9 @@ private fun UpdateWatchManagerContent(
                                     leadingIcon = {
                                         Icon(
                                             imageVector = Icons.Outlined.SettingsBackupRestore,
-                                            contentDescription = null
+                                            contentDescription = null,
                                         )
-                                    }
+                                    },
                                 )
 
                                 DropdownMenuItem(
@@ -434,9 +479,9 @@ private fun UpdateWatchManagerContent(
                                     leadingIcon = {
                                         Icon(
                                             imageVector = Icons.Outlined.Delete,
-                                            contentDescription = null
+                                            contentDescription = null,
                                         )
-                                    }
+                                    },
                                 )
 
                                 if (eu.kanade.tachiyomi.BuildConfig.DEBUG) {
@@ -450,9 +495,9 @@ private fun UpdateWatchManagerContent(
                                         leadingIcon = {
                                             Icon(
                                                 imageVector = Icons.Default.MoreVert,
-                                                contentDescription = null
+                                                contentDescription = null,
                                             )
-                                        }
+                                        },
                                     )
                                     DropdownMenuItem(
                                         text = { Text("Debug: Refresh now (real)") },
@@ -463,9 +508,9 @@ private fun UpdateWatchManagerContent(
                                         leadingIcon = {
                                             Icon(
                                                 imageVector = Icons.Default.Check,
-                                                contentDescription = null
+                                                contentDescription = null,
                                             )
-                                        }
+                                        },
                                     )
                                 }
                             }
@@ -481,7 +526,7 @@ private fun UpdateWatchManagerContent(
                                             onClick = {
                                                 viewModel.simulateInactivityWarning(item, milestone)
                                                 showDebugMilestoneMenu = false
-                                            }
+                                            },
                                         )
                                     }
                                 }
@@ -494,7 +539,7 @@ private fun UpdateWatchManagerContent(
                         subtitleBadge = {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically
+                                verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
                                     val eligibility = UpdateWatchRefreshHelper.getEligibility(
@@ -503,14 +548,15 @@ private fun UpdateWatchManagerContent(
                                         refreshProfile = item.refreshProfile,
                                         latestChapterUploadDate = item.latestChapter.dateUploadMillis,
                                         lastCheckAt = item.lastBackgroundCheckAt,
-                                        now = System.currentTimeMillis()
+                                        now = System.currentTimeMillis(),
                                     )
 
                                     val latestHistory = item.refreshHistory.firstOrNull()
 
                                     // Row 1: Release Age / Pattern
                                     val ageText = if (item.daysSinceRelease >= 0) {
-                                        "${item.daysSinceRelease} days since latest release · about every ${item.expectedIntervalDays} days"
+                                        "${item.daysSinceRelease} days since latest release " +
+                                            "· about every ${item.expectedIntervalDays} days"
                                     } else {
                                         "Unknown release date"
                                     }
@@ -525,15 +571,27 @@ private fun UpdateWatchManagerContent(
                                         Text(
                                             text = "Auto refresh: ${eligibility.bucket}",
                                             style = MaterialTheme.typography.labelSmall,
-                                            color = if (eligibility.status == UpdateWatchRefreshHelper.RefreshStatus.ACTIVE)
-                                                MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                            color =
+                                            if (eligibility.status ==
+                                                UpdateWatchRefreshHelper.RefreshStatus.ACTIVE
+                                            ) {
+                                                MaterialTheme.colorScheme.primary
+                                            } else {
+                                                MaterialTheme.colorScheme.onSurfaceVariant
+                                            },
                                         )
 
                                         // Row 3: Last Refresh Result
                                         val lastResultText = if (latestHistory != null) {
                                             val status = if (latestHistory.success) "Succeeded" else "Failed"
                                             val reason = if (latestHistory.success) {
-                                                if (latestHistory.newChapters > 0) "${latestHistory.newChapters} new chapters" else "No new chapters"
+                                                if (latestHistory.newChapters >
+                                                    0
+                                                ) {
+                                                    "${latestHistory.newChapters} new chapters"
+                                                } else {
+                                                    "No new chapters"
+                                                }
                                             } else {
                                                 getHumanReadableFailure(latestHistory.category, latestHistory.detail)
                                             }
@@ -545,7 +603,12 @@ private fun UpdateWatchManagerContent(
                                             text = lastResultText,
                                             style = MaterialTheme.typography.labelSmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            fontWeight = if (latestHistory?.success == false) FontWeight.Bold else FontWeight.Normal
+                                            fontWeight =
+                                            if (latestHistory?.success == false) {
+                                                FontWeight.Bold
+                                            } else {
+                                                FontWeight.Normal
+                                            },
                                         )
 
                                         // Row 4: Times
@@ -567,11 +630,15 @@ private fun UpdateWatchManagerContent(
                                                         "Recovery pending · ${eligibility.bucket}"
                                                     }
                                                 } else {
-                                                    "Next check: ${UpdateWatchDiagnosticsManager.formatTimestamp(eligibility.nextEligibleAt)}"
+                                                    "Next check: ${UpdateWatchDiagnosticsManager.formatTimestamp(
+                                                        eligibility.nextEligibleAt,
+                                                    )}"
                                                 }
                                             }
                                             eligibility.status == UpdateWatchRefreshHelper.RefreshStatus.WAITING -> {
-                                                "Next check: Starts ${UpdateWatchDiagnosticsManager.formatTimestamp(eligibility.nextEligibleAt)}"
+                                                "Next check: Starts ${UpdateWatchDiagnosticsManager.formatTimestamp(
+                                                    eligibility.nextEligibleAt,
+                                                )}"
                                             }
                                             else -> ""
                                         }
@@ -594,14 +661,18 @@ private fun UpdateWatchManagerContent(
                                 if (item.backgroundRefreshEnabled) {
                                     IconButton(onClick = { expanded = !expanded }) {
                                         Icon(
-                                            imageVector = if (expanded) Icons.Outlined.KeyboardArrowUp else Icons.Outlined.KeyboardArrowDown,
+                                            imageVector = if (expanded) {
+                                                Icons.Outlined.KeyboardArrowUp
+                                            } else {
+                                                Icons.Outlined.KeyboardArrowDown
+                                            },
                                             contentDescription = "Show history",
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                         )
                                     }
                                 }
                             }
-                        }
+                        },
                     )
 
                     if (expanded) {
@@ -617,25 +688,25 @@ private fun UpdateWatchManagerContent(
 private fun RefreshHistoryList(history: List<UpdateWatchHistory>) {
     Surface(
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth(),
     ) {
         Column(
             modifier = Modifier.padding(horizontal = MaterialTheme.padding.medium, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+            verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Text(
                 text = "Recent Attempts (latest 5)",
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(bottom = 4.dp)
+                modifier = Modifier.padding(bottom = 4.dp),
             )
 
             if (history.isEmpty()) {
                 Text(
                     text = "No refresh attempts yet.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             } else {
                 history.forEach { attempt ->
@@ -650,7 +721,7 @@ private fun RefreshHistoryList(history: List<UpdateWatchHistory>) {
 private fun RefreshHistoryRow(attempt: UpdateWatchHistory) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         val timeText = remember(attempt.timestamp) {
             val dateTime = Instant.ofEpochMilli(attempt.timestamp).atZone(ZoneId.systemDefault())
@@ -660,7 +731,7 @@ private fun RefreshHistoryRow(attempt: UpdateWatchHistory) {
         Text(
             text = timeText,
             style = MaterialTheme.typography.bodySmall,
-            modifier = Modifier.width(120.dp)
+            modifier = Modifier.width(120.dp),
         )
 
         val statusText = if (attempt.success) {
@@ -675,7 +746,7 @@ private fun RefreshHistoryRow(attempt: UpdateWatchHistory) {
             color = if (attempt.success) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.error,
             modifier = Modifier.weight(1f),
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis
+            overflow = TextOverflow.Ellipsis,
         )
 
         Icon(
@@ -686,7 +757,7 @@ private fun RefreshHistoryRow(attempt: UpdateWatchHistory) {
             },
             contentDescription = null,
             modifier = Modifier.size(14.dp),
-            tint = if (attempt.success) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+            tint = if (attempt.success) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
         )
     }
 }
@@ -727,7 +798,7 @@ private fun BackgroundRefreshEditDialog(
             },
             onDismissRequest = {
                 showInactivityWarning = false
-            }
+            },
         )
     }
 
@@ -753,7 +824,7 @@ private fun BackgroundRefreshEditDialog(
                         text = "How Tracking works",
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(start = 8.dp)
+                        modifier = Modifier.padding(start = 8.dp),
                     )
                 }
 
@@ -774,7 +845,7 @@ private fun BackgroundRefreshEditDialog(
                         text = "How Auto Refresh works",
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(start = 8.dp)
+                        modifier = Modifier.padding(start = 8.dp),
                     )
                 }
 
@@ -782,7 +853,7 @@ private fun BackgroundRefreshEditDialog(
                     text = "Expected update interval (days)",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(top = 8.dp)
+                    modifier = Modifier.padding(top = 8.dp),
                 )
 
                 listOf(7, 14, 30).forEach { preset ->
@@ -800,11 +871,11 @@ private fun BackgroundRefreshEditDialog(
                     ) {
                         RadioButton(
                             selected = interval == preset && customInterval.isEmpty(),
-                            onClick = null
+                            onClick = null,
                         )
                         Text(
                             text = "$preset days",
-                            modifier = Modifier.padding(start = 8.dp)
+                            modifier = Modifier.padding(start = 8.dp),
                         )
                     }
                 }
@@ -815,7 +886,7 @@ private fun BackgroundRefreshEditDialog(
                 ) {
                     RadioButton(
                         selected = customInterval.isNotEmpty() || (interval !in listOf(7, 14, 30)),
-                        onClick = { if (customInterval.isEmpty()) customInterval = interval.toString() }
+                        onClick = { if (customInterval.isEmpty()) customInterval = interval.toString() },
                     )
                     OutlinedTextField(
                         value = customInterval,
@@ -852,7 +923,7 @@ private fun BackgroundRefreshEditDialog(
                         text = "Refresh Profile",
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(top = 8.dp)
+                        modifier = Modifier.padding(top = 8.dp),
                     )
 
                     UpdateWatch.RefreshProfile.entries.forEach { p ->
@@ -864,7 +935,7 @@ private fun BackgroundRefreshEditDialog(
                         ) {
                             RadioButton(
                                 selected = profile == p,
-                                onClick = null
+                                onClick = null,
                             )
                             Text(
                                 text = when (p) {
@@ -872,7 +943,7 @@ private fun BackgroundRefreshEditDialog(
                                     UpdateWatch.RefreshProfile.SLOW_PERIODIC -> "Slow periodic"
                                     UpdateWatch.RefreshProfile.RAPID_IRREGULAR -> "Rapid / irregular"
                                 },
-                                modifier = Modifier.padding(start = 8.dp)
+                                modifier = Modifier.padding(start = 8.dp),
                             )
                         }
                     }
@@ -894,6 +965,6 @@ private fun BackgroundRefreshEditDialog(
             androidx.compose.material3.TextButton(onClick = onDismissRequest) {
                 Text(stringResource(MR.strings.action_cancel))
             }
-        }
+        },
     )
 }

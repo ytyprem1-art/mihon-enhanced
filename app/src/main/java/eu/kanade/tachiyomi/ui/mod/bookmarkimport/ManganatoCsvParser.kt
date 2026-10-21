@@ -38,7 +38,7 @@ object ManganatoCsvParser {
         ALREADY_IN_LIBRARY,
         IMPORTED_WITH_PROGRESS,
         CHAPTER_SYNC_FAILED,
-        IMPORT_FAILED
+        IMPORT_FAILED,
     }
 
     class InvalidHeaderException(message: String) : Exception(message)
@@ -83,7 +83,9 @@ object ManganatoCsvParser {
         val requiredHeaders = listOf("id", "title", "viewed", "url")
 
         if (!header.containsAll(requiredHeaders)) {
-            throw InvalidHeaderException("Missing required headers. Expected: ID, Title, Viewed, URL. Found: ${rawLines[0].joinToString()}")
+            throw InvalidHeaderException(
+                "Missing required headers. Expected: ID, Title, Viewed, URL. Found: ${rawLines[0].joinToString()}",
+            )
         }
 
         val idIdx = header.indexOf("id")
@@ -116,8 +118,8 @@ object ManganatoCsvParser {
                     domain = domain,
                     mangaPath = path,
                     isValid = urlError == null && rawTitle.isNotEmpty(),
-                    validationError = urlError ?: if (rawTitle.isEmpty()) "Title is empty" else null
-                )
+                    validationError = urlError ?: if (rawTitle.isEmpty()) "Title is empty" else null,
+                ),
             )
         }
 
@@ -192,7 +194,11 @@ object ManganatoCsvParser {
             val host = (uri.host ?: "").lowercase(Locale.ROOT).removePrefix("www.")
 
             if (host.isEmpty() || !SUPPORTED_DOMAINS.contains(host)) {
-                return Triple(if (host.isEmpty()) null else host, null, "Unsupported domain: ${if (host.isEmpty()) "unknown" else host}")
+                return Triple(
+                    if (host.isEmpty()) null else host,
+                    null,
+                    "Unsupported domain: ${if (host.isEmpty()) "unknown" else host}",
+                )
             }
 
             val path = uri.path

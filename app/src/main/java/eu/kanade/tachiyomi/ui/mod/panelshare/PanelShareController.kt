@@ -10,15 +10,15 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.lifecycleScope
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
+import eu.kanade.tachiyomi.data.saver.Image
+import eu.kanade.tachiyomi.data.saver.ImageSaver
+import eu.kanade.tachiyomi.data.saver.Location
 import eu.kanade.tachiyomi.ui.mod.EnhancedPreferences
 import eu.kanade.tachiyomi.ui.reader.model.ReaderChapter
 import eu.kanade.tachiyomi.util.storage.cacheImageDir
 import eu.kanade.tachiyomi.util.storage.getUriCompat
 import eu.kanade.tachiyomi.util.system.toShareIntent
 import eu.kanade.tachiyomi.util.system.toast
-import eu.kanade.tachiyomi.data.saver.Image
-import eu.kanade.tachiyomi.data.saver.ImageSaver
-import eu.kanade.tachiyomi.data.saver.Location
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -92,7 +92,9 @@ class PanelShareController {
                     current.selection = DocumentCrop(.1, top + .1, .9, top + .8).clamped(document.height)
                 }
             }
-        } catch (e: Exception) { activity.toast(e.message ?: "Reader is not ready") }
+        } catch (e: Exception) {
+            activity.toast(e.message ?: "Reader is not ready")
+        }
     }
 
     fun dismiss() {
@@ -118,8 +120,12 @@ class PanelShareController {
 
     suspend fun enhance(current: PanelShareSession, preset: CropEnhancement) = action(current) {
         val original = requireNotNull(current.originalPreview)
-        val result = if (preset == CropEnhancement.Original) original else withContext(Dispatchers.Default) {
-            original.copy(Bitmap.Config.ARGB_8888, true).also { it.applyCropEnhancement(preset) }
+        val result = if (preset == CropEnhancement.Original) {
+            original
+        } else {
+            withContext(Dispatchers.Default) {
+                original.copy(Bitmap.Config.ARGB_8888, true).also { it.applyCropEnhancement(preset) }
+            }
         }
         current.preview = result
         current.preset = preset
@@ -132,21 +138,27 @@ class PanelShareController {
         current.upscaleJob = currentCoroutineContext()[Job]
         val directory = File(context.cacheDir, "imgupscale").apply { mkdirs() }
         withContext(Dispatchers.IO) {
-            directory.listFiles()?.filter { System.currentTimeMillis() - it.lastModified() > 86_400_000L }?.forEach { it.delete() }
+            directory.listFiles()?.filter {
+                System.currentTimeMillis() - it.lastModified() > 86_400_000L
+            }?.forEach { it.delete() }
         }
         val upload = File(directory, "input-${UUID.randomUUID()}.jpg")
         val output = File(directory, "result-${UUID.randomUUID()}.image")
         var accepted = false
         try {
             val cached = current.upscaleCache[scale]
-            val result = if (cached != null && cached.scale == scale && cached.file.isFile) cached else {
+            val result = if (cached != null && cached.scale == scale && cached.file.isFile) {
+                cached
+            } else {
                 current.upscaleStatus = "Preparing original crop…"
                 val input = current.document.render(current.selection, ImgUpscaleProtocol.MAX_INPUT_SIDE)
                 try {
                     withContext(Dispatchers.IO) {
                         upload.outputStream().use { check(input.compress(Bitmap.CompressFormat.JPEG, 95, it)) }
                     }
-                } finally { input.recycle() }
+                } finally {
+                    input.recycle()
+                }
                 ImgUpscaleClient().upscale(upload, output, scale) { status -> current.upscaleStatus = status }
             }
             val preview = withContext(Dispatchers.Default) { ImgUpscaleClient.preview(result) }
@@ -170,7 +182,10 @@ class PanelShareController {
     }
 
     suspend fun prepareChat(current: PanelShareSession) = action(current) {
-        require(FirebaseAuth.getInstance().currentUser != null && Injekt.get<EnhancedPreferences>().globalChatUsername.get().isNotBlank()) {
+        require(
+            FirebaseAuth.getInstance().currentUser != null &&
+                Injekt.get<EnhancedPreferences>().globalChatUsername.get().isNotBlank(),
+        ) {
             "Open Chat and set your username first"
         }
         current.panel = withContext(Dispatchers.Default) {
@@ -182,12 +197,24 @@ class PanelShareController {
         val upscale = current.upscaleResult?.takeIf { current.useUpscale }
         if (upscale != null) {
             require(upscale.file.isFile) { "Upscaled image is no longer cached. Please upscale again." }
-            val extension = when (upscale.mimeType) { "image/png" -> "png"; "image/webp" -> "webp"; else -> "jpg" }
+            val extension = when (upscale.mimeType) {
+                "image/png" -> "png"
+                "image/webp" -> "webp"
+                else -> "jpg"
+            }
             val output = File(context.cacheImageDir.apply { mkdirs() }, "panel-export-${UUID.randomUUID()}.$extension")
             withContext(Dispatchers.IO) { upscale.file.copyTo(output) }
             if (gallery) {
                 current.savedImage = withContext(Dispatchers.IO) {
-                    ImageSaver(context).save(Image.Page(output::inputStream, "Panel-${System.currentTimeMillis()}", Location.Pictures.create("Crops")))
+                    ImageSaver(
+                        context,
+                    ).save(
+                        Image.Page(
+                            output::inputStream,
+                            "Panel-${System.currentTimeMillis()}",
+                            Location.Pictures.create("Crops"),
+                        ),
+                    )
                 }
                 current.savedMimeType = upscale.mimeType
                 context.toast("Saved in Pictures/Mihon/Crops · ${upscale.width} × ${upscale.height}")
@@ -203,14 +230,25 @@ class PanelShareController {
             val output = withContext(Dispatchers.IO) {
                 val directory = context.cacheImageDir.apply { mkdirs() }
                 // Only expire our own exported cache files; a share target may read them after this dialog closes.
-                directory.listFiles()?.filter { it.name.startsWith("panel-export-") && System.currentTimeMillis() - it.lastModified() > 172_800_000L }?.forEach { it.delete() }
+                directory.listFiles()?.filter {
+                    it.name.startsWith("panel-export-") &&
+                        System.currentTimeMillis() - it.lastModified() > 172_800_000L
+                }?.forEach { it.delete() }
                 File(directory, "panel-export-${UUID.randomUUID()}.png").also { output ->
                     output.outputStream().use { check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)) }
                 }
             }
             if (gallery) {
                 current.savedImage = withContext(Dispatchers.IO) {
-                    ImageSaver(context).save(Image.Page(output::inputStream, "Panel-${System.currentTimeMillis()}", Location.Pictures.create("Crops")))
+                    ImageSaver(
+                        context,
+                    ).save(
+                        Image.Page(
+                            output::inputStream,
+                            "Panel-${System.currentTimeMillis()}",
+                            Location.Pictures.create("Crops"),
+                        ),
+                    )
                 }
                 current.savedMimeType = "image/png"
                 context.toast("Saved in Pictures/Mihon/Crops · ${bitmap.width} × ${bitmap.height}")
@@ -218,18 +256,32 @@ class PanelShareController {
             } else {
                 context.startActivity(output.getUriCompat(context).toShareIntent(context, "image/png"))
             }
-        } finally { bitmap.recycle() }
+        } finally {
+            bitmap.recycle()
+        }
     }
 
     private suspend fun action(current: PanelShareSession, block: suspend () -> Unit) {
         if (current.busy) return
         current.busy = true
         current.error = null
-        try { block() }
-        catch (e: CancellationException) { throw e }
-        catch (e: OutOfMemoryError) { current.error = "Not enough memory. Please select a smaller area." }
-        catch (e: Exception) { current.error = e.message ?: "Could not process this image" }
-        finally { current.busy = false }
+        try {
+            block()
+        } catch (
+            e: CancellationException,
+        ) {
+            throw e
+        } catch (
+            e: OutOfMemoryError,
+        ) {
+            current.error = "Not enough memory. Please select a smaller area."
+        } catch (
+            e: Exception,
+        ) {
+            current.error = e.message ?: "Could not process this image"
+        } finally {
+            current.busy = false
+        }
     }
 
     suspend fun send(current: PanelShareSession): Boolean {

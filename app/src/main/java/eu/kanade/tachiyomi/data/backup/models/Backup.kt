@@ -1,8 +1,8 @@
 package eu.kanade.tachiyomi.data.backup.models
 
+import eu.kanade.tachiyomi.ui.mod.personalfavorites.PersonalFavorite
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.protobuf.ProtoNumber
-import eu.kanade.tachiyomi.ui.mod.personalfavorites.PersonalFavorite
 
 @Serializable
 data class Backup(
@@ -21,9 +21,11 @@ data class Backup(
     @ProtoNumber(603) var backupUpdateWatch: List<BackupUpdateWatch> = emptyList(),
     @ProtoNumber(604) var backupUpdateWatchInbox: List<BackupUpdateWatchInboxItem> = emptyList(),
     @ProtoNumber(605) var backupUpdateWatchHistory: List<BackupUpdateWatchHistory> = emptyList(),
-    @ProtoNumber(607) var updateWatchDismissals: List<eu.kanade.tachiyomi.ui.mod.updatewatch.UpdateWatchDismissal> = emptyList(),
+    @ProtoNumber(607) var updateWatchDismissals: List<eu.kanade.tachiyomi.ui.mod.updatewatch.UpdateWatchDismissal> =
+        emptyList(),
     @ProtoNumber(606) var personalFavorites: List<PersonalFavorite> = emptyList(),
-    @ProtoNumber(608) var updatesCategories: List<eu.kanade.tachiyomi.ui.mod.updatecategory.UpdatesCategoryBackup> = emptyList(),
+    @ProtoNumber(608) var updatesCategories: List<eu.kanade.tachiyomi.ui.mod.updatecategory.UpdatesCategoryBackup> =
+        emptyList(),
 )
 
 @Serializable

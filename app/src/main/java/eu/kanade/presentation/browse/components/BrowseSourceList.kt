@@ -15,9 +15,9 @@ import androidx.paging.LoadState
 import androidx.paging.compose.LazyPagingItems
 import eu.kanade.presentation.library.components.CommonMangaItemDefaults
 import eu.kanade.presentation.library.components.MangaListItem
-import eu.kanade.tachiyomi.ui.mod.helper.TitleMatchHelper
 import eu.kanade.tachiyomi.ui.mod.browselibrarystyle.browseLibraryAppearance
 import eu.kanade.tachiyomi.ui.mod.browselibrarystyle.browseLibraryOutline
+import eu.kanade.tachiyomi.ui.mod.helper.TitleMatchHelper
 import kotlinx.coroutines.flow.StateFlow
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.manga.model.MangaCover
@@ -82,17 +82,23 @@ private fun BrowseSourceListItem(
             if (smartJumpTitle != null) {
                 val matchType = TitleMatchHelper.getMatchType(smartJumpTitle, manga.title)
                 if (matchType != TitleMatchHelper.MatchType.NONE) {
-                    val label = if (matchType == TitleMatchHelper.MatchType.EXACT_MATCH) "Exact match" else "Title match"
+                    val label = if (matchType ==
+                        TitleMatchHelper.MatchType.EXACT_MATCH
+                    ) {
+                        "Exact match"
+                    } else {
+                        "Title match"
+                    }
                     Text(
                         text = label,
                         style = MaterialTheme.typography.labelSmall,
                         modifier = Modifier
                             .background(
                                 MaterialTheme.colorScheme.tertiaryContainer,
-                                MaterialTheme.shapes.extraSmall
+                                MaterialTheme.shapes.extraSmall,
                             )
                             .padding(horizontal = 4.dp, vertical = 2.dp),
-                        color = MaterialTheme.colorScheme.onTertiaryContainer
+                        color = MaterialTheme.colorScheme.onTertiaryContainer,
                     )
                 }
             }

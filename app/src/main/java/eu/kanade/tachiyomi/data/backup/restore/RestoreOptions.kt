@@ -34,7 +34,8 @@ data class RestoreOptions(
     )
 
     fun canRestore() = libraryEntries || categories || appSettings || extensionStores || sourceSettings ||
-        modHistoryCategories || modHistoryGroups || modLinkedSources || modUpdateWatch || modPersonalFavorites || modUpdatesCategories
+        modHistoryCategories || modHistoryGroups || modLinkedSources || modUpdateWatch || modPersonalFavorites ||
+        modUpdatesCategories
 
     companion object {
         val options = listOf(

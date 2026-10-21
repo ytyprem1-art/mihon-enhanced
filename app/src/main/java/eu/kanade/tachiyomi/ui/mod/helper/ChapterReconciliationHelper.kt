@@ -10,7 +10,7 @@ object ChapterReconciliationHelper {
 
     fun findReconcilableCandidate(
         sourceChapter: Chapter,
-        pool: List<Chapter>
+        pool: List<Chapter>,
     ): Chapter? {
         if (!sourceChapter.isRecognizedNumber) return null
 

@@ -188,7 +188,9 @@ class UpdatesViewModel(
             .toUpdateItems()
             .applyFilters(itemPreferences)
     }
-        .combine(updatesCategories.changes) { items, categories -> items.filter { categories.includes(it.update.sourceId) } }
+        .combine(updatesCategories.changes) { items, categories ->
+            items.filter { categories.includes(it.update.sourceId) }
+        }
         .flowOn(Dispatchers.Default)
         .stateIn(viewModelScope + subscriberGate, SharingStarted.Eagerly, null)
 

@@ -57,12 +57,14 @@ interface EnhancedGraph {
     val enhancedSyncPreferences: eu.kanade.domain.sync.SyncPreferences
     val enhancedUpdateManga: eu.kanade.domain.manga.interactor.UpdateManga
     val enhancedUpdateMangaFromRemote: mihon.domain.source.interactor.UpdateMangaFromRemote
-    val enhancedUpdateWatchDiagnosticsPreferences: eu.kanade.tachiyomi.ui.mod.updatewatch.worker.UpdateWatchDiagnosticsPreferences
+    val enhancedUpdateWatchDiagnosticsPreferences:
+        eu.kanade.tachiyomi.ui.mod.updatewatch.worker.UpdateWatchDiagnosticsPreferences
 }
 
 internal fun enhancedInjektBindings(graph: EnhancedGraph): Map<java.lang.reflect.Type, () -> Any> = mapOf(
     eu.kanade.domain.source.interactor.GetEnabledSources::class.java to { graph.enhancedGetEnabledSources },
-    eu.kanade.tachiyomi.ui.mod.bookmarkimport.BookmarkImportPreferences::class.java to { graph.enhancedBookmarkImportPreferences },
+    eu.kanade.tachiyomi.ui.mod.bookmarkimport.BookmarkImportPreferences::class.java to
+        { graph.enhancedBookmarkImportPreferences },
     tachiyomi.domain.chapter.repository.ChapterRepository::class.java to { graph.enhancedChapterRepository },
     eu.kanade.tachiyomi.ui.chat.ChatManager::class.java to { graph.enhancedChatManager },
     tachiyomi.data.Database::class.java to { graph.enhancedDatabase },
@@ -70,27 +72,36 @@ internal fun enhancedInjektBindings(graph: EnhancedGraph): Map<java.lang.reflect
     tachiyomi.domain.download.service.DownloadPreferences::class.java to { graph.enhancedDownloadPreferences },
     eu.kanade.tachiyomi.ui.mod.EnhancedPreferences::class.java to { graph.enhancedEnhancedPreferences },
     tachiyomi.domain.manga.interactor.FetchInterval::class.java to { graph.enhancedFetchInterval },
-    mihon.domain.chapter.interactor.FilterChaptersForDownload::class.java to { graph.enhancedFilterChaptersForDownload },
+    mihon.domain.chapter.interactor.FilterChaptersForDownload::class.java to {
+        graph.enhancedFilterChaptersForDownload
+    },
     tachiyomi.domain.category.interactor.GetCategories::class.java to { graph.enhancedGetCategories },
     tachiyomi.domain.chapter.interactor.GetChaptersByMangaId::class.java to { graph.enhancedGetChaptersByMangaId },
     tachiyomi.domain.history.interactor.GetHistory::class.java to { graph.enhancedGetHistory },
     tachiyomi.domain.manga.interactor.GetLibraryManga::class.java to { graph.enhancedGetLibraryManga },
     tachiyomi.domain.manga.interactor.GetManga::class.java to { graph.enhancedGetManga },
-    tachiyomi.domain.manga.interactor.GetMangaByUrlAndSourceId::class.java to { graph.enhancedGetMangaByUrlAndSourceId },
-    tachiyomi.domain.manga.interactor.GetMergedMangaForDownloading::class.java to { graph.enhancedGetMergedMangaForDownloading },
+    tachiyomi.domain.manga.interactor.GetMangaByUrlAndSourceId::class.java to {
+        graph.enhancedGetMangaByUrlAndSourceId
+    },
+    tachiyomi.domain.manga.interactor.GetMergedMangaForDownloading::class.java to
+        { graph.enhancedGetMergedMangaForDownloading },
     tachiyomi.domain.manga.interactor.GetMergedReferencesById::class.java to { graph.enhancedGetMergedReferencesById },
     tachiyomi.domain.track.interactor.GetTracks::class.java to { graph.enhancedGetTracks },
     tachiyomi.domain.history.interactor.GetUpdateWatchHistory::class.java to { graph.enhancedGetUpdateWatchHistory },
     tachiyomi.domain.history.interactor.GetUpdateWatchInbox::class.java to { graph.enhancedGetUpdateWatchInbox },
     eu.kanade.tachiyomi.data.sync.service.GoogleDriveService::class.java to { graph.enhancedGoogleDriveService },
-    eu.kanade.tachiyomi.data.sync.service.GoogleDriveSyncService::class.java to { graph.enhancedGoogleDriveSyncService },
+    eu.kanade.tachiyomi.data.sync.service.GoogleDriveSyncService::class.java to {
+        graph.enhancedGoogleDriveSyncService
+    },
     tachiyomi.domain.history.repository.HistoryRepository::class.java to { graph.enhancedHistoryRepository },
     tachiyomi.domain.library.service.LibraryPreferences::class.java to { graph.enhancedLibraryPreferences },
     tachiyomi.domain.history.interactor.ManageHistoryCategory::class.java to { graph.enhancedManageHistoryCategory },
     tachiyomi.domain.history.group.interactor.ManageHistoryGroups::class.java to { graph.enhancedManageHistoryGroups },
-    tachiyomi.domain.source.linked.interactor.ManageLinkedSourceGroup::class.java to { graph.enhancedManageLinkedSourceGroup },
+    tachiyomi.domain.source.linked.interactor.ManageLinkedSourceGroup::class.java to
+        { graph.enhancedManageLinkedSourceGroup },
     tachiyomi.domain.history.interactor.ManageUpdateWatch::class.java to { graph.enhancedManageUpdateWatch },
-    tachiyomi.domain.history.interactor.ManageUpdateWatchHistory::class.java to { graph.enhancedManageUpdateWatchHistory },
+    tachiyomi.domain.history.interactor.ManageUpdateWatchHistory::class.java to
+        { graph.enhancedManageUpdateWatchHistory },
     tachiyomi.domain.history.interactor.ManageUpdateWatchInbox::class.java to { graph.enhancedManageUpdateWatchInbox },
     tachiyomi.domain.manga.repository.MangaRepository::class.java to { graph.enhancedMangaRepository },
     eu.kanade.tachiyomi.network.NetworkHelper::class.java to { graph.enhancedNetworkHelper },
@@ -106,5 +117,6 @@ internal fun enhancedInjektBindings(graph: EnhancedGraph): Map<java.lang.reflect
     eu.kanade.domain.sync.SyncPreferences::class.java to { graph.enhancedSyncPreferences },
     eu.kanade.domain.manga.interactor.UpdateManga::class.java to { graph.enhancedUpdateManga },
     mihon.domain.source.interactor.UpdateMangaFromRemote::class.java to { graph.enhancedUpdateMangaFromRemote },
-    eu.kanade.tachiyomi.ui.mod.updatewatch.worker.UpdateWatchDiagnosticsPreferences::class.java to { graph.enhancedUpdateWatchDiagnosticsPreferences },
+    eu.kanade.tachiyomi.ui.mod.updatewatch.worker.UpdateWatchDiagnosticsPreferences::class.java to
+        { graph.enhancedUpdateWatchDiagnosticsPreferences },
 )

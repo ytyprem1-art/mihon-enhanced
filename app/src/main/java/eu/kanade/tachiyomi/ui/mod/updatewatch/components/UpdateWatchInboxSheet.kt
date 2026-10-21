@@ -1,6 +1,9 @@
 package eu.kanade.tachiyomi.ui.mod.updatewatch.components
 
-import eu.kanade.tachiyomi.ui.mod.util.dateUploadMillis
+import android.Manifest
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -12,45 +15,41 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.ErrorOutline
+import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.core.content.PermissionChecker
 import eu.kanade.presentation.components.AdaptiveSheet
 import eu.kanade.presentation.manga.components.MangaCover
 import eu.kanade.presentation.util.relativeTimeSpanString
 import eu.kanade.tachiyomi.ui.mod.updatewatch.EnrichedUpdateWatchInboxItem
+import eu.kanade.tachiyomi.ui.mod.util.dateUploadMillis
+import kotlinx.coroutines.launch
 import tachiyomi.domain.history.model.UpdateWatchInboxItem
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.presentation.core.components.FastScrollLazyColumn
 import tachiyomi.presentation.core.components.material.padding
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import java.time.temporal.ChronoUnit
-import java.time.LocalDate
-
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.material.icons.outlined.Notifications
-import androidx.compose.material.icons.outlined.NotificationsActive
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.platform.LocalContext
-import androidx.core.content.PermissionChecker
-import kotlinx.coroutines.launch
-import android.Manifest
-import android.os.Build
 
 @Composable
 fun UpdateWatchInboxSheet(
@@ -67,7 +66,7 @@ fun UpdateWatchInboxSheet(
     val snackbarHostState = remember { SnackbarHostState() }
 
     val permissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
+        ActivityResultContracts.RequestPermission(),
     ) { isGranted ->
         if (isGranted) {
             onToggleNotifications(true)
@@ -86,18 +85,18 @@ fun UpdateWatchInboxSheet(
     ) {
         Column(
             modifier = Modifier
-                .padding(vertical = MaterialTheme.padding.medium)
+                .padding(vertical = MaterialTheme.padding.medium),
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = MaterialTheme.padding.medium),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
                     text = "Tracked Updates Inbox",
                     style = MaterialTheme.typography.titleLarge,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
                 )
 
                 IconButton(
@@ -109,7 +108,12 @@ fun UpdateWatchInboxSheet(
                             }
                         } else {
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                when (PermissionChecker.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS)) {
+                                when (
+                                    PermissionChecker.checkSelfPermission(
+                                        context,
+                                        Manifest.permission.POST_NOTIFICATIONS,
+                                    )
+                                ) {
                                     PermissionChecker.PERMISSION_GRANTED -> {
                                         onToggleNotifications(true)
                                         scope.launch {
@@ -127,12 +131,20 @@ fun UpdateWatchInboxSheet(
                                 }
                             }
                         }
-                    }
+                    },
                 ) {
                     Icon(
-                        imageVector = if (notificationsEnabled) Icons.Outlined.NotificationsActive else Icons.Outlined.Notifications,
+                        imageVector = if (notificationsEnabled) {
+                            Icons.Outlined.NotificationsActive
+                        } else {
+                            Icons.Outlined.Notifications
+                        },
                         contentDescription = "Toggle Notifications",
-                        tint = if (notificationsEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        tint = if (notificationsEnabled) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
                     )
                 }
             }
@@ -145,15 +157,15 @@ fun UpdateWatchInboxSheet(
                 Text(
                     text = "No new updates found yet.",
                     style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(MaterialTheme.padding.medium)
+                    modifier = Modifier.padding(MaterialTheme.padding.medium),
                 )
             } else {
                 FastScrollLazyColumn(
-                    contentPadding = PaddingValues(bottom = MaterialTheme.padding.medium)
+                    contentPadding = PaddingValues(bottom = MaterialTheme.padding.medium),
                 ) {
                     items(
                         items = items,
-                        key = { it.item.mangaId }
+                        key = { it.item.mangaId },
                     ) { item ->
                         UpdateWatchInboxRow(
                             enriched = item,
@@ -162,7 +174,7 @@ fun UpdateWatchInboxSheet(
                                 onClickItem(item.item.mangaId)
                             },
                             onDelete = { onDeleteItem(item.item.mangaId) },
-                            onDisableAutoRefresh = { onDisableAutoRefresh(item.item.mangaId) }
+                            onDisableAutoRefresh = { onDisableAutoRefresh(item.item.mangaId) },
                         )
                     }
                 }
@@ -185,7 +197,7 @@ private fun UpdateWatchInboxRow(
             .fillMaxWidth()
             .clickable(onClick = onClick)
             .padding(horizontal = MaterialTheme.padding.medium, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         if (enriched.manga != null) {
             MangaCover.Book(
@@ -202,7 +214,7 @@ private fun UpdateWatchInboxRow(
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
 
             if (isWarning) {
@@ -211,38 +223,38 @@ private fun UpdateWatchInboxRow(
                         imageVector = Icons.Outlined.ErrorOutline,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.padding(end = 4.dp).height(16.dp)
+                        modifier = Modifier.padding(end = 4.dp).height(16.dp),
                     )
                     Text(
                         text = "No update found for ${item.milestone} days.",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.error
+                        color = MaterialTheme.colorScheme.error,
                     )
                 }
                 Text(
                     text = "Auto refresh is still enabled.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
 
                 Row(
                     modifier = Modifier.padding(top = 8.dp),
-                    horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp),
                 ) {
                     androidx.compose.material3.TextButton(
                         onClick = onDelete, // "Keep auto refresh" or "Dismiss warning"
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
                         modifier = Modifier.height(32.dp),
                         colors = ButtonDefaults.textButtonColors(
-                            contentColor = MaterialTheme.colorScheme.primary
-                        )
+                            contentColor = MaterialTheme.colorScheme.primary,
+                        ),
                     ) {
                         Text("Keep", style = MaterialTheme.typography.labelLarge)
                     }
                     androidx.compose.material3.OutlinedButton(
                         onClick = onDisableAutoRefresh,
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
-                        modifier = Modifier.height(32.dp)
+                        modifier = Modifier.height(32.dp),
                     ) {
                         Text("Disable", style = MaterialTheme.typography.labelLarge)
                     }
@@ -253,7 +265,7 @@ private fun UpdateWatchInboxRow(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
                 )
 
                 val chapterText = if (item.chapterCount > 1) "${item.chapterCount} new chapters" else "1 new chapter"
@@ -261,14 +273,14 @@ private fun UpdateWatchInboxRow(
                     text = chapterText,
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.primary
+                    color = MaterialTheme.colorScheme.primary,
                 )
 
                 Text(
                     text = item.chapterRange,
                     style = MaterialTheme.typography.bodySmall,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
                 )
 
                 if (enriched.latestChapter != null) {
@@ -276,14 +288,14 @@ private fun UpdateWatchInboxRow(
                     Text(
                         text = "Latest release: $releaseTimeText",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
 
                 Text(
                     text = "Found ${relativeTimeSpanString(item.lastFoundAt)}",
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
@@ -293,7 +305,7 @@ private fun UpdateWatchInboxRow(
                 Icon(
                     imageVector = Icons.Outlined.Close,
                     contentDescription = "Dismiss",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
@@ -316,7 +328,9 @@ private fun formatReleaseTime(timestamp: Long): String {
             date == today.minusDays(1) -> "yesterday"
             else -> {
                 val daysBetween = ChronoUnit.DAYS.between(date, today)
-                if (daysBetween < 7) "$daysBetween days ago" else {
+                if (daysBetween < 7) {
+                    "$daysBetween days ago"
+                } else {
                     dateTime.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM))
                 }
             }

@@ -157,7 +157,12 @@ object SettingsMainScreen : Screen() {
                         TextPreferenceWidget(
                             title = "Kelola update",
                             subtitle = "Cek versi baru dan terbitkan update sebagai admin",
-                            onPreferenceClick = { navigator.navigate(eu.kanade.tachiyomi.ui.mod.appupdate.ModUpdateSettingsScreen, twoPane) },
+                            onPreferenceClick = {
+                                navigator.navigate(
+                                    eu.kanade.tachiyomi.ui.mod.appupdate.ModUpdateSettingsScreen,
+                                    twoPane,
+                                )
+                            },
                         )
                     }
                 }

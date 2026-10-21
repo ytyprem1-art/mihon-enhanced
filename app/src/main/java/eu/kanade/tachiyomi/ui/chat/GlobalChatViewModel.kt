@@ -20,7 +20,6 @@ class GlobalChatViewModel : androidx.lifecycle.ViewModel() {
     private val mutableState = kotlinx.coroutines.flow.MutableStateFlow<GlobalChatState>(GlobalChatState.NeedUsername)
     val state: kotlinx.coroutines.flow.StateFlow<GlobalChatState> = mutableState
 
-
     private val auth = FirebaseAuth.getInstance()
     private val db = FirebaseFirestore.getInstance()
     private val chatManager: ChatManager = Injekt.get()
@@ -209,7 +208,7 @@ class GlobalChatViewModel : androidx.lifecycle.ViewModel() {
                 "text" to text,
                 "timestamp" to FieldValue.serverTimestamp(),
                 "isMangaShare" to false,
-                "readBy" to mapOf(uid to System.currentTimeMillis())
+                "readBy" to mapOf(uid to System.currentTimeMillis()),
             )
 
             currentState.replyingTo?.let { reply ->

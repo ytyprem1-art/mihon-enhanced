@@ -14,7 +14,9 @@ internal fun htmxReactionError(value: String?): String? {
     if (event == null && !value.split(',').any { it.trim() == "raiseError" }) return null
     val message = when (event) {
         is JsonPrimitive -> event.contentOrNull
-        is JsonObject -> listOf("message", "value", "detail").firstNotNullOfOrNull { (event[it] as? JsonPrimitive)?.contentOrNull }
+        is JsonObject -> listOf("message", "value", "detail").firstNotNullOfOrNull {
+            (event[it] as? JsonPrimitive)?.contentOrNull
+        }
         else -> null
     }
     return message?.let { Jsoup.parseBodyFragment(it).text().take(240) }?.takeIf { it.isNotBlank() }

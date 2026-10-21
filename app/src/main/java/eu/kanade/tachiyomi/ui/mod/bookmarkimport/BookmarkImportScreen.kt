@@ -2,7 +2,18 @@ package eu.kanade.tachiyomi.ui.mod.bookmarkimport
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -11,8 +22,24 @@ import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.FileOpen
 import androidx.compose.material.icons.outlined.PlayArrow
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -99,7 +126,8 @@ class BookmarkImportScreen : Screen() {
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text(
-                                    text = "The installed Manganato source and its selected Preferred Mirror will be used during import.",
+                                    text = "The installed Manganato source and its selected " +
+                                        "Preferred Mirror will be used during import.",
                                     style = MaterialTheme.typography.bodyMedium,
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
@@ -113,7 +141,7 @@ class BookmarkImportScreen : Screen() {
                         Button(
                             onClick = { pickFileLauncher.launch("text/*") },
                             modifier = Modifier.fillMaxWidth(),
-                            enabled = !state.isMatching && !state.isImporting
+                            enabled = !state.isMatching && !state.isImporting,
                         ) {
                             Icon(imageVector = Icons.Outlined.FileOpen, contentDescription = null)
                             Spacer(modifier = Modifier.width(8.dp))
@@ -133,32 +161,39 @@ class BookmarkImportScreen : Screen() {
                         if (state.isValid) {
                             ValidPreview(state)
 
-                            state.diagnosticResult?.takeIf { !state.isMatching && !state.isImporting }?.let { diagnostic ->
+                            state.diagnosticResult?.takeIf {
+                                !state.isMatching &&
+                                    !state.isImporting
+                            }?.let { diagnostic ->
                                 Surface(
                                     color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.3f),
                                     shape = MaterialTheme.shapes.medium,
-                                    modifier = Modifier.fillMaxWidth().padding(top = MaterialTheme.padding.small)
+                                    modifier = Modifier.fillMaxWidth().padding(top = MaterialTheme.padding.small),
                                 ) {
                                     Column(modifier = Modifier.padding(MaterialTheme.padding.medium)) {
                                         Text(
                                             text = "Debug Diagnostics (ExternalBookmarkImport):",
                                             style = MaterialTheme.typography.labelLarge,
                                             fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.tertiary
+                                            color = MaterialTheme.colorScheme.tertiary,
                                         )
                                         androidx.compose.foundation.text.selection.SelectionContainer {
                                             Text(
                                                 text = diagnostic,
                                                 style = MaterialTheme.typography.bodySmall,
-                                                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                                                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
                                             )
                                         }
                                     }
                                 }
                             }
 
-                            val mikotoIndex = state.entries.indexOfFirst { it.title.contains("Mikoto and Rei", ignoreCase = true) }
-                            if (mikotoIndex != -1 && state.entries[mikotoIndex].matchResult == ManganatoCsvParser.MatchResult.UNCHECKED && !state.isMatching && !state.isImporting) {
+                            val mikotoIndex =
+                                state.entries.indexOfFirst { it.title.contains("Mikoto and Rei", ignoreCase = true) }
+                            if (mikotoIndex != -1 &&
+                                state.entries[mikotoIndex].matchResult == ManganatoCsvParser.MatchResult.UNCHECKED &&
+                                !state.isMatching && !state.isImporting
+                            ) {
                                 OutlinedButton(
                                     onClick = { viewModel.checkMatches(mikotoIndex) },
                                     modifier = Modifier.fillMaxWidth(),
@@ -171,13 +206,16 @@ class BookmarkImportScreen : Screen() {
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(top = MaterialTheme.padding.small),
-                                horizontalArrangement = Arrangement.spacedBy(MaterialTheme.padding.small)
+                                horizontalArrangement = Arrangement.spacedBy(MaterialTheme.padding.small),
                             ) {
                                 if (state.isMatching) {
                                     Button(
                                         onClick = viewModel::cancelMatching,
                                         modifier = Modifier.weight(1f),
-                                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor =
+                                            MaterialTheme.colorScheme.error,
+                                        ),
                                     ) {
                                         Text("Cancel matching")
                                     }
@@ -185,13 +223,27 @@ class BookmarkImportScreen : Screen() {
                                     Button(
                                         onClick = viewModel::cancelImport,
                                         modifier = Modifier.weight(1f),
-                                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor =
+                                            MaterialTheme.colorScheme.error,
+                                        ),
                                     ) {
                                         Text("Cancel import")
                                     }
                                 } else {
-                                    val hasUnchecked = state.entries.any { it.isValid && (it.matchResult == ManganatoCsvParser.MatchResult.UNCHECKED || it.matchResult == ManganatoCsvParser.MatchResult.CANCELED) }
-                                    val hasRetryableMatches = state.entries.any { it.matchResult == ManganatoCsvParser.MatchResult.NETWORK_TIMEOUT || it.matchResult == ManganatoCsvParser.MatchResult.SOURCE_ERROR }
+                                    val hasUnchecked = state.entries.any {
+                                        it.isValid &&
+                                            (
+                                                it.matchResult == ManganatoCsvParser.MatchResult.UNCHECKED ||
+                                                    it.matchResult == ManganatoCsvParser.MatchResult.CANCELED
+                                                )
+                                    }
+                                    val hasRetryableMatches =
+                                        state.entries.any {
+                                            it.matchResult ==
+                                                ManganatoCsvParser.MatchResult.NETWORK_TIMEOUT ||
+                                                it.matchResult == ManganatoCsvParser.MatchResult.SOURCE_ERROR
+                                        }
 
                                     if (hasUnchecked) {
                                         Button(
@@ -209,8 +261,14 @@ class BookmarkImportScreen : Screen() {
                                         }
                                     }
 
-                                    val matchedCount = state.entries.count { it.matchResult == ManganatoCsvParser.MatchResult.MATCHED }
-                                    val hasRetryableImports = state.entries.any { it.matchResult == ManganatoCsvParser.MatchResult.IMPORT_FAILED || it.matchResult == ManganatoCsvParser.MatchResult.CHAPTER_SYNC_FAILED }
+                                    val matchedCount =
+                                        state.entries.count { it.matchResult == ManganatoCsvParser.MatchResult.MATCHED }
+                                    val hasRetryableImports =
+                                        state.entries.any {
+                                            it.matchResult ==
+                                                ManganatoCsvParser.MatchResult.IMPORT_FAILED ||
+                                                it.matchResult == ManganatoCsvParser.MatchResult.CHAPTER_SYNC_FAILED
+                                        }
 
                                     if (matchedCount > 0) {
                                         Button(
@@ -243,7 +301,7 @@ class BookmarkImportScreen : Screen() {
                             text = "Row Preview",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(horizontal = MaterialTheme.padding.medium, vertical = 8.dp)
+                            modifier = Modifier.padding(horizontal = MaterialTheme.padding.medium, vertical = 8.dp),
                         )
                     }
 
@@ -267,13 +325,29 @@ class BookmarkImportScreen : Screen() {
     private fun SessionPrompt(state: BookmarkImportViewModel.State, viewModel: BookmarkImportViewModel) {
         Card(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)),
+            colors = CardDefaults.cardColors(
+                containerColor =
+                MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f),
+            ),
         ) {
-            Column(modifier = Modifier.padding(MaterialTheme.padding.medium), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(
+                modifier = Modifier.padding(MaterialTheme.padding.medium),
+                verticalArrangement =
+                Arrangement.spacedBy(8.dp),
+            ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(imageVector = Icons.Outlined.PlayArrow, contentDescription = null, tint = MaterialTheme.colorScheme.secondary)
+                    Icon(
+                        imageVector = Icons.Outlined.PlayArrow,
+                        contentDescription = null,
+                        tint =
+                        MaterialTheme.colorScheme.secondary,
+                    )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(text = "Unfinished session detected", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text(
+                        text = "Unfinished session detected",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                    )
                 }
                 Text(text = "File: ${state.sessionFileName}", style = MaterialTheme.typography.bodyMedium)
                 Text(text = "Total items: ${state.rowCount}", style = MaterialTheme.typography.bodySmall)
@@ -281,16 +355,21 @@ class BookmarkImportScreen : Screen() {
                 Row(horizontalArrangement = Arrangement.spacedBy(MaterialTheme.padding.small)) {
                     Button(
                         onClick = viewModel::resumeSession,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
                     ) {
                         Text("Resume")
                     }
                     OutlinedButton(
                         onClick = viewModel::discardSession,
                         modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
                     ) {
-                        Icon(imageVector = Icons.Outlined.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Icon(
+                            imageVector = Icons.Outlined.Delete,
+                            contentDescription = null,
+                            modifier =
+                            Modifier.size(16.dp),
+                        )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text("Discard")
                     }
@@ -303,9 +382,10 @@ class BookmarkImportScreen : Screen() {
     private fun ImportProgress(state: BookmarkImportViewModel.State) {
         Column(
             modifier = Modifier.padding(top = MaterialTheme.padding.small),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+            verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            val progress = if (state.importTotal > 0) state.importCurrent.toFloat() / state.importTotal.toFloat() else 0f
+            val progress =
+                if (state.importTotal > 0) state.importCurrent.toFloat() / state.importTotal.toFloat() else 0f
             LinearProgressIndicator(
                 progress = { progress },
                 modifier = Modifier.fillMaxWidth(),
@@ -313,12 +393,12 @@ class BookmarkImportScreen : Screen() {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(
                     text = "Importing items...",
-                    style = MaterialTheme.typography.labelSmall
+                    style = MaterialTheme.typography.labelSmall,
                 )
                 Text(
                     text = "${state.importCurrent} / ${state.importTotal}",
                     style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
                 )
             }
         }
@@ -327,7 +407,8 @@ class BookmarkImportScreen : Screen() {
     @Composable
     private fun ImportConfirmationDialog(state: BookmarkImportViewModel.State, viewModel: BookmarkImportViewModel) {
         val matchedCount = state.entries.count { it.matchResult == ManganatoCsvParser.MatchResult.MATCHED }
-        val withProgressCount = state.entries.count { it.matchResult == ManganatoCsvParser.MatchResult.MATCHED && it.viewedChapter != null }
+        val withProgressCount =
+            state.entries.count { it.matchResult == ManganatoCsvParser.MatchResult.MATCHED && it.viewedChapter != null }
         val unreadCount = matchedCount - withProgressCount
 
         AlertDialog(
@@ -341,8 +422,9 @@ class BookmarkImportScreen : Screen() {
 
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Note: Imported manga will be added to your Library. Auto Refresh will remain OFF for these titles.",
-                        style = MaterialTheme.typography.bodySmall
+                        text = "Note: Imported manga will be added to your Library. " +
+                            "Auto Refresh will remain OFF for these titles.",
+                        style = MaterialTheme.typography.bodySmall,
                     )
                 }
             },
@@ -355,7 +437,7 @@ class BookmarkImportScreen : Screen() {
                 TextButton(onClick = viewModel::hideImportConfirmation) {
                     Text(stringResource(MR.strings.action_cancel))
                 }
-            }
+            },
         )
     }
 
@@ -412,7 +494,9 @@ class BookmarkImportScreen : Screen() {
                 DetailRow("Failed", state.failedCount.toString())
             }
 
-            if (state.importTotal > 0 || state.importImportedCount > 0 || state.importExistedCount > 0 || state.importFailedCount > 0) {
+            if (state.importTotal > 0 || state.importImportedCount > 0 || state.importExistedCount > 0 ||
+                state.importFailedCount > 0
+            ) {
                 HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
                 DetailRow("Imported", state.importImportedCount.toString())
                 DetailRow("Already in Library", state.importExistedCount.toString())
@@ -428,7 +512,7 @@ class BookmarkImportScreen : Screen() {
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = MaterialTheme.padding.medium, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+            verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
@@ -437,7 +521,7 @@ class BookmarkImportScreen : Screen() {
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
                 )
                 if (!entry.isValid || entry.matchResult != ManganatoCsvParser.MatchResult.UNCHECKED) {
                     val statusText = when (entry.matchResult) {
@@ -459,26 +543,34 @@ class BookmarkImportScreen : Screen() {
                             ManganatoCsvParser.MatchResult.MATCHED,
                             ManganatoCsvParser.MatchResult.IMPORTED,
                             ManganatoCsvParser.MatchResult.ALREADY_IN_LIBRARY,
-                            ManganatoCsvParser.MatchResult.IMPORTED_WITH_PROGRESS
+                            ManganatoCsvParser.MatchResult.IMPORTED_WITH_PROGRESS,
                         )
                         Icon(
                             imageVector = if (isSuccess) Icons.Outlined.CheckCircle else Icons.Outlined.ErrorOutline,
                             contentDescription = null,
-                            tint = if (isSuccess) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
-                            modifier = Modifier.size(16.dp)
+                            tint = if (isSuccess) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.error
+                            },
+                            modifier = Modifier.size(16.dp),
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             text = statusText,
                             style = MaterialTheme.typography.labelSmall,
-                            color = if (isSuccess) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                            color = if (isSuccess) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.error
+                            },
                         )
                     } else if (!entry.isValid) {
                         Icon(
                             imageVector = Icons.Outlined.ErrorOutline,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(16.dp),
                         )
                     }
                 }
@@ -488,17 +580,17 @@ class BookmarkImportScreen : Screen() {
                 Surface(
                     color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
                     shape = MaterialTheme.shapes.extraSmall,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Column(modifier = Modifier.padding(8.dp)) {
                         Text(
                             text = "Resolved: ${entry.resolvedManga.title}",
                             style = MaterialTheme.typography.bodySmall,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                         Text(
                             text = "Source: ${entry.resolvedSourceName} · ${entry.resolvedManga.url}",
-                            style = MaterialTheme.typography.labelSmall
+                            style = MaterialTheme.typography.labelSmall,
                         )
                     }
                 }
@@ -507,7 +599,11 @@ class BookmarkImportScreen : Screen() {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 StatusBadge(
                     text = entry.viewedChapter?.let { "Ch. $it" } ?: "Unread",
-                    color = if (entry.viewedChapter != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary
+                    color = if (entry.viewedChapter != null) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.secondary
+                    },
                 )
                 entry.domain?.let {
                     StatusBadge(text = it, color = MaterialTheme.colorScheme.tertiary)
@@ -519,14 +615,14 @@ class BookmarkImportScreen : Screen() {
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
 
             if (!entry.isValid) {
                 Text(
                     text = entry.validationError ?: "Invalid row",
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.error
+                    color = MaterialTheme.colorScheme.error,
                 )
             }
         }
@@ -543,7 +639,7 @@ class BookmarkImportScreen : Screen() {
                 text = text,
                 style = MaterialTheme.typography.labelSmall,
                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
             )
         }
     }
@@ -557,9 +653,16 @@ class BookmarkImportScreen : Screen() {
     ) {
         Card(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+            colors = CardDefaults.cardColors(
+                containerColor =
+                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+            ),
         ) {
-            Column(modifier = Modifier.padding(MaterialTheme.padding.medium), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(
+                modifier = Modifier.padding(MaterialTheme.padding.medium),
+                verticalArrangement =
+                Arrangement.spacedBy(8.dp),
+            ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(imageVector = icon, contentDescription = null, tint = iconTint)
                     Spacer(modifier = Modifier.width(8.dp))

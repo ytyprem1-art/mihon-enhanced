@@ -1,13 +1,13 @@
 package tachiyomi.domain.history.interactor
 
 import dev.zacsweers.metro.Inject
+import eu.kanade.tachiyomi.source.mod.MERGED_SOURCE_ID
 import tachiyomi.domain.chapter.interactor.GetChaptersByMangaId
 import tachiyomi.domain.chapter.interactor.GetMergedChaptersByMangaId
 import tachiyomi.domain.chapter.model.Chapter
 import tachiyomi.domain.chapter.service.getChapterSort
 import tachiyomi.domain.history.repository.HistoryRepository
 import tachiyomi.domain.manga.interactor.GetManga
-import eu.kanade.tachiyomi.source.mod.MERGED_SOURCE_ID
 import kotlin.math.max
 
 @Inject

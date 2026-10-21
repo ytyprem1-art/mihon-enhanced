@@ -9,7 +9,9 @@ data class CommentBody(val text: String, val media: List<String>, val spoiler: B
 fun commentBody(comment: ChapterComment): CommentBody {
     val doc = Jsoup.parseBodyFragment(comment.content)
     doc.select("script, style, iframe, object, embed").remove()
-    val spoiler = comment.isSpoiler || doc.select(".spoiler, .wl-spoiler, .bbCodeBlock--spoiler, [data-spoiler], details").isNotEmpty()
+    val spoiler =
+        comment.isSpoiler ||
+            doc.select(".spoiler, .wl-spoiler, .bbCodeBlock--spoiler, [data-spoiler], details").isNotEmpty()
     val media = (comment.media + doc.select("img[src]").map { it.attr("src") })
         .mapNotNull { it.toHttpUrlOrNull()?.toString() }.distinct()
     doc.select("br").forEach { it.replaceWith(org.jsoup.nodes.TextNode("\n")) }
@@ -25,7 +27,14 @@ fun flattenCommentReplies(replies: List<ChapterComment>, parent: String): List<C
         if (depth > 32) return
         items.forEach { item ->
             if (seen.add(item.id)) {
-                result.add(item.copy(replyTo = item.replyTo?.takeUnless { it.toLongOrNull() != null } ?: author, replies = emptyList()))
+                result.add(
+                    item.copy(
+                        replyTo = item.replyTo?.takeUnless {
+                            it.toLongOrNull() != null
+                        } ?: author,
+                        replies = emptyList(),
+                    ),
+                )
                 visit(item.replies, item.author, depth + 1)
             }
         }

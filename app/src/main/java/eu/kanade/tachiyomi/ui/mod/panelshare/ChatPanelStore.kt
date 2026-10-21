@@ -67,7 +67,8 @@ object ChatPanelStore {
                     _cleanupError.value = null
                 } catch (e: Exception) {
                     Log.e("ChatPanelStore", "Chat retention cleanup failed", e)
-                    _cleanupError.value = "Old messages could not be removed. Check your connection and Firestore rules."
+                    _cleanupError.value =
+                        "Old messages could not be removed. Check your connection and Firestore rules."
                 }
             }
         }
@@ -78,7 +79,9 @@ object ChatPanelStore {
         val messages = db.collection("global_chat").orderBy("timestamp", Query.Direction.DESCENDING)
         ChatRetention.prune(object : ChatRetention.Store<DocumentSnapshot> {
             // Use the server, not an incomplete offline cache, to determine the retention boundary.
-            override suspend fun newest(limit: Long) = messages.limit(limit).get(Source.SERVER).awaitPanelTask().documents
+            override suspend fun newest(
+                limit: Long,
+            ) = messages.limit(limit).get(Source.SERVER).awaitPanelTask().documents
 
             override suspend fun olderThan(boundary: DocumentSnapshot, limit: Long) =
                 messages.startAfter(boundary).limit(limit).get(Source.SERVER).awaitPanelTask().documents
@@ -89,7 +92,9 @@ object ChatPanelStore {
                     batch.delete(doc.reference)
                     if (doc.getBoolean("hasPanel") == true) batch.delete(db.collection(PANELS).document(doc.id))
                     if (doc.getBoolean("hasGif") == true && doc.getString("gifUrl") == null) {
-                        batch.delete(db.collection(eu.kanade.tachiyomi.ui.mod.chatgif.ChatGifStore.COLLECTION).document(doc.id))
+                        batch.delete(
+                            db.collection(eu.kanade.tachiyomi.ui.mod.chatgif.ChatGifStore.COLLECTION).document(doc.id),
+                        )
                     }
                 }
                 // Message + blob deletion is atomic; an interruption cannot leave orphaned panels.

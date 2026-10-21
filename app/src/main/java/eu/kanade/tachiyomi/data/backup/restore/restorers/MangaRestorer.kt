@@ -1,24 +1,24 @@
 package eu.kanade.tachiyomi.data.backup.restore.restorers
 
-import dev.zacsweers.metro.Inject
-import tachiyomi.domain.manga.model.Manga
-import eu.kanade.tachiyomi.data.backup.models.BackupHistoryCategory
-import eu.kanade.tachiyomi.data.backup.models.BackupMergedMangaReference
-import tachiyomi.domain.history.interactor.ManageHistoryCategory
-import tachiyomi.domain.manga.interactor.GetMangaByUrlAndSourceId
-import tachiyomi.data.Database
-import tachiyomi.data.manga.MergedMangaMapper
 import app.cash.sqldelight.async.coroutines.awaitAsList
-import kotlinx.coroutines.flow.first
+import dev.zacsweers.metro.Inject
 import eu.kanade.tachiyomi.data.backup.models.BackupCategory
+import eu.kanade.tachiyomi.data.backup.models.BackupHistoryCategory
 import eu.kanade.tachiyomi.data.backup.models.BackupManga
+import eu.kanade.tachiyomi.data.backup.models.BackupMergedMangaReference
+import kotlinx.coroutines.flow.first
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
+import tachiyomi.data.Database
+import tachiyomi.data.manga.MergedMangaMapper
 import tachiyomi.domain.backup.model.RestoredHistory
 import tachiyomi.domain.backup.model.RestoredManga
 import tachiyomi.domain.backup.repository.RestoreRepository
 import tachiyomi.domain.category.interactor.GetCategories
+import tachiyomi.domain.history.interactor.ManageHistoryCategory
 import tachiyomi.domain.manga.interactor.FetchInterval
+import tachiyomi.domain.manga.interactor.GetMangaByUrlAndSourceId
+import tachiyomi.domain.manga.model.Manga
 import kotlin.time.Clock
 
 @Inject
@@ -91,7 +91,13 @@ class MangaRestorer(
     ): Long {
         restore(listOf(backupManga), backupCategories)
         val manga = checkNotNull(getMangaByUrlAndSourceId.await(backupManga.url, backupManga.source))
-        if (restoreHistoryCategories) restoreHistoryCategory(manga, backupManga.historyCategory, backupHistoryCategories)
+        if (restoreHistoryCategories) {
+            restoreHistoryCategory(
+                manga,
+                backupManga.historyCategory,
+                backupHistoryCategories,
+            )
+        }
         return manga.id
     }
 

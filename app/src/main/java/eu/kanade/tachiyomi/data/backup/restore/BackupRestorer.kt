@@ -2,7 +2,6 @@ package eu.kanade.tachiyomi.data.backup.restore
 
 import android.content.Context
 import android.net.Uri
-import eu.kanade.tachiyomi.ui.mod.personalfavorites.PersonalFavoriteBackup
 import dev.zacsweers.metro.Assisted
 import dev.zacsweers.metro.AssistedFactory
 import dev.zacsweers.metro.AssistedInject
@@ -18,9 +17,10 @@ import eu.kanade.tachiyomi.data.backup.models.BackupSourcePreferences
 import eu.kanade.tachiyomi.data.backup.restore.restorers.CategoriesRestorer
 import eu.kanade.tachiyomi.data.backup.restore.restorers.ExtensionStoreRestorer
 import eu.kanade.tachiyomi.data.backup.restore.restorers.MangaRestorer
-import eu.kanade.tachiyomi.data.backup.restore.restorers.PreferenceRestorer
 import eu.kanade.tachiyomi.data.backup.restore.restorers.ModRestorer
+import eu.kanade.tachiyomi.data.backup.restore.restorers.PreferenceRestorer
 import eu.kanade.tachiyomi.data.download.DownloadCache
+import eu.kanade.tachiyomi.ui.mod.personalfavorites.PersonalFavoriteBackup
 import eu.kanade.tachiyomi.util.system.createFileInCacheDir
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -161,17 +161,23 @@ class BackupRestorer(
                 logcat(LogPriority.INFO) { "BackupRestorer: Calling modRestorer.restoreGroups" }
                 val mangaUrlToTitleMap = backup.backupManga.associate { (it.source to it.url) to it.title }
                 val skippedCount = modRestorer.restoreGroups(
-                    backupLinkedSourceGroups = if (options.modLinkedSources) backup.backupLinkedSourceGroups else emptyList(),
-                    backupManualHistoryGroups = if (options.modHistoryGroups) backup.backupManualHistoryGroups else emptyList(),
+                    backupLinkedSourceGroups =
+                    if (options.modLinkedSources) backup.backupLinkedSourceGroups else emptyList(),
+                    backupManualHistoryGroups =
+                    if (options.modHistoryGroups) backup.backupManualHistoryGroups else emptyList(),
                     backupUpdateWatch = if (options.modUpdateWatch) backup.backupUpdateWatch else emptyList(),
                     backupUpdateWatchInbox = if (options.modUpdateWatch) backup.backupUpdateWatchInbox else emptyList(),
-                    backupUpdateWatchHistory = if (options.modUpdateWatch) backup.backupUpdateWatchHistory else emptyList(),
+                    backupUpdateWatchHistory =
+                    if (options.modUpdateWatch) backup.backupUpdateWatchHistory else emptyList(),
                     mangaUrlToIdMap = mangaUrlToIdMap,
                     mangaUrlToTitleMap = mangaUrlToTitleMap,
                     onSkip = { errors.add(Date() to it) },
                 )
                 if (skippedCount > 0) {
-                    errors.add(Date() to "Mod Restoration: Skipped $skippedCount grouped/tracked items (manga not found in backup or device).")
+                    errors.add(
+                        Date() to "Mod Restoration: Skipped $skippedCount grouped/tracked " +
+                            "items (manga not found in backup or device).",
+                    )
                 }
             }
             if (options.modUpdateWatch) manageUpdateWatchInbox.reconcileDismissed()
@@ -226,7 +232,12 @@ class BackupRestorer(
                     database.transaction {
                         chunk.forEach {
                             ensureActive()
-                            val id = mangaRestorer.restore(it, backupCategories, backupHistoryCategories, restoreHistoryCategories)
+                            val id = mangaRestorer.restore(
+                                it,
+                                backupCategories,
+                                backupHistoryCategories,
+                                restoreHistoryCategories,
+                            )
                             ids.add(id)
                         }
                     }
@@ -247,7 +258,12 @@ class BackupRestorer(
                         ensureActive()
 
                         try {
-                            val id = mangaRestorer.restore(it, backupCategories, backupHistoryCategories, restoreHistoryCategories)
+                            val id = mangaRestorer.restore(
+                                it,
+                                backupCategories,
+                                backupHistoryCategories,
+                                restoreHistoryCategories,
+                            )
                             mangaUrlToIdMap[it.source to it.url] = id
                         } catch (e: Exception) {
                             ensureActive()

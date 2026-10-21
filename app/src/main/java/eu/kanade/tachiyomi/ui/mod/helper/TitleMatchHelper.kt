@@ -42,7 +42,7 @@ object TitleMatchHelper {
     enum class MatchType {
         NONE,
         TITLE_MATCH,
-        EXACT_MATCH
+        EXACT_MATCH,
     }
 
     fun getMatchType(original: String, result: String): MatchType {

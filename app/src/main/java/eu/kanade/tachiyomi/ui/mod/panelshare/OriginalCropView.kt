@@ -20,9 +20,9 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.math.abs
+import kotlin.math.hypot
 import kotlin.math.max
 import kotlin.math.min
-import kotlin.math.hypot
 
 /** Viewport tiles and crop coordinates stay independent: scrolling never moves the selected panel. */
 class OriginalCropView(context: Context) : View(context) {
@@ -50,20 +50,24 @@ class OriginalCropView(context: Context) : View(context) {
     var onNeedNext: () -> Unit = {}
     var onError: (String) -> Unit = {}
     private val pixelsPerUnit get() = width * zoom
-    private val scaleDetector = ScaleGestureDetector(context, object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
-        override fun onScale(detector: ScaleGestureDetector): Boolean {
-            val x = worldX(detector.focusX)
-            val y = worldY(detector.focusY)
-            val minimum = minimumZoom()
-            zoom = (zoom * detector.scaleFactor).coerceIn(minimum, max(8.0, minimum * 8))
-            horizontal = detector.focusX - x * pixelsPerUnit
-            top = y - detector.focusY / pixelsPerUnit
-            constrain()
-            updateTemplateSelection()
-            invalidate()
-            return true
-        }
-    })
+    private val scaleDetector =
+        ScaleGestureDetector(
+            context,
+            object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
+                override fun onScale(detector: ScaleGestureDetector): Boolean {
+                    val x = worldX(detector.focusX)
+                    val y = worldY(detector.focusY)
+                    val minimum = minimumZoom()
+                    zoom = (zoom * detector.scaleFactor).coerceIn(minimum, max(8.0, minimum * 8))
+                    horizontal = detector.focusX - x * pixelsPerUnit
+                    top = y - detector.focusY / pixelsPerUnit
+                    constrain()
+                    updateTemplateSelection()
+                    invalidate()
+                    return true
+                }
+            },
+        )
 
     fun update(doc: OriginalCropDocument, crop: DocumentCrop, mode: CropTemplate, deviceRatio: Double) {
         document = doc
@@ -116,8 +120,10 @@ class OriginalCropView(context: Context) : View(context) {
     private fun screenY(y: Double) = ((y - top) * pixelsPerUnit).toFloat()
 
     private fun handles() = listOf(
-        selection.left to selection.top, selection.right to selection.top,
-        selection.right to selection.bottom, selection.left to selection.bottom,
+        selection.left to selection.top,
+        selection.right to selection.top,
+        selection.right to selection.bottom,
+        selection.left to selection.bottom,
         (selection.left + selection.right) / 2 to selection.top,
         (selection.left + selection.right) / 2 to selection.bottom,
     )
@@ -168,7 +174,10 @@ class OriginalCropView(context: Context) : View(context) {
         canvas.clipRect(0, 0, width, height)
         canvas.drawColor(Color.rgb(25, 25, 25))
         val doc = document
-        if (doc == null || doc.height <= 0 || width <= 0) { canvas.restore(); return }
+        if (doc == null || doc.height <= 0 || width <= 0) {
+            canvas.restore()
+            return
+        }
         val bottom = top + height / pixelsPerUnit
         for ((index, page) in doc.pages.withIndex()) {
             if (page.bottom < top || page.top > bottom) continue
@@ -181,7 +190,13 @@ class OriginalCropView(context: Context) : View(context) {
                 val end = min(page.height, y + strip)
                 val key = "$index:$y:$sample"
                 val tile = tiles.get(key)
-                val target = RectF(screenX(0.0), screenY(page.top + y.toDouble() / page.width), screenX(1.0), screenY(page.top + end.toDouble() / page.width))
+                val target =
+                    RectF(
+                        screenX(0.0),
+                        screenY(page.top + y.toDouble() / page.width),
+                        screenX(1.0),
+                        screenY(page.top + end.toDouble() / page.width),
+                    )
                 if (tile != null) {
                     canvas.drawBitmap(tile, null, target, imagePaint)
                 } else {
@@ -195,26 +210,51 @@ class OriginalCropView(context: Context) : View(context) {
                                 val bitmap = withContext(Dispatchers.IO) {
                                     @Suppress("DEPRECATION")
                                     val decoder = BitmapRegionDecoder.newInstance(page.file.absolutePath, false)
-                                    try { decoder.decodeRegion(region, BitmapFactory.Options().apply { inSampleSize = tileSample }) }
-                                    finally { decoder.recycle() }
+                                    try {
+                                        decoder.decodeRegion(
+                                            region,
+                                            BitmapFactory.Options().apply {
+                                                inSampleSize =
+                                                    tileSample
+                                            },
+                                        )
+                                    } finally {
+                                        decoder.recycle()
+                                    }
                                 }
-                                if (bitmap != null) tiles.put(key, bitmap) else {
+                                if (bitmap != null) {
+                                    tiles.put(key, bitmap)
+                                } else {
                                     failed.add(key)
                                     onError("This image format could not be previewed. Try another page.")
                                 }
-                            } catch (e: kotlinx.coroutines.CancellationException) { throw e }
-                            catch (_: Exception) {
+                            } catch (e: kotlinx.coroutines.CancellationException) {
+                                throw e
+                            } catch (_: Exception) {
                                 failed.add(key)
                                 onError("This image format could not be previewed. Try another page.")
+                            } finally {
+                                pending.remove(key)
+                                invalidate()
                             }
-                            finally { pending.remove(key); invalidate() }
                         }
                     }
                 }
                 y = end
             }
         }
-        val box = if (template == CropTemplate.Custom) RectF(screenX(selection.left), screenY(selection.top), screenX(selection.right), screenY(selection.bottom)) else frame()
+        val box = if (template ==
+            CropTemplate.Custom
+        ) {
+            RectF(
+                screenX(selection.left),
+                screenY(selection.top),
+                screenX(selection.right),
+                screenY(selection.bottom),
+            )
+        } else {
+            frame()
+        }
         // Exclude the crop from the dimming operation entirely, including while partially offscreen.
         canvas.save()
         canvas.clipOutRect(box)
@@ -256,12 +296,18 @@ class OriginalCropView(context: Context) : View(context) {
                     val upper = screenY(selection.top)
                     val lower = screenY(selection.bottom)
                     val edge = 12 * resources.displayMetrics.density
-                    val onHorizontalEdge = event.x in left..right && (abs(event.y - upper) < edge || abs(event.y - lower) < edge)
-                    val onVerticalEdge = event.y in upper..lower && (abs(event.x - left) < edge || abs(event.x - right) < edge)
+                    val onHorizontalEdge =
+                        event.x in left..right && (abs(event.y - upper) < edge || abs(event.y - lower) < edge)
+                    val onVerticalEdge =
+                        event.y in upper..lower && (abs(event.x - left) < edge || abs(event.x - right) < edge)
                     dragMode = if (onHorizontalEdge || onVerticalEdge) 6 else -1
                 }
             }
-            MotionEvent.ACTION_POINTER_DOWN -> { twoFinger = true; lastX = event.getX(0); lastY = event.getY(0) }
+            MotionEvent.ACTION_POINTER_DOWN -> {
+                twoFinger = true
+                lastX = event.getX(0)
+                lastY = event.getY(0)
+            }
             MotionEvent.ACTION_MOVE -> {
                 val dx = event.x - lastX
                 val dy = event.y - lastY
@@ -279,16 +325,20 @@ class OriginalCropView(context: Context) : View(context) {
                     selection = if (dragMode in CropHandle.entries.indices) {
                         resizeCropHandle(s, CropHandle.entries[dragMode], x, y, doc.height)
                     } else {
-                            val moveX = (dx / pixelsPerUnit).coerceIn(-s.left, 1 - s.right)
-                            val moveY = (dy / pixelsPerUnit).coerceIn(-s.top, doc.height - s.bottom)
-                            DocumentCrop(s.left + moveX, s.top + moveY, s.right + moveX, s.bottom + moveY)
+                        val moveX = (dx / pixelsPerUnit).coerceIn(-s.left, 1 - s.right)
+                        val moveY = (dy / pixelsPerUnit).coerceIn(-s.top, doc.height - s.bottom)
+                        DocumentCrop(s.left + moveX, s.top + moveY, s.right + moveX, s.bottom + moveY)
                     }.clamped(doc.height)
                     onSelection(selection)
                     // Resize near an edge to keep extending the document-anchored crop.
-                    if (dragMode in CropHandle.entries.indices && event.y > height - 40 * resources.displayMetrics.density) {
+                    if (dragMode in CropHandle.entries.indices &&
+                        event.y > height - 40 * resources.displayMetrics.density
+                    ) {
                         top += 18 / pixelsPerUnit
                         constrain()
-                    } else if (dragMode in CropHandle.entries.indices && event.y < 40 * resources.displayMetrics.density) {
+                    } else if (dragMode in CropHandle.entries.indices &&
+                        event.y < 40 * resources.displayMetrics.density
+                    ) {
                         top -= 18 / pixelsPerUnit
                         constrain()
                     }
@@ -297,7 +347,10 @@ class OriginalCropView(context: Context) : View(context) {
                 lastY = event.y
                 invalidate()
             }
-            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> { parent?.requestDisallowInterceptTouchEvent(false); performClick() }
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                parent?.requestDisallowInterceptTouchEvent(false)
+                performClick()
+            }
         }
         return true
     }

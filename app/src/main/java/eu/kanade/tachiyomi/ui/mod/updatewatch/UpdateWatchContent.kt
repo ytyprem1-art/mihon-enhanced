@@ -1,6 +1,5 @@
 package eu.kanade.tachiyomi.ui.mod.updatewatch
 
-import eu.kanade.tachiyomi.ui.mod.util.dateUploadMillis
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -20,6 +19,7 @@ import eu.kanade.presentation.history.components.HistoryItem
 import eu.kanade.presentation.util.relativeTimeSpanString
 import eu.kanade.tachiyomi.ui.mod.updatewatch.helper.UpdateWatchOverdueHelper
 import eu.kanade.tachiyomi.ui.mod.updatewatch.helper.UpdateWatchRefreshHelper
+import eu.kanade.tachiyomi.ui.mod.util.dateUploadMillis
 import tachiyomi.domain.history.model.HistoryWithRelations
 import tachiyomi.domain.history.model.UpdateWatch
 import tachiyomi.domain.manga.model.MangaCover
@@ -56,7 +56,7 @@ fun UpdateWatchContent(
                         is UpdateWatchUiModel.Header -> "header-${it.title}"
                         is UpdateWatchUiModel.Item -> "item-${it.trackingManga.id}"
                     }
-                }
+                },
             ) { item ->
                 when (item) {
                     is UpdateWatchUiModel.Header -> {
@@ -67,19 +67,29 @@ fun UpdateWatchContent(
                     }
                     is UpdateWatchUiModel.Item -> {
                         val sourceManager = remember { Injekt.get<SourceManager>() }
-                        val sourceName = eu.kanade.tachiyomi.ui.mod.components.rememberSourceName(item.trackingManga.source)
+                        val sourceName =
+                            eu.kanade.tachiyomi.ui.mod.components.rememberSourceName(item.trackingManga.source)
 
                         var showMenu by remember { mutableStateOf(false) }
 
                         val warningText = when {
-                            item.daysSinceRelease == item.expectedIntervalDays.toLong() - 1 -> "Expected update tomorrow"
-                            item.daysSinceRelease == item.expectedIntervalDays.toLong() -> "Expected update around today"
-                            else -> stringResource(UpdateWatchOverdueHelper.getOverdueMessage(item.daysSinceRelease, state.funOverdueMessages))
+                            item.daysSinceRelease == item.expectedIntervalDays.toLong() - 1 ->
+                                "Expected update tomorrow"
+                            item.daysSinceRelease == item.expectedIntervalDays.toLong() ->
+                                "Expected update around today"
+                            else -> stringResource(
+                                UpdateWatchOverdueHelper.getOverdueMessage(
+                                    item.daysSinceRelease,
+                                    state.funOverdueMessages,
+                                ),
+                            )
                         }
 
                         val warningColor = when {
-                            item.daysSinceRelease == item.expectedIntervalDays.toLong() - 1 -> MaterialTheme.colorScheme.secondary
-                            item.daysSinceRelease == item.expectedIntervalDays.toLong() -> MaterialTheme.colorScheme.primary
+                            item.daysSinceRelease == item.expectedIntervalDays.toLong() - 1 ->
+                                MaterialTheme.colorScheme.secondary
+                            item.daysSinceRelease == item.expectedIntervalDays.toLong() ->
+                                MaterialTheme.colorScheme.primary
                             else -> MaterialTheme.colorScheme.error
                         }
 
@@ -101,9 +111,13 @@ fun UpdateWatchContent(
                                     isMangaFavorite = item.trackingManga.favorite,
                                     url = item.trackingManga.thumbnailUrl,
                                     lastModified = item.trackingManga.coverLastModified,
-                                )
+                                ),
                             ),
-                            secondaryText = "Ch. ${eu.kanade.presentation.util.formatChapterNumber(item.latestChapter.chapterNumber)} · $sourceName",
+                            secondaryText =
+                            "Ch. ${eu.kanade.presentation.util.formatChapterNumber(
+                                item.latestChapter.chapterNumber,
+                            )} " +
+                                "· $sourceName",
                             onClickCover = { onClickManga(item.trackingManga.id) },
                             onClickResume = { onClickManga(item.trackingManga.id) },
                             onClickDelete = null,
@@ -146,7 +160,7 @@ fun UpdateWatchContent(
                                             refreshProfile = item.refreshProfile,
                                             latestChapterUploadDate = item.latestChapter.dateUploadMillis,
                                             lastCheckAt = item.lastBackgroundCheckAt,
-                                            now = System.currentTimeMillis()
+                                            now = System.currentTimeMillis(),
                                         )
 
                                         val nextTimeText = when {
@@ -158,16 +172,26 @@ fun UpdateWatchContent(
                                                         "Recovery pending · ${eligibility.bucket}"
                                                     }
                                                 } else {
-                                                    val time = java.time.Instant.ofEpochMilli(eligibility.nextEligibleAt ?: 0L)
-                                                        .atZone(java.time.ZoneId.systemDefault())
-                                                        .format(java.time.format.DateTimeFormatter.ofLocalizedTime(java.time.format.FormatStyle.SHORT))
+                                                    val time =
+                                                        java.time.Instant.ofEpochMilli(eligibility.nextEligibleAt ?: 0L)
+                                                            .atZone(java.time.ZoneId.systemDefault())
+                                                            .format(
+                                                                java.time.format.DateTimeFormatter.ofLocalizedTime(
+                                                                    java.time.format.FormatStyle.SHORT,
+                                                                ),
+                                                            )
                                                     "Next check around $time · ${eligibility.bucket}"
                                                 }
                                             }
                                             eligibility.status == UpdateWatchRefreshHelper.RefreshStatus.WAITING -> {
-                                                val date = java.time.Instant.ofEpochMilli(eligibility.nextEligibleAt ?: 0L)
-                                                    .atZone(java.time.ZoneId.systemDefault())
-                                                    .format(java.time.format.DateTimeFormatter.ofLocalizedDate(java.time.format.FormatStyle.SHORT))
+                                                val date =
+                                                    java.time.Instant.ofEpochMilli(eligibility.nextEligibleAt ?: 0L)
+                                                        .atZone(java.time.ZoneId.systemDefault())
+                                                        .format(
+                                                            java.time.format.DateTimeFormatter.ofLocalizedDate(
+                                                                java.time.format.FormatStyle.SHORT,
+                                                            ),
+                                                        )
                                                 "Auto refresh starts $date · ${eligibility.bucket}"
                                             }
                                             else -> null
@@ -182,7 +206,7 @@ fun UpdateWatchContent(
                                         }
                                     }
                                 }
-                            }
+                            },
                         )
                     }
                 }

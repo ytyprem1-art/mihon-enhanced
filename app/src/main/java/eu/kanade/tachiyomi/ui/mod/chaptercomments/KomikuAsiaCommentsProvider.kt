@@ -1,9 +1,16 @@
 package eu.kanade.tachiyomi.ui.mod.chaptercomments
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.CancellationException
-import kotlinx.serialization.json.*
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.longOrNull
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import org.jsoup.Jsoup
 import java.time.Instant
@@ -18,6 +25,7 @@ class KomikuAsiaCommentsProvider(
     private val commentsMutex = Mutex()
     private var resolvedIdentity: Identity? = null
     private var loadedComments: List<JsonObject>? = null
+
     @Volatile
     private var canonicalDiscussionUrl: String? = null
     override val discussionUrl: String? get() = canonicalDiscussionUrl
@@ -36,20 +44,25 @@ class KomikuAsiaCommentsProvider(
                 val url = apiUrl("/api/v2/comics/$comicId/chapters/id/$chapterId")
                 val chapter = Json.parseToJsonElement(transport.get(url, target.url)) as? JsonObject
                     ?: error("Identitas chapter Komiku Asia tidak valid")
-                check((chapter["id"] as? JsonPrimitive)?.longOrNull == chapterId &&
-                    (chapter["comicId"] as? JsonPrimitive)?.longOrNull == comicId
+                check(
+                    (chapter["id"] as? JsonPrimitive)?.longOrNull == chapterId &&
+                        (chapter["comicId"] as? JsonPrimitive)?.longOrNull == comicId,
                 ) { "Identitas chapter Komiku Asia tidak cocok" }
-                val number = chapter.text("n")?.takeIf { it.toDoubleOrNull()?.let { n -> n >= 0 && n.isFinite() } == true }
-                    ?: error("Nomor chapter Komiku Asia tidak valid")
+                val number =
+                    chapter.text("n")?.takeIf { it.toDoubleOrNull()?.let { n -> n >= 0 && n.isFinite() } == true }
+                        ?: error("Nomor chapter Komiku Asia tidak valid")
                 // Browser URL is optional: comments still work if the separate slug lookup fails.
                 try {
-                    val comics = Json.parseToJsonElement(transport.get(apiUrl("/api/v2/comics?ids=$comicId&perPage=1"), target.url)) as? JsonObject
+                    val comics = Json.parseToJsonElement(
+                        transport.get(apiUrl("/api/v2/comics?ids=$comicId&perPage=1"), target.url),
+                    ) as? JsonObject
                     val comic = (comics?.get("items") as? JsonArray)?.mapNotNull { it as? JsonObject }
                         ?.firstOrNull { (it["id"] as? JsonPrimitive)?.longOrNull == comicId }
                     comic?.text("slug")?.takeIf { it.isNotBlank() }?.let { slug ->
-                        canonicalDiscussionUrl = target.url.toHttpUrl().newBuilder().encodedPath("/").query(null).fragment(null)
-                            .addPathSegment("read").addPathSegment("id").addPathSegment(slug)
-                            .addPathSegment("ch$number-$chapterId").addPathSegment("").build().toString()
+                        canonicalDiscussionUrl =
+                            target.url.toHttpUrl().newBuilder().encodedPath("/").query(null).fragment(null)
+                                .addPathSegment("read").addPathSegment("id").addPathSegment(slug)
+                                .addPathSegment("ch$number-$chapterId").addPathSegment("").build().toString()
                     }
                 } catch (exception: CancellationException) {
                     throw exception
@@ -73,7 +86,9 @@ class KomikuAsiaCommentsProvider(
                 if (element is JsonObject) {
                     if (element["comic"] is JsonObject && element["chapter"] is JsonPrimitive &&
                         (expectedId == null || element.text("chapterId") == expectedId)
-                    ) return element
+                    ) {
+                        return element
+                    }
                     return element.values.firstNotNullOfOrNull { findProps(it) }
                 }
                 return (element as? JsonArray)?.firstNotNullOfOrNull { findProps(it) }
@@ -83,9 +98,13 @@ class KomikuAsiaCommentsProvider(
             }.firstOrNull() ?: error("Identitas komentar Komiku Asia tidak ditemukan")
             val comicId = ((props["comic"] as JsonObject)["id"] as? JsonPrimitive)?.longOrNull?.takeIf { it > 0 }
                 ?: error("Identitas komik tidak valid")
-            val number = props.text("chapter")?.takeIf { it.toDoubleOrNull()?.let { n -> n >= 0 && n.isFinite() } == true }
-                ?: error("Nomor chapter tidak valid")
-            Identity(comicId, number).also { resolvedIdentity = it; canonicalDiscussionUrl = target.url }
+            val number =
+                props.text("chapter")?.takeIf { it.toDoubleOrNull()?.let { n -> n >= 0 && n.isFinite() } == true }
+                    ?: error("Nomor chapter tidak valid")
+            Identity(comicId, number).also {
+                resolvedIdentity = it
+                canonicalDiscussionUrl = target.url
+            }
         }
     }
 
@@ -124,7 +143,11 @@ class KomikuAsiaCommentsProvider(
     override suspend fun reactions(): List<ChapterReaction> {
         val data = Json.parseToJsonElement(transport.get(endpoint("reactions"), target.url)) as? JsonObject
             ?: error("Data reaksi Komiku Asia tidak valid")
-        check(REACTIONS.any { (data[it] as? JsonPrimitive)?.intOrNull != null }) { "Data reaksi Komiku Asia tidak valid" }
+        check(
+            REACTIONS.any {
+                (data[it] as? JsonPrimitive)?.intOrNull != null
+            },
+        ) { "Data reaksi Komiku Asia tidak valid" }
         return REACTIONS.map { ChapterReaction(it, data.number(it)) }
     }
 

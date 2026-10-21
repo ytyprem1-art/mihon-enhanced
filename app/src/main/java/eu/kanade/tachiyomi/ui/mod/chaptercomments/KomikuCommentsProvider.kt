@@ -134,6 +134,10 @@ class KomikuCommentsProvider(
     private companion object {
         const val API = "https://plus.komiku.org/api/mobile/v1.0"
         const val MEDIA = "https://plus.komiku.org/assets/media/images"
-        val PUBLIC_HEADERS = mapOf("x-package-name" to "id.komiku.plus", "x-fcm-token" to "null", "x-version-code" to "5")
+        val PUBLIC_HEADERS = mapOf(
+            "x-package-name" to "id.komiku.plus",
+            "x-fcm-token" to "null",
+            "x-version-code" to "5",
+        )
     }
 }

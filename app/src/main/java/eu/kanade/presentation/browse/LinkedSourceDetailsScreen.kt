@@ -56,19 +56,19 @@ fun LinkedSourceDetailsScreen(
                                     title = stringResource(MR.strings.action_add),
                                     icon = Icons.Outlined.Add,
                                     onClick = onClickAdd,
-                                )
+                                ),
                             )
                             add(
                                 AppBar.OverflowAction(
                                     title = "Set tracking source",
                                     onClick = onClickSetTrackingSource,
-                                )
+                                ),
                             )
                             add(
                                 AppBar.OverflowAction(
                                     title = "Create history group",
                                     onClick = onClickCreateHistoryGroup,
-                                )
+                                ),
                             )
                         },
                     )
@@ -89,10 +89,12 @@ fun LinkedSourceDetailsScreen(
                         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                     ) {
                         androidx.compose.foundation.layout.Column(
-                            modifier = Modifier.padding(horizontal = MaterialTheme.padding.medium, vertical = 8.dp)
+                            modifier = Modifier.padding(horizontal = MaterialTheme.padding.medium, vertical = 8.dp),
                         ) {
                             trackingMembers.forEach { member ->
-                                val sourceName = eu.kanade.tachiyomi.ui.mod.components.rememberSourceName(member.manga.source)
+                                val sourceName = eu.kanade.tachiyomi.ui.mod.components.rememberSourceName(
+                                    member.manga.source,
+                                )
                                 val statusText = if (member.isPaused) " (Paused)" else ""
                                 Text(
                                     text = "Tracking: $sourceName$statusText",

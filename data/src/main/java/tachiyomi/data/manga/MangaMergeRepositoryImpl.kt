@@ -2,6 +2,7 @@ package tachiyomi.data.manga
 
 import app.cash.sqldelight.async.coroutines.awaitAsList
 import app.cash.sqldelight.async.coroutines.awaitAsOneOrNull
+import eu.kanade.tachiyomi.source.mod.MERGED_SOURCE_ID
 import kotlinx.coroutines.flow.Flow
 import logcat.LogPriority
 import tachiyomi.core.common.util.system.logcat
@@ -11,7 +12,6 @@ import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.manga.model.MergeMangaSettingsUpdate
 import tachiyomi.domain.manga.model.MergedMangaReference
 import tachiyomi.domain.manga.repository.MangaMergeRepository
-import eu.kanade.tachiyomi.source.mod.MERGED_SOURCE_ID
 
 @dev.zacsweers.metro.SingleIn(dev.zacsweers.metro.AppScope::class)
 @dev.zacsweers.metro.ContributesBinding(dev.zacsweers.metro.AppScope::class)

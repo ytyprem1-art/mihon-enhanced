@@ -40,6 +40,6 @@ fun AutoRefreshInactivityWarningDialog(
             TextButton(onClick = onDismissRequest) {
                 Text(stringResource(MR.strings.action_cancel))
             }
-        }
+        },
     )
 }

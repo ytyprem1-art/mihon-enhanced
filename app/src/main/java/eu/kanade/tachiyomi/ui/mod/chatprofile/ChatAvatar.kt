@@ -46,13 +46,21 @@ object ChatAvatarPhoto {
     fun prepareUpload(square: Bitmap): ChatAvatarUpload {
         require(square.width == HD_SIDE && square.height == HD_SIDE)
         val thumbnail = Bitmap.createScaledBitmap(square, SIDE, SIDE, true)
-        val encoded = try { encodeSquare(thumbnail) } finally { thumbnail.recycle() }
+        val encoded = try {
+            encodeSquare(thumbnail)
+        } finally {
+            thumbnail.recycle()
+        }
         for (quality in listOf(92, 88, 84, 80, 74, 68, 60, 50, 40, 30)) {
             val bytes = ByteArrayOutputStream().use {
                 check(square.compress(Bitmap.CompressFormat.JPEG, quality, it))
                 it.toByteArray()
             }
-            if (bytes.size <= MAX_HD_BYTES) return ChatAvatarUpload(encoded, bytes, java.util.UUID.randomUUID().toString())
+            if (bytes.size <=
+                MAX_HD_BYTES
+            ) {
+                return ChatAvatarUpload(encoded, bytes, java.util.UUID.randomUUID().toString())
+            }
         }
         error("This photo could not be compressed. Please choose another photo.")
     }
@@ -78,7 +86,9 @@ object ChatAvatarPhoto {
                         val count = input.read(buffer)
                         if (count < 0) break
                         total += count
-                        require(total <= 64 * 1024 * 1024) { "File foto melebihi 64 MB. Coba simpan ulang sebagai JPG." }
+                        require(total <= 64 * 1024 * 1024) {
+                            "File foto melebihi 64 MB. Coba simpan ulang sebagai JPG."
+                        }
                         output.write(buffer, 0, count)
                     }
                 }
@@ -91,13 +101,24 @@ object ChatAvatarPhoto {
             }
             require(image.width > 0 && image.height > 0) { "Ukuran foto tidak valid." }
             val ratio = minOf(1f, 1024f / image.width, 1024f / image.height)
-            val bitmap = Bitmap.createBitmap(maxOf(1, (image.width * ratio).toInt()), maxOf(1, (image.height * ratio).toInt()), Bitmap.Config.ARGB_8888)
+            val bitmap = Bitmap.createBitmap(
+                maxOf(1, (image.width * ratio).toInt()),
+                maxOf(1, (image.height * ratio).toInt()),
+                Bitmap.Config.ARGB_8888,
+            )
             try {
-                image.asDrawable(context.resources).apply { setBounds(0, 0, bitmap.width, bitmap.height); draw(android.graphics.Canvas(bitmap)) }
+                image.asDrawable(context.resources).apply {
+                    setBounds(0, 0, bitmap.width, bitmap.height)
+                    draw(android.graphics.Canvas(bitmap))
+                }
                 bitmap
-            } catch (e: Throwable) { bitmap.recycle(); throw e }
-        } catch (e: CancellationException) { throw e }
-        catch (e: OutOfMemoryError) {
+            } catch (e: Throwable) {
+                bitmap.recycle()
+                throw e
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: OutOfMemoryError) {
             throw IllegalArgumentException("Memori tidak cukup untuk foto ini. Coba foto beresolusi lebih kecil.")
         } finally {
             file.delete()
@@ -128,16 +149,31 @@ object ChatAvatarPhoto {
 }
 
 @Composable
-fun ChatAvatar(username: String, photo: String?, size: Dp = 32.dp, color: Color = MaterialTheme.colorScheme.primaryContainer, onPhotoClick: ((Bitmap) -> Unit)? = null) {
+fun ChatAvatar(
+    username: String,
+    photo: String?,
+    size: Dp = 32.dp,
+    color: Color = MaterialTheme.colorScheme.primaryContainer,
+    onPhotoClick: ((Bitmap) -> Unit)? = null,
+) {
     val bitmap by produceState<Bitmap?>(null, photo) {
         value = null
         value = withContext(Dispatchers.Default) { ChatAvatarPhoto.decode(photo) }
     }
-    Surface(modifier = Modifier.size(size).then(
-        if (onPhotoClick != null && bitmap != null) Modifier.clickable(onClickLabel = "Open profile photo") { bitmap?.let(onPhotoClick) }
-        else Modifier,
-    ), shape = CircleShape, color = color,
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)) {
+    Surface(
+        modifier = Modifier.size(size).then(
+            if (onPhotoClick != null &&
+                bitmap != null
+            ) {
+                Modifier.clickable(onClickLabel = "Open profile photo") { bitmap?.let(onPhotoClick) }
+            } else {
+                Modifier
+            },
+        ),
+        shape = CircleShape,
+        color = color,
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+    ) {
         val image = bitmap
         if (image != null) {
             Image(image.asImageBitmap(), "$username profile photo", contentScale = ContentScale.Crop)

@@ -98,11 +98,13 @@ abstract class SyncService(
         )
 
         val inboxDismissals = eu.kanade.tachiyomi.ui.mod.updatewatch.UpdateWatchDismissals.merge(
-            localSyncData.backup?.updateWatchDismissals.orEmpty(), remoteSyncData.backup?.updateWatchDismissals.orEmpty(),
+            localSyncData.backup?.updateWatchDismissals.orEmpty(),
+            remoteSyncData.backup?.updateWatchDismissals.orEmpty(),
         )
         val mergedBackup = Backup(
             updatesCategories = eu.kanade.tachiyomi.ui.mod.updatecategory.UpdatesCategories.mergeBackups(
-                localSyncData.backup?.updatesCategories.orEmpty(), remoteSyncData.backup?.updatesCategories.orEmpty(),
+                localSyncData.backup?.updatesCategories.orEmpty(),
+                remoteSyncData.backup?.updatesCategories.orEmpty(),
             ),
             updateWatchDismissals = inboxDismissals,
             backupManga = mergedMangaList,
@@ -126,8 +128,10 @@ abstract class SyncService(
             ),
             backupUpdateWatchInbox = eu.kanade.tachiyomi.ui.mod.updatewatch.UpdateWatchDismissals.filterBackupInbox(
                 mergeUpdateWatchInboxLists(
-                    localSyncData.backup?.backupUpdateWatchInbox, remoteSyncData.backup?.backupUpdateWatchInbox,
-                ), inboxDismissals,
+                    localSyncData.backup?.backupUpdateWatchInbox,
+                    remoteSyncData.backup?.backupUpdateWatchInbox,
+                ),
+                inboxDismissals,
             ),
             backupUpdateWatchHistory = mergeUpdateWatchHistoryLists(
                 localSyncData.backup?.backupUpdateWatchHistory,
@@ -465,11 +469,12 @@ abstract class SyncService(
             val remoteWatch = remoteMap[key]
             if (remoteWatch != null) {
                 // If exists in both, keep the one with newer lastBackgroundCheckAt if available
-                mergedMap[key] = if ((localWatch.lastBackgroundCheckAt ?: 0) >= (remoteWatch.lastBackgroundCheckAt ?: 0)) {
-                    localWatch
-                } else {
-                    remoteWatch
-                }
+                mergedMap[key] =
+                    if ((localWatch.lastBackgroundCheckAt ?: 0) >= (remoteWatch.lastBackgroundCheckAt ?: 0)) {
+                        localWatch
+                    } else {
+                        remoteWatch
+                    }
             } else {
                 mergedMap[key] = localWatch
             }

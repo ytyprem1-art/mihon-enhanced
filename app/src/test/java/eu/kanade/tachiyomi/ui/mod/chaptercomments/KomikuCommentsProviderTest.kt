@@ -1,3 +1,6 @@
+// Raw protocol fixtures intentionally preserve their original single-line payloads.
+@file:Suppress("ktlint:standard:max-line-length")
+
 package eu.kanade.tachiyomi.ui.mod.chaptercomments
 
 import kotlinx.coroutines.async
@@ -33,13 +36,19 @@ class KomikuCommentsProviderTest {
         val result = comments.await()
         assertEquals(1, reads.size)
         assertTrue(reads.single().contains("series_id=3194&chapter_id=574308&sort_type=latest&page=1"))
-        assertEquals(mapOf("x-package-name" to "id.komiku.plus", "x-fcm-token" to "null", "x-version-code" to "5"), headersSeen.single())
+        assertEquals(
+            mapOf("x-package-name" to "id.komiku.plus", "x-fcm-token" to "null", "x-version-code" to "5"),
+            headersSeen.single(),
+        )
         assertEquals(5, result.total)
         assertFalse(result.hasMore)
         assertEquals("&lt;b&gt;literal user text&lt;/b&gt;", result.comments.single().content)
         assertEquals(listOf(ChapterReaction("love", 3)), result.comments.single().reactionCounts)
         assertEquals(0, result.comments.single().upvotes)
-        assertEquals(listOf("https://plus.komiku.org/assets/media/images/stickers/sample.png"), result.comments.single().media)
+        assertEquals(
+            listOf("https://plus.komiku.org/assets/media/images/stickers/sample.png"),
+            result.comments.single().media,
+        )
         assertEquals(listOf(ChapterReaction("sad", 1)), reactions.await())
     }
 
@@ -52,7 +61,9 @@ class KomikuCommentsProviderTest {
                 reads += url
                 return when {
                     "/comment/list" in url -> """{"code":"OK","data":[],"paging":{"next_page":2},"chapter_data":{"comment_total":50}}"""
-                    url.endsWith("page=1") -> """{"code":"OK","data":[{"hash_id":"a","body":"First"}],"paging":{"next_page":2}}"""
+                    url.endsWith(
+                        "page=1",
+                    ) -> """{"code":"OK","data":[{"hash_id":"a","body":"First"}],"paging":{"next_page":2}}"""
                     else -> """{"code":"OK","data":[{"hash_id":"b","body":"Second","nested_reply_hash_id":"a"}],"paging":{"next_page":null}}"""
                 }
             }
@@ -71,9 +82,21 @@ class KomikuCommentsProviderTest {
 
     @Test
     fun `API failures are not presented as empty comments`() = runTest {
-        val provider = KomikuCommentsProvider(target, object : CommentsTransport {
-            override suspend fun get(url: String, referer: String?): String = """{"code":"ERROR","message":"Public read unavailable"}"""
-        }, html)
-        assertEquals("Public read unavailable", runCatching { provider.comments(CommentSort.NEWEST, 1) }.exceptionOrNull()?.message)
+        val provider = KomikuCommentsProvider(
+            target,
+            object : CommentsTransport {
+                override suspend fun get(
+                    url: String,
+                    referer: String?,
+                ): String = """{"code":"ERROR","message":"Public read unavailable"}"""
+            },
+            html,
+        )
+        assertEquals(
+            "Public read unavailable",
+            runCatching {
+                provider.comments(CommentSort.NEWEST, 1)
+            }.exceptionOrNull()?.message,
+        )
     }
 }

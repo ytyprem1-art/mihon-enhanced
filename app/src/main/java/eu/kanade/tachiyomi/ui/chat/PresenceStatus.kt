@@ -4,5 +4,5 @@ enum class PresenceStatus {
     ONLINE,
     READING,
     IN_CHAT,
-    OFFLINE
+    OFFLINE,
 }

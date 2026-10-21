@@ -6,12 +6,12 @@ import eu.kanade.tachiyomi.network.NetworkHelper
 import eu.kanade.tachiyomi.network.await
 import eu.kanade.tachiyomi.network.interceptor.CloudflareInterceptor
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
-import kotlinx.coroutines.TimeoutCancellationException
 import okhttp3.Call
 import okhttp3.CookieJar
 import okhttp3.MediaType.Companion.toMediaType
@@ -44,7 +44,12 @@ class ImgUpscaleClient {
         .build()
 
     /** Work happens off the UI thread. await() cancels its OkHttp call when the user cancels. */
-    suspend fun upscale(input: File, output: File, scale: Int, onProgress: (String) -> Unit): ImgUpscaleResult = withContext(Dispatchers.IO) {
+    suspend fun upscale(
+        input: File,
+        output: File,
+        scale: Int,
+        onProgress: (String) -> Unit,
+    ): ImgUpscaleResult = withContext(Dispatchers.IO) {
         ImgUpscaleProtocol.requireScale(scale)
         val inputBounds = bounds(input)
         var complete = false
@@ -63,25 +68,47 @@ class ImgUpscaleClient {
                 var resultUrl: String? = null
                 while (resultUrl == null) {
                     currentCoroutineContext().ensureActive()
-                    onProgress("ImgUpscaler ${scale}× · Waiting for result (${(android.os.SystemClock.elapsedRealtime() - start) / 1000}s)…")
+                    onProgress(
+                        "ImgUpscaler $scale× · Waiting for result (${(android.os.SystemClock.elapsedRealtime() - start) / 1000}s)…",
+                    )
                     val body = "{\"tool\":\"upscaler\",\"taskId\":\"$id\",\"scaleRadio\":\"$scale\"}"
-                    val status = request("/api/legacy/status").post(body.toRequestBody("application/json".toMediaType())).build()
+                    val status = request(
+                        "/api/legacy/status",
+                    ).post(body.toRequestBody("application/json".toMediaType())).build()
                     resultUrl = ImgUpscaleProtocol.resultUrl(client.newCall(status).json())
                     if (resultUrl == null) delay(10_000)
                 }
                 onProgress("Downloading enhanced image…")
                 download(resultUrl, output)
                 val resultBounds = bounds(output)
-                require(resultBounds.outWidth == inputBounds.outWidth * scale && resultBounds.outHeight == inputBounds.outHeight * scale) {
+                require(
+                    resultBounds.outWidth == inputBounds.outWidth * scale &&
+                        resultBounds.outHeight == inputBounds.outHeight * scale,
+                ) {
                     "ImgUpscaler returned an unexpected image size. Original crop is still available."
                 }
-                require(resultBounds.outMimeType in setOf("image/jpeg", "image/png", "image/webp")) { "Unsupported result format" }
+                require(resultBounds.outMimeType in setOf("image/jpeg", "image/png", "image/webp")) {
+                    "Unsupported result format"
+                }
                 complete = true
-                ImgUpscaleResult(output, resultBounds.outWidth, resultBounds.outHeight, resultBounds.outMimeType, scale, inputBounds.outWidth, inputBounds.outHeight)
+                ImgUpscaleResult(
+                    output,
+                    resultBounds.outWidth,
+                    resultBounds.outHeight,
+                    resultBounds.outMimeType,
+                    scale,
+                    inputBounds.outWidth,
+                    inputBounds.outHeight,
+                )
             }
         } catch (e: TimeoutCancellationException) {
-            throw java.io.IOException("ImgUpscaler took too long. Please try again later; the original crop is still available.", e)
-        } finally { if (!complete) output.delete() }
+            throw java.io.IOException(
+                "ImgUpscaler took too long. Please try again later; the original crop is still available.",
+                e,
+            )
+        } finally {
+            if (!complete) output.delete()
+        }
     }
 
     private fun request(path: String) = Request.Builder().url(ImgUpscaleProtocol.BASE_URL + path)
@@ -106,7 +133,9 @@ class ImgUpscaleClient {
 
     private suspend fun download(url: String, output: File) {
         require(ImgUpscaleProtocol.isAllowedResultUrl(url))
-        client.newCall(Request.Builder().url(url).header("Referer", ImgUpscaleProtocol.BASE_URL + "/").build()).await().use { response ->
+        client.newCall(
+            Request.Builder().url(url).header("Referer", ImgUpscaleProtocol.BASE_URL + "/").build(),
+        ).await().use { response ->
             check(response.isSuccessful) { "Could not download ImgUpscaler result (HTTP ${response.code})" }
             val body = response.body ?: error("ImgUpscaler returned an empty image")
             require(body.contentLength() <= ImgUpscaleProtocol.MAX_DOWNLOAD_BYTES) { "Upscaled file is too large" }
@@ -137,7 +166,15 @@ class ImgUpscaleClient {
         fun preview(result: ImgUpscaleResult): Bitmap {
             var sample = 1
             while (maxOf(result.width, result.height) / sample > 1200) sample *= 2
-            return requireNotNull(BitmapFactory.decodeFile(result.file.absolutePath, BitmapFactory.Options().apply { inSampleSize = sample }))
+            return requireNotNull(
+                BitmapFactory.decodeFile(
+                    result.file.absolutePath,
+                    BitmapFactory.Options().apply {
+                        inSampleSize =
+                            sample
+                    },
+                ),
+            )
         }
     }
 }

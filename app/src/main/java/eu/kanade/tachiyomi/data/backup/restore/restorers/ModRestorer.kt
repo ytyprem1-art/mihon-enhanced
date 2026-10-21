@@ -1,12 +1,17 @@
 package eu.kanade.tachiyomi.data.backup.restore.restorers
 
 import android.content.Context
+import app.cash.sqldelight.async.coroutines.awaitAsList
 import eu.kanade.tachiyomi.data.backup.models.BackupLinkedSourceGroup
 import eu.kanade.tachiyomi.data.backup.models.BackupManualHistoryGroup
 import eu.kanade.tachiyomi.data.backup.models.BackupUpdateWatch
 import eu.kanade.tachiyomi.data.backup.models.BackupUpdateWatchHistory
 import eu.kanade.tachiyomi.data.backup.models.BackupUpdateWatchInboxItem
 import eu.kanade.tachiyomi.ui.mod.updatewatch.worker.UpdateWatchRefreshScheduler
+import kotlinx.coroutines.flow.first
+import logcat.LogPriority
+import tachiyomi.core.common.util.system.logcat
+import tachiyomi.data.Database
 import tachiyomi.domain.chapter.repository.ChapterRepository
 import tachiyomi.domain.history.group.interactor.ManageHistoryGroups
 import tachiyomi.domain.history.interactor.ManageUpdateWatch
@@ -19,11 +24,6 @@ import tachiyomi.domain.source.linked.interactor.ManageLinkedSourceGroup
 import tachiyomi.domain.source.linked.repository.LinkedSourceRepository
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
-import kotlinx.coroutines.flow.first
-import logcat.LogPriority
-import tachiyomi.core.common.util.system.logcat
-import app.cash.sqldelight.async.coroutines.awaitAsList
-import tachiyomi.data.Database
 
 @dev.zacsweers.metro.Inject
 class ModRestorer(
@@ -68,7 +68,9 @@ class ModRestorer(
                         }
                     } else {
                         val title = mangaUrlToTitleMap[member.source to member.url] ?: "Unknown"
-                        onSkip("Linked Source Group [${backupGroup.name}]: Manga '$title' not found (Source: ${member.source}, URL: ${member.url})")
+                        onSkip(
+                            "Linked Source Group [${backupGroup.name}]: Manga '$title' not found (Source: ${member.source}, URL: ${member.url})",
+                        )
                         skippedCount++
                     }
                 }
@@ -91,7 +93,9 @@ class ModRestorer(
                         }
                     } else {
                         val title = mangaUrlToTitleMap[member.source to member.url] ?: "Unknown"
-                        onSkip("Manual History Group [${backupGroup.name}]: Manga '$title' not found (Source: ${member.source}, URL: ${member.url})")
+                        onSkip(
+                            "Manual History Group [${backupGroup.name}]: Manga '$title' not found (Source: ${member.source}, URL: ${member.url})",
+                        )
                         skippedCount++
                     }
                 }
@@ -109,7 +113,9 @@ class ModRestorer(
                     mangaId = mangaId,
                     enabled = watch.backgroundRefreshEnabled,
                     interval = watch.expectedIntervalDays,
-                    profile = UpdateWatch.RefreshProfile.entries.getOrElse(watch.refreshProfile) { UpdateWatch.RefreshProfile.WEEKLY_STABLE }
+                    profile = UpdateWatch.RefreshProfile.entries.getOrElse(watch.refreshProfile) {
+                        UpdateWatch.RefreshProfile.WEEKLY_STABLE
+                    },
                 )
                 watch.lastBackgroundCheckAt?.let {
                     manageUpdateWatch.updateLastBackgroundCheckAt(mangaId, it)
@@ -119,7 +125,9 @@ class ModRestorer(
                 }
             } else {
                 val title = mangaUrlToTitleMap[watch.member.source to watch.member.url] ?: "Unknown"
-                onSkip("Update Watch: Manga '$title' not found (Source: ${watch.member.source}, URL: ${watch.member.url})")
+                onSkip(
+                    "Update Watch: Manga '$title' not found (Source: ${watch.member.source}, URL: ${watch.member.url})",
+                )
                 skippedCount++
             }
         }
@@ -154,13 +162,17 @@ class ModRestorer(
                             latestChapterUploadAt = backupItem.latestChapterUploadAt,
                             type = backupItem.type,
                             milestone = backupItem.milestone,
-                        )
+                        ),
                     )
                 } else {
-                    onSkip("Update Watch Inbox [${backupItem.mangaTitle}]: Latest chapter not found (URL: ${backupItem.latestChapterUrl})")
+                    onSkip(
+                        "Update Watch Inbox [${backupItem.mangaTitle}]: Latest chapter not found (URL: ${backupItem.latestChapterUrl})",
+                    )
                 }
             } else {
-                onSkip("Update Watch Inbox [${backupItem.mangaTitle}]: Manga not found (Source: ${backupItem.member.source}, URL: ${backupItem.member.url})")
+                onSkip(
+                    "Update Watch Inbox [${backupItem.mangaTitle}]: Manga not found (Source: ${backupItem.member.source}, URL: ${backupItem.member.url})",
+                )
             }
         }
 
@@ -174,13 +186,17 @@ class ModRestorer(
                         timestamp = backupHistory.timestamp,
                         success = backupHistory.success,
                         newChapters = backupHistory.newChapters,
-                        category = UpdateWatchHistory.FailureCategory.entries.getOrElse(backupHistory.category) { UpdateWatchHistory.FailureCategory.UNKNOWN },
+                        category = UpdateWatchHistory.FailureCategory.entries.getOrElse(backupHistory.category) {
+                            UpdateWatchHistory.FailureCategory.UNKNOWN
+                        },
                         detail = backupHistory.detail,
-                    )
+                    ),
                 )
             } else {
                 val title = mangaUrlToTitleMap[backupHistory.member.source to backupHistory.member.url] ?: "Unknown"
-                onSkip("Update Watch History: Manga '$title' not found (Source: ${backupHistory.member.source}, URL: ${backupHistory.member.url})")
+                onSkip(
+                    "Update Watch History: Manga '$title' not found (Source: ${backupHistory.member.source}, URL: ${backupHistory.member.url})",
+                )
                 skippedCount++
             }
         }

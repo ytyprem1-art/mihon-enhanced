@@ -1,15 +1,14 @@
 package eu.kanade.tachiyomi.ui.history
 
-import kotlinx.coroutines.withContext
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
-import dev.zacsweers.metro.Inject
+import androidx.lifecycle.viewModelScope
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesIntoMap
+import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.binding
 import dev.zacsweers.metrox.viewmodel.ViewModelKey
-import androidx.lifecycle.viewModelScope
 import eu.kanade.core.util.insertSeparators
 import eu.kanade.domain.manga.interactor.UpdateManga
 import eu.kanade.domain.track.interactor.AddTracks
@@ -36,6 +35,7 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import logcat.LogPriority
 import tachiyomi.core.common.preference.CheckboxState
 import tachiyomi.core.common.preference.mapAsCheckboxState
@@ -43,12 +43,12 @@ import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.category.interactor.GetCategories
 import tachiyomi.domain.category.interactor.SetMangaCategories
 import tachiyomi.domain.category.model.Category
-import tachiyomi.domain.chapter.repository.ChapterRepository
 import tachiyomi.domain.chapter.model.Chapter
+import tachiyomi.domain.chapter.repository.ChapterRepository
+import tachiyomi.domain.history.group.interactor.ManageHistoryGroups
 import tachiyomi.domain.history.interactor.GetHistory
 import tachiyomi.domain.history.interactor.GetNextChapters
 import tachiyomi.domain.history.interactor.ManageHistoryCategory
-import tachiyomi.domain.history.group.interactor.ManageHistoryGroups
 import tachiyomi.domain.history.interactor.RemoveHistory
 import tachiyomi.domain.history.model.HistoryWithRelations
 import tachiyomi.domain.history.repository.HistoryCategory
@@ -86,7 +86,6 @@ class HistoryViewModel(
     private val historySourceLinks: HistorySourceLinks,
 ) : ViewModel() {
     val snackbarHostState = SnackbarHostState()
-
 
     private val _events: Channel<Event> = Channel(Channel.UNLIMITED)
     val events: Flow<Event> = _events.receiveAsFlow()
@@ -153,7 +152,7 @@ class HistoryViewModel(
                     _state.update {
                         it.copy(
                             list = uiModels,
-                            mangaToCategoryMap = localMap
+                            mangaToCategoryMap = localMap,
                         )
                     }
                 }
@@ -249,7 +248,9 @@ class HistoryViewModel(
     }
 
     suspend fun getNextChapter(): Chapter? {
-        return withContext(kotlinx.coroutines.Dispatchers.IO) { getNextChapters.await(onlyUnread = false).firstOrNull() }
+        return withContext(kotlinx.coroutines.Dispatchers.IO) {
+            getNextChapters.await(onlyUnread = false).firstOrNull()
+        }
     }
 
     fun getNextChapterForManga(mangaId: Long, chapterId: Long) {
@@ -495,7 +496,7 @@ class HistoryViewModel(
                 currentState.copy(
                     historyCategories = updatedCategories,
                     selectedCategoryId = newSelectedId,
-                    mangaToCategoryMap = newMap
+                    mangaToCategoryMap = newMap,
                 )
             }
         }
@@ -584,13 +585,13 @@ class HistoryViewModel(
                 Dialog.ChangeCategory(
                     manga = manga,
                     initialSelection = categories.mapAsCheckboxState { it.id in selection },
-                )
+                ),
             )
         }
     }
 
     private suspend fun Flow<List<HistoryWithRelations>>.combine(
-        flow: Flow<List<tachiyomi.domain.history.group.model.HistoryGroup>>
+        flow: Flow<List<tachiyomi.domain.history.group.model.HistoryGroup>>,
     ): Flow<Pair<List<HistoryWithRelations>, List<tachiyomi.domain.history.group.model.HistoryGroup>>> {
         return combine(this, flow) { a, b -> a to b }
     }
@@ -628,7 +629,10 @@ class HistoryViewModel(
         data class CreateHistoryGroup(val mangaIds: Set<Long>, val suggestedName: String) : Dialog
         data class RenameHistoryGroup(val group: tachiyomi.domain.history.group.model.HistoryGroup) : Dialog
         data class DeleteHistoryGroup(val group: tachiyomi.domain.history.group.model.HistoryGroup) : Dialog
-        data class AddToHistoryGroup(val mangaId: Long, val groups: List<tachiyomi.domain.history.group.model.HistoryGroup>) : Dialog
+        data class AddToHistoryGroup(
+            val mangaId: Long,
+            val groups: List<tachiyomi.domain.history.group.model.HistoryGroup>,
+        ) : Dialog
 
         data class DuplicateManga(val manga: Manga, val duplicates: List<MangaWithChapterCount>) : Dialog
         data class ChangeCategory(

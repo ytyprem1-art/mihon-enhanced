@@ -4,7 +4,11 @@ import org.jsoup.Jsoup
 import org.jsoup.nodes.Element
 
 /** Public server-rendered comment templates. No scripts or page images execute. */
-class HtmlCommentsProvider(private val target: CommentTarget, private val transport: CommentsTransport, private val initialHtml: String? = null) : ChapterCommentsProvider {
+class HtmlCommentsProvider(
+    private val target: CommentTarget,
+    private val transport: CommentsTransport,
+    private val initialHtml: String? = null,
+) : ChapterCommentsProvider {
     override val supportedSorts = listOf(CommentSort.OLDEST, CommentSort.NEWEST)
     override suspend fun comments(sort: CommentSort, page: Int): CommentsPage {
         require(page >= 1)
@@ -21,14 +25,19 @@ class HtmlCommentsProvider(private val target: CommentTarget, private val transp
         fun parse(el: Element, parentId: String? = null): ChapterComment {
             val replyElements = if (articleLayout) {
                 el.select("article.comment-body[id^=div-comment-]").filter { candidate ->
-                    candidate !== el && candidate.parents().firstOrNull { it.tagName() == "article" && it.hasClass("comment-body") } === el
+                    candidate !== el &&
+                        candidate.parents().firstOrNull { it.tagName() == "article" && it.hasClass("comment-body") } ===
+                        el
                 }
             } else {
                 el.selectFirst(".children")?.children().orEmpty().filter { it.hasClass("comment") }
             }
             val own = el.clone().apply {
-                if (articleLayout) select("article.comment-body").filter { it !== this }.forEach { it.remove() }
-                else select(".children").remove()
+                if (articleLayout) {
+                    select("article.comment-body").filter { it !== this }.forEach { it.remove() }
+                } else {
+                    select(".children").remove()
+                }
             }
             val content = own.selectFirst(".comment-content, .comment-text")
             val time = own.selectFirst("time") ?: own.selectFirst(".comment-metadata, .comment-date")
@@ -37,7 +46,10 @@ class HtmlCommentsProvider(private val target: CommentTarget, private val transp
                 id = el.id(), author = own.selectFirst(".fn, .comment-author")?.text().orEmpty(),
                 content = content?.html().orEmpty(),
                 createdAt = time?.attr("datetime")?.ifBlank { time.text() }.orEmpty(),
-                avatar = own.selectFirst("img.avatar")?.absUrl("src")?.takeIf { it.startsWith("https://") || it.startsWith("http://") },
+                avatar = own.selectFirst("img.avatar")?.absUrl("src")?.takeIf {
+                    it.startsWith("https://") ||
+                        it.startsWith("http://")
+                },
                 media = content?.select("img[src]")?.map { it.absUrl("src") }
                     ?.filter { it.startsWith("https://") || it.startsWith("http://") }?.distinct().orEmpty(),
                 replies = replies, replyCount = replies.size,
@@ -52,7 +64,19 @@ class HtmlCommentsProvider(private val target: CommentTarget, private val transp
         if (doc.selectFirst(".comment-navigation .nav-previous a, .comment-navigation .nav-next a") != null) {
             error("Komentar source ini memakai halaman terpisah. Gunakan Buka web untuk membaca semuanya.")
         }
-        return CommentsPage(if (page > 1) emptyList() else if (sort == CommentSort.NEWEST) comments.reversed() else comments, comments.size, false)
+        return CommentsPage(
+            if (page >
+                1
+            ) {
+                emptyList()
+            } else if (sort == CommentSort.NEWEST) {
+                comments.reversed()
+            } else {
+                comments
+            },
+            comments.size,
+            false,
+        )
     }
 
     override suspend fun reactions() = emptyList<ChapterReaction>()

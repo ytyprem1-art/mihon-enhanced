@@ -1,7 +1,7 @@
 package eu.kanade.tachiyomi.ui.mod.appupdate
 
-import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.FirebaseApp
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Source
@@ -44,11 +44,15 @@ object ModUpdateStore {
         return hash
     }
     suspend fun latest(installed: String? = null): ModRelease? {
-        val doc = FirebaseFirestore.getInstance().collection("mod_updates").document("stable").get(Source.SERVER).awaitPanelTask()
+        val doc = FirebaseFirestore.getInstance().collection(
+            "mod_updates",
+        ).document("stable").get(Source.SERVER).awaitPanelTask()
         if (!doc.exists()) return null
         val version = requireNotNull(doc.getString("version"))
         val fileId = requireNotNull(doc.getString("fileId"))
-        require(ModVersion.parse(version) != null && fileId.matches(Regex("[A-Za-z0-9_-]{10,150}"))) { "Invalid update information" }
+        require(ModVersion.parse(version) != null && fileId.matches(Regex("[A-Za-z0-9_-]{10,150}"))) {
+            "Invalid update information"
+        }
         val release = ModRelease(version, fileId, doc.getString("notes").orEmpty()).also {
             require(it.number == doc.getLong("releaseNumber")) { "Invalid update version" }
         }
@@ -64,18 +68,30 @@ object ModUpdateStore {
                 ModReleaseNote(name, entry.getString("notes").orEmpty())
             }
             release.copy(history = release.notesSince(installed, notes))
-        } catch (e: kotlinx.coroutines.CancellationException) { throw e }
-        catch (_: Exception) { release.copy(historyAvailable = false) }
+        } catch (
+            e: kotlinx.coroutines.CancellationException,
+        ) {
+            throw e
+        } catch (_: Exception) {
+            release.copy(historyAvailable = false)
+        }
     }
 
     suspend fun publish(release: ModRelease, pinHash: String) {
         require(release.notes.length <= 4000)
         val db = publisherDb
-        val data = mapOf("version" to release.version, "fileId" to release.fileId, "notes" to release.notes,
-            "releaseNumber" to release.number, "publishedAt" to FieldValue.serverTimestamp())
+        val data = mapOf(
+            "version" to release.version,
+            "fileId" to release.fileId,
+            "notes" to release.notes,
+            "releaseNumber" to release.number,
+            "publishedAt" to FieldValue.serverTimestamp(),
+        )
         val batch = db.batch()
-        batch.set(db.collection("mod_update_proofs").document(uid()),
-            data + mapOf("pinHash" to pinHash, "at" to FieldValue.serverTimestamp()))
+        batch.set(
+            db.collection("mod_update_proofs").document(uid()),
+            data + mapOf("pinHash" to pinHash, "at" to FieldValue.serverTimestamp()),
+        )
         batch.set(db.collection("mod_updates").document("stable"), data)
         batch.set(db.collection("mod_update_releases").document(release.version), data)
         batch.commit().awaitPanelTask()

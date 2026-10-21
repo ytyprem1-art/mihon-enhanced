@@ -31,8 +31,11 @@ class MangaDexCommentsProvider(
 
     private suspend fun resolve(): ChapterCommentsProvider? = mutex.withLock {
         if (!resolved) {
-            val root = Json.parseToJsonElement(transport.get("https://api.mangadex.org/statistics/chapter/$chapterId", "https://mangadex.org/")) as? JsonObject
-                ?: error("Statistik MangaDex tidak valid")
+            val root =
+                Json.parseToJsonElement(
+                    transport.get("https://api.mangadex.org/statistics/chapter/$chapterId", "https://mangadex.org/"),
+                ) as? JsonObject
+                    ?: error("Statistik MangaDex tidak valid")
             check((root["result"] as? JsonPrimitive)?.contentOrNull == "ok") { "Statistik MangaDex tidak tersedia" }
             val statistics = (root["statistics"] as? JsonObject)?.get(chapterId) as? JsonObject
                 ?: error("Statistik bab MangaDex tidak ditemukan")
@@ -44,8 +47,10 @@ class MangaDexCommentsProvider(
                 val count = (comments["repliesCount"] as? JsonPrimitive)?.intOrNull?.takeIf { it >= 0 }
                     ?: error("Jumlah komentar MangaDex tidak valid")
                 discussion = XenForoCommentsProvider(
-                    target.copy(url = "https://forums.mangadex.org/threads/$id"), transport,
-                    expectedTotal = count, excludeChapterUrl = "https://mangadex.org/chapter/$chapterId",
+                    target.copy(url = "https://forums.mangadex.org/threads/$id"),
+                    transport,
+                    expectedTotal = count,
+                    excludeChapterUrl = "https://mangadex.org/chapter/$chapterId",
                 )
             }
             resolved = true

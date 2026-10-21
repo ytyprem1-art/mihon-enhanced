@@ -15,6 +15,6 @@ data class UpdateWatchHistory(
         TRANSIENT_NETWORK,
         SOURCE_NOT_INSTALLED,
         SOURCE_OR_PARSING_ERROR,
-        UNKNOWN
+        UNKNOWN,
     }
 }

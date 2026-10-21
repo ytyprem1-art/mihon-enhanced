@@ -22,7 +22,12 @@ class VoratoonCommentsProvider(
     private val transport: CommentsTransport,
 ) : ChapterCommentsProvider, ChapterReactionsProvider {
     private data class Identity(val series: String, val chapter: String)
-    private data class Collection(val records: LinkedHashMap<String, JsonObject> = linkedMapOf(), var page: Int = 0, var more: Boolean = true, var total: Int? = null)
+    private data class Collection(
+        val records: LinkedHashMap<String, JsonObject> = linkedMapOf(),
+        var page: Int = 0,
+        var more: Boolean = true,
+        var total: Int? = null,
+    )
     private val identityLock = Mutex()
     private val collectionLock = Mutex()
     private val voteLock = Mutex()
@@ -86,14 +91,23 @@ class VoratoonCommentsProvider(
         val root = Json.parseToJsonElement(body) as? JsonObject ?: error("Respons vote Voratoon tidak valid")
         val status = root.number("status") ?: root.number("statusCode")
         val message = root.text("message").ifBlank { root.text("error") }
-        if (status == 401 || status == 403 || Regex("unauthenticated|unauthorized|forbidden|login|log in", RegexOption.IGNORE_CASE).containsMatchIn(message)) {
+        if (status == 401 || status == 403 ||
+            Regex(
+                "unauthenticated|unauthorized|forbidden|login|log in",
+                RegexOption.IGNORE_CASE,
+            ).containsMatchIn(message)
+        ) {
             error("Situs Voratoon meminta login untuk memberi reaksi.")
         }
-        check(status == null || status in 200..299) { message.ifBlank { "Gagal mengirim reaksi Voratoon (HTTP $status)." } }
+        check(status == null || status in 200..299) {
+            message.ifBlank { "Gagal mengirim reaksi Voratoon (HTTP $status)." }
+        }
         val data = root.obj("data")
-        check((root["success"] as? JsonPrimitive)?.booleanOrNull != false &&
-            (root["error"] as? JsonPrimitive)?.booleanOrNull != true &&
-            data != null && ("reactions" in data || "selectedReaction" in data)) {
+        check(
+            (root["success"] as? JsonPrimitive)?.booleanOrNull != false &&
+                (root["error"] as? JsonPrimitive)?.booleanOrNull != true &&
+                data != null && ("reactions" in data || "selectedReaction" in data),
+        ) {
             message.ifBlank { "Respons vote Voratoon tidak valid" }
         }
         if ("selectedReaction" in data) {
@@ -114,8 +128,12 @@ class VoratoonCommentsProvider(
         } else {
             error("Alamat chapter Voratoon tidak dikenali")
         }
-        val url = "$api/series/".toHttpUrl().newBuilder().addPathSegment(slug).addPathSegment("chapters").addPathSegment(index).build()
-        val data = response(transport.get(url.toString(), target.url)).obj("data") ?: error("Identitas chapter Voratoon tidak tersedia")
+        val url = "$api/series/".toHttpUrl().newBuilder().addPathSegment(
+            slug,
+        ).addPathSegment("chapters").addPathSegment(index).build()
+        val data =
+            response(transport.get(url.toString(), target.url)).obj("data")
+                ?: error("Identitas chapter Voratoon tidak tersedia")
         Identity(
             (data.text("seriesId").ifBlank { data.obj("data")?.text("seriesId").orEmpty() })
                 .ifBlank { error("Identitas seri Voratoon tidak tersedia") },
@@ -134,7 +152,13 @@ class VoratoonCommentsProvider(
                 CommentSort.NEWEST -> "new"
                 CommentSort.OLDEST -> "old"
             }
-            val root = response(transport.get("$api/series/${id.series}/comments?chapterId=${id.chapter}&sort=$order&take=$PAGE_SIZE&page=$requested&viewerId=0", target.url))
+            val root =
+                response(
+                    transport.get(
+                        "$api/series/${id.series}/comments?chapterId=${id.chapter}&sort=$order&take=$PAGE_SIZE&page=$requested&viewerId=0",
+                        target.url,
+                    ),
+                )
             val records = root.array("data").mapNotNull { it as? JsonObject }
             val before = state.records.size
             records.forEach { state.records[it.text("id")] = it }
@@ -145,7 +169,8 @@ class VoratoonCommentsProvider(
             state.more = when {
                 state.records.size == before || actualPage < requested -> false
                 lastPage != null -> actualPage < lastPage
-                meta?.get("hasNextPage") is JsonPrimitive -> (meta["hasNextPage"] as JsonPrimitive).booleanOrNull == true
+                meta?.get("hasNextPage") is JsonPrimitive -> (meta["hasNextPage"] as JsonPrimitive).booleanOrNull ==
+                    true
                 else -> records.size >= PAGE_SIZE
             }
             state.page = actualPage
@@ -153,16 +178,24 @@ class VoratoonCommentsProvider(
         val roots = tree(state.records.values.toList())
         val sorted = roots.sortedWith { a, b ->
             val pin = pinned(state.records[b.id]).compareTo(pinned(state.records[a.id]))
-            if (pin != 0) pin else when (sort) {
-                CommentSort.NEWEST -> timestamp(b).compareTo(timestamp(a))
-                CommentSort.OLDEST -> timestamp(a).compareTo(timestamp(b))
-                CommentSort.POPULAR -> (b.upvotes + 2 * descendants(b)).compareTo(a.upvotes + 2 * descendants(a))
-                    .takeIf { it != 0 } ?: timestamp(b).compareTo(timestamp(a))
+            if (pin != 0) {
+                pin
+            } else {
+                when (sort) {
+                    CommentSort.NEWEST -> timestamp(b).compareTo(timestamp(a))
+                    CommentSort.OLDEST -> timestamp(a).compareTo(timestamp(b))
+                    CommentSort.POPULAR -> (b.upvotes + 2 * descendants(b)).compareTo(a.upvotes + 2 * descendants(a))
+                        .takeIf { it != 0 } ?: timestamp(b).compareTo(timestamp(a))
+                }
             }
         }
         val offset = (page - 1) * PAGE_SIZE
-        CommentsPage(sorted.drop(offset).take(PAGE_SIZE), if (state.more) state.total ?: roots.size else roots.size,
-            state.more || offset + PAGE_SIZE < roots.size, totalKnown = state.total != null || !state.more)
+        CommentsPage(
+            sorted.drop(offset).take(PAGE_SIZE),
+            if (state.more) state.total ?: roots.size else roots.size,
+            state.more || offset + PAGE_SIZE < roots.size,
+            totalKnown = state.total != null || !state.more,
+        )
     }
 
     override suspend fun reactions(): List<ChapterReaction> {
@@ -171,14 +204,27 @@ class VoratoonCommentsProvider(
         val counts = mutableMapOf<String, Int>()
         when (val data = root["data"]) {
             is JsonArray -> data.forEach {
-                val name = (it as? JsonPrimitive)?.contentOrNull ?: (it as? JsonObject)?.let { value -> value.text("reactionType").ifBlank { value.text("type") } }
+                val name =
+                    (it as? JsonPrimitive)?.contentOrNull
+                        ?: (it as? JsonObject)?.let { value ->
+                            value.text("reactionType").ifBlank { value.text("type") }
+                        }
                 val count = (it as? JsonObject)?.number("count") ?: (it as? JsonObject)?.number("total") ?: 1
                 if (name != null) counts[name.lowercase()] = counts.getOrDefault(name.lowercase(), 0) + count
             }
-            is JsonObject -> data.forEach { (key, value) -> counts[key.lowercase()] = (value as? JsonPrimitive)?.intOrNull ?: 0 }
+            is JsonObject -> data.forEach { (key, value) ->
+                counts[key.lowercase()] =
+                    (value as? JsonPrimitive)?.intOrNull ?: 0
+            }
             else -> Unit
         }
-        return listOf("👍" to listOf("like", "upvote", "1"), "😂" to listOf("laugh", "funny", "2"), "❤️" to listOf("love", "nice", "3"), "😢" to listOf("sad", "6"), "😡" to listOf("angry", "5"))
+        return listOf(
+            "👍" to listOf("like", "upvote", "1"),
+            "😂" to listOf("laugh", "funny", "2"),
+            "❤️" to listOf("love", "nice", "3"),
+            "😢" to listOf("sad", "6"),
+            "😡" to listOf("angry", "5"),
+        )
             .map { (label, keys) -> ChapterReaction(label, keys.sumOf { counts[it] ?: 0 }) }
     }
 
@@ -188,7 +234,11 @@ class VoratoonCommentsProvider(
         fun collect(item: JsonObject, parent: String? = null) {
             val id = item.text("id")
             if (id.isBlank() || all.putIfAbsent(id, item) != null) return
-            (item.text("parentCommentId").ifBlank { item.obj("data")?.text("parentCommentId").orEmpty() }.ifBlank { parent.orEmpty() })
+            (
+                item.text("parentCommentId").ifBlank {
+                    item.obj("data")?.text("parentCommentId").orEmpty()
+                }.ifBlank { parent.orEmpty() }
+                )
                 .takeIf { it.isNotBlank() }?.let { parents[id] = it }
             (item["replies"] as? JsonArray ?: item.obj("data")?.get("replies") as? JsonArray).orEmpty()
                 .mapNotNull { it as? JsonObject }.forEach { collect(it, id) }
@@ -220,29 +270,57 @@ class VoratoonCommentsProvider(
             author = userData?.text("fullName")?.ifBlank { userData.text("username") }?.ifBlank { null } ?: "Anonim",
             content = body,
             createdAt = item.text("createdAt"),
-            avatar = userData?.text("avatarUrl")?.ifBlank { userData.text("avatar") }?.ifBlank { userData.text("image") }?.takeIf { it.isNotBlank() },
+            avatar = userData?.text("avatarUrl")?.ifBlank {
+                userData.text("avatar")
+            }?.ifBlank { userData.text("image") }?.takeIf { it.isNotBlank() },
             upvotes = item.number("upvotes") ?: data?.number("upvotes") ?: votes?.number("upvotes") ?: 0,
             downvotes = item.number("downvotes") ?: votes?.number("downvotes") ?: 0,
-            replyTo = item.text("parentCommentId").ifBlank { data?.text("parentCommentId").orEmpty() }.takeIf { it.isNotBlank() },
-            media = listOfNotNull(item.text("imageUrl").ifBlank { data?.text("imageUrl").orEmpty() }.takeIf { it.isNotBlank() }) +
+            replyTo = item.text("parentCommentId").ifBlank {
+                data?.text("parentCommentId").orEmpty()
+            }.takeIf { it.isNotBlank() },
+            media =
+            listOfNotNull(
+                item.text("imageUrl").ifBlank {
+                    data?.text("imageUrl").orEmpty()
+                }.takeIf { it.isNotBlank() },
+            ) +
                 Jsoup.parseBodyFragment(body).select("img[src]").map { it.attr("src") } +
                 Regex("!\\[[^]]*]\\((https?://[^\\s)]+)\\)").findAll(body).map { it.groupValues[1] }.toList(),
             isSpoiler = ((item["isSpoiler"] ?: data?.get("isSpoiler")) as? JsonPrimitive)?.booleanOrNull == true ||
-                Regex("^\\s*\\[(spoiler|spoil)]|<spoiler\\b|class=[\"'][^\"']*spoiler", RegexOption.IGNORE_CASE).containsMatchIn(body),
+                Regex(
+                    "^\\s*\\[(spoiler|spoil)]|<spoiler\\b|class=[\"'][^\"']*spoiler",
+                    RegexOption.IGNORE_CASE,
+                ).containsMatchIn(body),
         )
     }
 
     private fun descendants(comment: ChapterComment): Int = comment.replies.sumOf { 1 + descendants(it) }
-    private fun timestamp(comment: ChapterComment): Long = runCatching { OffsetDateTime.parse(comment.createdAt).toInstant().toEpochMilli() }.getOrDefault(0L)
-    private fun pinned(item: JsonObject?): Boolean = ((item?.get("isPinned") ?: item?.obj("data")?.get("pinned") ?: item?.obj("data")?.get("isPinned")) as? JsonPrimitive)?.booleanOrNull == true
+    private fun timestamp(
+        comment: ChapterComment,
+    ): Long = runCatching { OffsetDateTime.parse(comment.createdAt).toInstant().toEpochMilli() }.getOrDefault(0L)
+    private fun pinned(item: JsonObject?): Boolean =
+        (
+            (
+                item?.get(
+                    "isPinned",
+                ) ?: item?.obj(
+                    "data",
+                )?.get("pinned") ?: item?.obj("data")?.get("isPinned")
+                ) as? JsonPrimitive
+            )?.booleanOrNull ==
+            true
     private fun response(body: String): JsonObject {
         val root = Json.parseToJsonElement(body) as? JsonObject ?: error("Respons Voratoon tidak valid")
-        check((root.number("status") ?: 200) in 200..299) { root.text("message").ifBlank { "Gagal memuat komentar Voratoon" } }
+        check((root.number("status") ?: 200) in 200..299) {
+            root.text("message").ifBlank { "Gagal memuat komentar Voratoon" }
+        }
         return root
     }
     private fun JsonObject.obj(key: String) = this[key] as? JsonObject
     private fun JsonObject.array(key: String) = (this[key] as? JsonArray).orEmpty()
     private fun JsonObject.text(key: String) = (this[key] as? JsonPrimitive)?.contentOrNull.orEmpty()
     private fun JsonObject.number(key: String) = (this[key] as? JsonPrimitive)?.intOrNull
-    private companion object { const val PAGE_SIZE = 10 }
+    private companion object {
+        const val PAGE_SIZE = 10
+    }
 }

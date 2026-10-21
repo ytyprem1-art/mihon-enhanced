@@ -15,7 +15,9 @@ import okhttp3.OkHttpClient
 import okhttp3.Protocol
 import okhttp3.Response
 import okhttp3.ResponseBody.Companion.toResponseBody
-import org.junit.Assert.*
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.ByteArrayOutputStream
 import java.util.concurrent.atomic.AtomicInteger
@@ -25,7 +27,10 @@ class CommentImagesDeviceTest {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val context = instrumentation.targetContext
         val bitmap = Bitmap.createBitmap(8, 8, Bitmap.Config.ARGB_8888)
-        val png = ByteArrayOutputStream().use { stream -> bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream); stream.toByteArray() }
+        val png = ByteArrayOutputStream().use { stream ->
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
+            stream.toByteArray()
+        }
         bitmap.recycle()
         val gif = Base64.decode("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7", Base64.DEFAULT)
         val requests = AtomicInteger()
@@ -50,7 +55,11 @@ class CommentImagesDeviceTest {
                 assertEquals(index + 1, requests.get())
                 // Enlarging uses the original cached file with a different decode size.
                 media.loader.memoryCache!!.clear()
-                assertTrue(media.loader.execute(ImageRequest.Builder(context).data(url).size(1024, 12000).build()) is SuccessResult)
+                assertTrue(
+                    media.loader.execute(
+                        ImageRequest.Builder(context).data(url).size(1024, 12000).build(),
+                    ) is SuccessResult,
+                )
                 assertEquals(index + 1, requests.get())
             }
             instrumentation.runOnMainSync { media.close() }

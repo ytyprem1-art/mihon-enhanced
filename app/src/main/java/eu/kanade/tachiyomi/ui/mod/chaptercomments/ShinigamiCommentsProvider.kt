@@ -1,7 +1,19 @@
 package eu.kanade.tachiyomi.ui.mod.chaptercomments
 
 import kotlinx.coroutines.CancellationException
-import kotlinx.serialization.json.*
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.put
 import okhttp3.HttpUrl.Companion.toHttpUrl
 
 class ShinigamiCommentsProvider(
@@ -9,13 +21,30 @@ class ShinigamiCommentsProvider(
     private val transport: CommentsTransport,
 ) : ChapterCommentsProvider, ChapterReactionsProvider {
     override val reactionOptions = listOf(
-        ChapterReactionOption("reaction0", "👍", "Upvote", "https://cdn.jsdelivr.net/gh/shinigamiscans/static@1.0.0/emotes/2.webp"),
-        ChapterReactionOption("reaction1", "❤️", "Suki", "https://cdn.jsdelivr.net/gh/shinigamiscans/static@1.0.0/emotes/3.webp"),
-        ChapterReactionOption("reaction2", "😡", "Apsih", "https://cdn.jsdelivr.net/gh/shinigamiscans/static@1.0.0/emotes/4.webp"),
+        ChapterReactionOption(
+            "reaction0",
+            "👍",
+            "Upvote",
+            "https://cdn.jsdelivr.net/gh/shinigamiscans/static@1.0.0/emotes/2.webp",
+        ),
+        ChapterReactionOption(
+            "reaction1",
+            "❤️",
+            "Suki",
+            "https://cdn.jsdelivr.net/gh/shinigamiscans/static@1.0.0/emotes/3.webp",
+        ),
+        ChapterReactionOption(
+            "reaction2",
+            "😡",
+            "Apsih",
+            "https://cdn.jsdelivr.net/gh/shinigamiscans/static@1.0.0/emotes/4.webp",
+        ),
     )
     private val path = target.url.toHttpUrl().pathSegments.let { segments ->
         val index = segments.indexOf("chapter")
-        require(index >= 0 && segments.getOrNull(index + 1)?.isNotBlank() == true) { "Alamat chapter Shinigami tidak dikenali." }
+        require(index >= 0 && segments.getOrNull(index + 1)?.isNotBlank() == true) {
+            "Alamat chapter Shinigami tidak dikenali."
+        }
         "chapter/${segments[index + 1]}"
     }
 
@@ -64,7 +93,15 @@ class ShinigamiCommentsProvider(
             CommentSort.NEWEST -> "insertedAt_desc"
             CommentSort.OLDEST -> "insertedAt_asc"
         }
-        val data = request("comment", mapOf("path" to path, "pageSize" to "10", "page" to page.toString(), "sortBy" to sortBy)).jsonObject
+        val data = request(
+            "comment",
+            mapOf(
+                "path" to path,
+                "pageSize" to "10",
+                "page" to page.toString(),
+                "sortBy" to sortBy,
+            ),
+        ).jsonObject
         return CommentsPage(
             (data["data"] as? JsonArray).orEmpty().map { parseComment(it.jsonObject) },
             data.number("count"),
@@ -76,7 +113,9 @@ class ShinigamiCommentsProvider(
     override suspend fun reactions(): List<ChapterReaction> {
         val data = request("article", mapOf("path" to path, "type" to "reaction0,reaction1,reaction2"))
             .jsonArray.firstOrNull()?.jsonObject ?: return emptyList()
-        return listOf("Upvote", "Suki", "Apsih").mapIndexed { i, label -> ChapterReaction(label, data.number("reaction$i")) }
+        return listOf("Upvote", "Suki", "Apsih").mapIndexed { i, label ->
+            ChapterReaction(label, data.number("reaction$i"))
+        }
     }
 
     private suspend fun request(endpoint: String, params: Map<String, String>): JsonElement {

@@ -2,7 +2,10 @@ package eu.kanade.tachiyomi.ui.mod.chaptercomments
 
 import kotlinx.coroutines.runBlocking
 import okhttp3.HttpUrl.Companion.toHttpUrl
-import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class ShinigamiCommentsProviderTest {
@@ -15,7 +18,11 @@ class ShinigamiCommentsProviderTest {
                 return if (writes.size == 1) """{"errno":0,"data":{}}""" else """{"errno":403,"errmsg":"Denied"}"""
             }
         }
-        val provider = ShinigamiCommentsProvider(CommentTarget("https://11.shinigami.asia/chapter/id-31", "Chapter", "Shinigami"), transport)
+        val provider =
+            ShinigamiCommentsProvider(
+                CommentTarget("https://11.shinigami.asia/chapter/id-31", "Chapter", "Shinigami"),
+                transport,
+            )
         val failure = runCatching { provider.setChapterReaction("reaction0", "reaction1") }.exceptionOrNull()
         assertTrue(failure is ChapterReactionUpdateException)
         assertNull((failure as ChapterReactionUpdateException).confirmedSelection)
@@ -38,7 +45,11 @@ class ShinigamiCommentsProviderTest {
                 return if (fail) """{"errno":403,"errmsg":"Denied"}""" else """{"errno":0,"data":{}}"""
             }
         }
-        val provider = ShinigamiCommentsProvider(CommentTarget("https://11.shinigami.asia/chapter/id-31", "Chapter", "Shinigami"), transport)
+        val provider =
+            ShinigamiCommentsProvider(
+                CommentTarget("https://11.shinigami.asia/chapter/id-31", "Chapter", "Shinigami"),
+                transport,
+            )
         assertEquals(listOf("Upvote", "Suki", "Apsih"), provider.reactionOptions.map { it.countLabel })
         assertTrue(provider.reactionOptions.all { it.imageUrl?.endsWith(".webp") == true })
         provider.reactions()
@@ -72,7 +83,8 @@ class ShinigamiCommentsProviderTest {
                 assertEquals("POST", method)
                 assertEquals("https://commento.shngm.io/api/article?lang=en", url)
                 assertEquals(target.url, referer)
-                writes += kotlinx.serialization.json.Json.parseToJsonElement(json) as kotlinx.serialization.json.JsonObject
+                writes +=
+                    kotlinx.serialization.json.Json.parseToJsonElement(json) as kotlinx.serialization.json.JsonObject
                 return response
             }
         }
@@ -82,9 +94,22 @@ class ShinigamiCommentsProviderTest {
         assertTrue(writes.isEmpty())
         provider.setChapterUpvote(true)
         provider.setChapterUpvote(false)
-        assertEquals(kotlinx.serialization.json.Json.parseToJsonElement("""{"path":"chapter/id-31","type":"reaction0"}"""), writes[0])
-        assertEquals(kotlinx.serialization.json.Json.parseToJsonElement("""{"path":"chapter/id-31","type":"reaction0","action":"desc"}"""), writes[1])
-        for (error in listOf("""{"errno":403,"errmsg":"Denied"}""", """{"errno":0,"success":false}""", """{"errno":0,"error":"Denied"}""", """{}""")) {
+        assertEquals(
+            kotlinx.serialization.json.Json.parseToJsonElement("""{"path":"chapter/id-31","type":"reaction0"}"""),
+            writes[0],
+        )
+        assertEquals(
+            kotlinx.serialization.json.Json.parseToJsonElement(
+                """{"path":"chapter/id-31","type":"reaction0","action":"desc"}""",
+            ),
+            writes[1],
+        )
+        for (error in listOf(
+            """{"errno":403,"errmsg":"Denied"}""",
+            """{"errno":0,"success":false}""",
+            """{"errno":0,"error":"Denied"}""",
+            """{}""",
+        )) {
             response = error
             assertTrue(runCatching { provider.setChapterUpvote(true) }.isFailure)
         }
@@ -118,10 +143,16 @@ class ShinigamiCommentsProviderTest {
                 assertEquals("chapter/id-31", parsed.queryParameter("path"))
                 return if (parsed.pathSegments.last() == "article") {
                     """{"errno":0,"data":[{"reaction0":100,"reaction1":2,"reaction2":3}]}"""
-                } else """{"errno":0,"data":{"count":20,"page":1,"totalPages":2,"data":[{"objectId":31,"nick":"A","comment":"<p>chapter31</p>","like":4,"children":[{"objectId":32,"nick":"B","comment":"reply","reply_user":{"nick":"A"}}]}]}}"""
+                } else {
+                    """{"errno":0,"data":{"count":20,"page":1,"totalPages":2,"data":[{"objectId":31,"nick":"A","comment":"<p>chapter31</p>","like":4,"children":[{"objectId":32,"nick":"B","comment":"reply","reply_user":{"nick":"A"}}]}]}}"""
+                }
             }
         }
-        val provider = ShinigamiCommentsProvider(CommentTarget("https://11.shinigami.asia/chapter/id-31", "Chapter31", "Shinigami"), transport)
+        val provider =
+            ShinigamiCommentsProvider(
+                CommentTarget("https://11.shinigami.asia/chapter/id-31", "Chapter31", "Shinigami"),
+                transport,
+            )
         assertTrue(paths.isEmpty())
         val page = provider.comments(CommentSort.POPULAR, 1)
         assertTrue(page.hasMore)

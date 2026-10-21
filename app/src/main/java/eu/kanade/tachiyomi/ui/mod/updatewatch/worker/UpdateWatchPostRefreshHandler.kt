@@ -1,7 +1,7 @@
 package eu.kanade.tachiyomi.ui.mod.updatewatch.worker
 
-import eu.kanade.tachiyomi.ui.mod.util.dateUploadMillis
 import android.content.Context
+import eu.kanade.tachiyomi.ui.mod.util.dateUploadMillis
 import tachiyomi.domain.chapter.model.Chapter
 import tachiyomi.domain.history.interactor.ManageUpdateWatch
 import tachiyomi.domain.history.interactor.ManageUpdateWatchInbox
@@ -20,9 +20,11 @@ object UpdateWatchPostRefreshHandler {
         newChapters: List<Chapter>,
         currentLatestChapter: Chapter?,
         startTime: Long,
-        onInboxItemCreated: (UpdateWatchInboxItem) -> Unit
+        onInboxItemCreated: (UpdateWatchInboxItem) -> Unit,
     ) {
-        val foundNew = newChapters.isNotEmpty() || (currentLatestChapter != null && currentLatestChapter.id != oldLatestChapter?.id)
+        val foundNew =
+            newChapters.isNotEmpty() ||
+                (currentLatestChapter != null && currentLatestChapter.id != oldLatestChapter?.id)
         val newCount = newChapters.size.coerceAtLeast(if (foundNew) 1 else 0)
 
         if (foundNew && currentLatestChapter != null) {
@@ -59,10 +61,16 @@ object UpdateWatchPostRefreshHandler {
             val min = sorted.first().chapterNumber
             val max = sorted.last().chapterNumber
             val isContiguous = (max - min).toInt() == newChapters.size - 1
-            if (isContiguous) "Ch. ${formatChapterNumber(min)}–${formatChapterNumber(max)}"
-            else if (newChapters.size > 3) "Ch. ${formatChapterNumber(min)}, ..., ${formatChapterNumber(max)}"
-            else "Ch. " + sorted.joinToString(", ") { formatChapterNumber(it.chapterNumber) }
-        } else "Ch. ${formatChapterNumber(currentLatestChapter.chapterNumber)}"
+            if (isContiguous) {
+                "Ch. ${formatChapterNumber(min)}–${formatChapterNumber(max)}"
+            } else if (newChapters.size > 3) {
+                "Ch. ${formatChapterNumber(min)}, ..., ${formatChapterNumber(max)}"
+            } else {
+                "Ch. " + sorted.joinToString(", ") { formatChapterNumber(it.chapterNumber) }
+            }
+        } else {
+            "Ch. ${formatChapterNumber(currentLatestChapter.chapterNumber)}"
+        }
     }
 
     suspend fun showNotificationIfEnabled(context: Context, items: List<UpdateWatchInboxItem>) {

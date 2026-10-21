@@ -30,14 +30,17 @@ fun ChatHistoryLoader(listState: LazyListState) {
     LaunchedEffect(listState, page) {
         if (!page.canLoadMore || page.loading || page.error != null) return@LaunchedEffect
         snapshotFlow {
-            listState.isScrollInProgress && listState.layoutInfo.visibleItemsInfo.any { it.key == CHAT_HISTORY_LOADER_KEY }
+            listState.isScrollInProgress &&
+                listState.layoutInfo.visibleItemsInfo.any { it.key == CHAT_HISTORY_LOADER_KEY }
         }.first { it }
         manager.loadOlderMessages()
     }
     Box(Modifier.fillMaxWidth().padding(8.dp), contentAlignment = Alignment.Center) {
         when {
             page.loading -> CircularProgressIndicator()
-            page.error != null -> TextButton(onClick = manager::loadOlderMessages) { Text("Retry loading earlier messages") }
+            page.error != null -> TextButton(onClick = manager::loadOlderMessages) {
+                Text("Retry loading earlier messages")
+            }
             page.canLoadMore -> TextButton(onClick = manager::loadOlderMessages) { Text("Load 50 earlier messages") }
             else -> Text("No earlier messages")
         }

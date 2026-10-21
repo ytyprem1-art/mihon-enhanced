@@ -42,14 +42,23 @@ class DoujindesuCommentsProvider(
         val root = request("$origin/api/chapters/$chapterId/comments?sortBy=$order&page=$page&limit=15")
         check(root["comments"] is JsonArray) { "Respons komentar reader tidak valid" }
         val records = root.array("comments").mapNotNull { it as? JsonObject }
-        return CommentsPage(tree(records), root.number("total") ?: records.size, root.flag("hasMore"), totalKnown = root.number("total") != null)
+        return CommentsPage(
+            tree(records),
+            root.number("total") ?: records.size,
+            root.flag("hasMore"),
+            totalKnown =
+            root.number("total") != null,
+        )
     }
 
     override suspend fun reactions(): List<ChapterReaction> {
         val root = request("$origin/api/chapters/$chapterId/reactions")
         check(root["counts"] is JsonArray) { "Respons reaksi reader tidak valid" }
         return root.array("counts").mapNotNull { it as? JsonObject }.map {
-            ChapterReaction(it.text("emoji").ifBlank { it.text("name").ifBlank { it.text("id") } }, it.number("count") ?: 0)
+            ChapterReaction(
+                it.text("emoji").ifBlank { it.text("name").ifBlank { it.text("id") } },
+                it.number("count") ?: 0,
+            )
         }
     }
 
@@ -75,14 +84,20 @@ class DoujindesuCommentsProvider(
         val envelope = Json.parseToJsonElement(raw) as? JsonObject ?: error("Respons reader tidak valid")
         val root = envelope.text("_enc_resp_").takeIf { it.isNotBlank() }?.let(::decrypt) ?: envelope
         currentCoroutineContext().ensureActive()
-        check(root.text("error") in listOf("", "false") && (root["success"] as? JsonPrimitive)?.booleanOrNull != false) {
+        check(
+            root.text("error") in listOf("", "false") && (root["success"] as? JsonPrimitive)?.booleanOrNull != false,
+        ) {
             root.text("error").ifBlank { root.text("message").ifBlank { "Gagal memuat komentar reader" } }
         }
         return root
     }
 
     private fun decrypt(hex: String): JsonObject {
-        require(hex.length % 2 == 0 && hex.all { it.digitToIntOrNull(16) != null }) { "Data komentar terenkripsi tidak valid" }
+        require(
+            hex.length % 2 == 0 && hex.all {
+                it.digitToIntOrNull(16) != null
+            },
+        ) { "Data komentar terenkripsi tidak valid" }
         val hour = nowMillis() / 3_600_000L
         for (candidate in listOf(hour, hour - 1, hour + 1)) {
             val result = runCatching {
@@ -96,7 +111,9 @@ class DoujindesuCommentsProvider(
                     }
                 }
                 // JS decodeURIComponent preserves plus signs; URLDecoder otherwise treats them as spaces.
-                Json.parseToJsonElement(URLDecoder.decode(decoded.replace("+", "%2B"), StandardCharsets.UTF_8.name())) as JsonObject
+                Json.parseToJsonElement(
+                    URLDecoder.decode(decoded.replace("+", "%2B"), StandardCharsets.UTF_8.name()),
+                ) as JsonObject
             }.getOrNull()
             if (result != null) return result
         }
@@ -131,7 +148,9 @@ class DoujindesuCommentsProvider(
         fun build(id: String): ChapterComment {
             val item = all.getValue(id)
             val children = all.keys.filter { parents[it] == id }.map(::build)
-            return parseComment(item).copy(replies = children, replyCount = maxOf(item.number("reply_count") ?: 0, children.size))
+            return parseComment(
+                item,
+            ).copy(replies = children, replyCount = maxOf(item.number("reply_count") ?: 0, children.size))
         }
         return all.keys.filter { parents[it] == null }.map(::build)
     }
@@ -139,9 +158,18 @@ class DoujindesuCommentsProvider(
     private fun parseComment(item: JsonObject): ChapterComment {
         val raw = item.text("content")
         val content = TextNode(raw).outerHtml()
-            .replace(Regex("\\[b](.*?)\\[/b]", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)), "<b>$1</b>")
-            .replace(Regex("\\[i](.*?)\\[/i]", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)), "<i>$1</i>")
-            .replace(Regex("\\[s](.*?)\\[/s]", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)), "<s>$1</s>")
+            .replace(
+                Regex("\\[b](.*?)\\[/b]", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)),
+                "<b>$1</b>",
+            )
+            .replace(
+                Regex("\\[i](.*?)\\[/i]", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)),
+                "<i>$1</i>",
+            )
+            .replace(
+                Regex("\\[s](.*?)\\[/s]", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)),
+                "<s>$1</s>",
+            )
             .replace(Regex("\\[/?spoiler]", RegexOption.IGNORE_CASE), "")
         return ChapterComment(
             id = item.text("id"),
@@ -151,8 +179,12 @@ class DoujindesuCommentsProvider(
             avatar = publicMediaUrl(item.text("avatar_url")),
             upvotes = item.number("likes_count") ?: 0,
             replyCount = item.number("reply_count") ?: 0,
-            media = (listOf("image_url", "gif_url").mapNotNull { publicMediaUrl(item.text(it)) } +
-                Regex("!\\[[^]]*]\\((https?://[^\\s)]+)\\)").findAll(raw).mapNotNull { publicMediaUrl(it.groupValues[1]) }.toList()).distinct(),
+            media = (
+                listOf("image_url", "gif_url").mapNotNull { publicMediaUrl(item.text(it)) } +
+                    Regex("!\\[[^]]*]\\((https?://[^\\s)]+)\\)").findAll(raw).mapNotNull {
+                        publicMediaUrl(it.groupValues[1])
+                    }.toList()
+                ).distinct(),
             replyTo = item.text("reply_to_username").ifBlank { item.text("parent_id") }.takeIf { it.isNotBlank() },
             isSpoiler = Regex("\\[spoiler]", RegexOption.IGNORE_CASE).containsMatchIn(raw),
         )
@@ -169,8 +201,10 @@ class DoujindesuCommentsProvider(
         /** Recognizes the SPA shell on changed domains, or a retrieved engine bundle. */
         fun recognizes(html: String): Boolean =
             (html.contains("_enc_resp_") && html.contains("doujindesu_device_id")) ||
-                (html.contains("Doujindesu", ignoreCase = true) &&
-                    Regex("(?:src|href)=[\"'][^\"']*/assets/index-[^\"']+\\.js").containsMatchIn(html))
+                (
+                    html.contains("Doujindesu", ignoreCase = true) &&
+                        Regex("(?:src|href)=[\"'][^\"']*/assets/index-[^\"']+\\.js").containsMatchIn(html)
+                    )
 
         private val UUID = Regex("[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}")
         private const val APP_SECRET = "dfdf72051dbfdc7d76889ebd31324e74"

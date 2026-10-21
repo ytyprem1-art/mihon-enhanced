@@ -1,10 +1,10 @@
 package eu.kanade.tachiyomi.ui.mod.panelshare
 
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import kotlinx.serialization.json.contentOrNull
 import java.net.URI
 
 /** Isolated because this is a website workflow, not a documented public API. */
@@ -13,7 +13,9 @@ object ImgUpscaleProtocol {
     const val MAX_INPUT_SIDE = 2048
     const val MAX_DOWNLOAD_BYTES = 64L * 1024 * 1024
 
-    fun requireScale(scale: Int) { require(scale == 2 || scale == 4) { "Choose 2× or 4×" } }
+    fun requireScale(scale: Int) {
+        require(scale == 2 || scale == 4) { "Choose 2× or 4×" }
+    }
 
     fun taskId(body: String): String {
         val json = Json.parseToJsonElement(body).jsonObject
@@ -34,7 +36,9 @@ object ImgUpscaleProtocol {
                     ?: error("ImgUpscaler returned no supported result URL")
             }
             "waiting", "processing", "pending", "queued", "uploading" -> null
-            "failed", "nsfw" -> error(json["error"]?.jsonPrimitive?.content?.take(200) ?: "ImgUpscaler could not process this image")
+            "failed", "nsfw" -> error(
+                json["error"]?.jsonPrimitive?.content?.take(200) ?: "ImgUpscaler could not process this image",
+            )
             else -> error("ImgUpscaler returned an unexpected response. The website may have changed.")
         }
     }
@@ -43,8 +47,10 @@ object ImgUpscaleProtocol {
         val uri = URI(value)
         val host = uri.host?.lowercase().orEmpty()
         uri.scheme == "https" && uri.userInfo == null && uri.port in listOf(-1, 443) &&
-            (host == "imgupscaler.com" || host.endsWith(".imgupscaler.com") ||
-                host == "imglarger.com" || host.endsWith(".imglarger.com")) &&
+            (
+                host == "imgupscaler.com" || host.endsWith(".imgupscaler.com") ||
+                    host == "imglarger.com" || host.endsWith(".imglarger.com")
+                ) &&
             !uri.path.isNullOrBlank() && !uri.path.endsWith('/')
     }.getOrDefault(false)
 }

@@ -6,10 +6,28 @@ import android.net.Uri
 import android.widget.ImageView
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -27,7 +45,13 @@ import kotlinx.coroutines.withContext
 fun ChatAvatarCrop(uri: Uri, onDismiss: () -> Unit, onConfirm: (ChatAvatarUpload) -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val view = remember(uri) { PhotoView(context).apply { scaleType = ImageView.ScaleType.CENTER_CROP; setScaleLevels(1f, 3f, 8f) } }
+    val view =
+        remember(uri) {
+            PhotoView(context).apply {
+                scaleType = ImageView.ScaleType.CENTER_CROP
+                setScaleLevels(1f, 3f, 8f)
+            }
+        }
     var loaded by remember(uri) { mutableStateOf(false) }
     var busy by remember(uri) { mutableStateOf(false) }
     var error by remember(uri) { mutableStateOf<String?>(null) }
@@ -36,9 +60,19 @@ fun ChatAvatarCrop(uri: Uri, onDismiss: () -> Unit, onConfirm: (ChatAvatarUpload
             val image = ChatAvatarPhoto.loadForCrop(context, uri)
             view.setImageBitmap(image)
             loaded = true
-        } catch (e: CancellationException) { throw e }
-        catch (e: OutOfMemoryError) { error = "Memori tidak cukup. Coba foto yang lebih kecil." }
-        catch (e: Exception) { error = e.message ?: "Gambar tidak bisa dibuka." }
+        } catch (
+            e: CancellationException,
+        ) {
+            throw e
+        } catch (
+            e: OutOfMemoryError,
+        ) {
+            error = "Memori tidak cukup. Coba foto yang lebih kecil."
+        } catch (
+            e: Exception,
+        ) {
+            error = e.message ?: "Gambar tidak bisa dibuka."
+        }
     }
     DisposableEffect(view) { onDispose { view.setImageDrawable(null) } }
     AlertDialog(
@@ -58,16 +92,31 @@ fun ChatAvatarCrop(uri: Uri, onDismiss: () -> Unit, onConfirm: (ChatAvatarUpload
         confirmButton = {
             TextButton(enabled = loaded && !busy, onClick = {
                 scope.launch {
-                    busy = true; error = null
+                    busy = true
+                    error = null
                     try {
                         val bitmap = captureAvatar(view, ChatAvatarPhoto.HD_SIDE)
-                        val encoded = try { withContext(Dispatchers.Default) { ChatAvatarPhoto.prepareUpload(bitmap) } }
-                        finally { bitmap.recycle() }
+                        val encoded = try {
+                            withContext(Dispatchers.Default) { ChatAvatarPhoto.prepareUpload(bitmap) }
+                        } finally {
+                            bitmap.recycle()
+                        }
                         onConfirm(encoded)
-                    } catch (e: CancellationException) { throw e }
-                    catch (e: OutOfMemoryError) { error = "Memori tidak cukup. Coba foto yang lebih kecil." }
-                    catch (e: Exception) { error = e.message ?: "Foto tidak bisa diproses." }
-                    finally { busy = false }
+                    } catch (
+                        e: CancellationException,
+                    ) {
+                        throw e
+                    } catch (
+                        e: OutOfMemoryError,
+                    ) {
+                        error = "Memori tidak cukup. Coba foto yang lebih kecil."
+                    } catch (
+                        e: Exception,
+                    ) {
+                        error = e.message ?: "Foto tidak bisa diproses."
+                    } finally {
+                        busy = false
+                    }
                 }
             }) { Text("Gunakan foto") }
         },

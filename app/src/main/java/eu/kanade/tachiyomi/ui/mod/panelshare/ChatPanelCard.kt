@@ -5,10 +5,10 @@ import android.util.LruCache
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -22,8 +22,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -47,7 +47,11 @@ private object PanelCache {
 }
 
 @Composable
-fun ChatPanelCard(message: ChatMessage, onMangaClick: (ChatMessage) -> Unit, captionColor: Color = MaterialTheme.colorScheme.onSurface) {
+fun ChatPanelCard(
+    message: ChatMessage,
+    onMangaClick: (ChatMessage) -> Unit,
+    captionColor: Color = MaterialTheme.colorScheme.onSurface,
+) {
     var revealed by rememberSaveable(message.id) { mutableStateOf(false) }
     val hidden = message.isSpoiler && !revealed
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -55,7 +59,10 @@ fun ChatPanelCard(message: ChatMessage, onMangaClick: (ChatMessage) -> Unit, cap
             Column(Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 if (hidden) {
                     Box(
-                        Modifier.fillMaxWidth().height(180.dp).clickable(onClickLabel = "Reveal spoiler") { revealed = true },
+                        Modifier.fillMaxWidth().height(180.dp).clickable(onClickLabel = "Reveal spoiler") {
+                            revealed =
+                                true
+                        },
                         contentAlignment = Alignment.Center,
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -67,14 +74,24 @@ fun ChatPanelCard(message: ChatMessage, onMangaClick: (ChatMessage) -> Unit, cap
                     ChatPanelImage(message.id)
                 }
                 Column(Modifier.fillMaxWidth().clickable { onMangaClick(message) }) {
-                    Text(message.mangaTitle.orEmpty(), style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    Text(
+                        message.mangaTitle.orEmpty(),
+                        style = MaterialTheme.typography.titleSmall,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                     Text(message.chapterName.orEmpty(), style = MaterialTheme.typography.bodySmall)
                     Text(message.sourceName.orEmpty(), style = MaterialTheme.typography.bodySmall)
                 }
             }
         }
         if (!hidden && message.text.isNotBlank() && !message.text.startsWith("Shared a manga:")) {
-            Text(message.text, style = MaterialTheme.typography.bodyMedium, color = captionColor, modifier = Modifier.padding(vertical = 4.dp))
+            Text(
+                message.text,
+                style = MaterialTheme.typography.bodyMedium,
+                color = captionColor,
+                modifier = Modifier.padding(vertical = 4.dp),
+            )
         }
     }
 }
@@ -108,7 +125,10 @@ private fun ChatPanelImage(messageId: String) {
         Image(
             bitmap.asImageBitmap(),
             "Shared panel",
-            Modifier.fillMaxWidth().heightIn(max = 320.dp).clickable(onClickLabel = "Enlarge image") { previewOpen = true },
+            Modifier.fillMaxWidth().heightIn(max = 320.dp).clickable(onClickLabel = "Enlarge image") {
+                previewOpen =
+                    true
+            },
             contentScale = ContentScale.Fit,
         )
     } else if (failed) {

@@ -13,7 +13,7 @@ object UpdateWatchSlotHelper {
     fun getCurrentSlot(
         bucket: UpdateWatchRefreshHelper.PriorityBucket,
         now: Long,
-        zoneId: ZoneId = ZoneId.systemDefault()
+        zoneId: ZoneId = ZoneId.systemDefault(),
     ): Long {
         val intervalHours = getSlotIntervalHours(bucket) ?: return 0L
         val ldt = LocalDateTime.ofInstant(Instant.ofEpochMilli(now), zoneId)
@@ -31,7 +31,7 @@ object UpdateWatchSlotHelper {
     fun getNextSlot(
         bucket: UpdateWatchRefreshHelper.PriorityBucket,
         now: Long,
-        zoneId: ZoneId = ZoneId.systemDefault()
+        zoneId: ZoneId = ZoneId.systemDefault(),
     ): Long {
         val intervalHours = getSlotIntervalHours(bucket) ?: return 0L
         val currentSlot = getCurrentSlot(bucket, now, zoneId)
@@ -52,13 +52,19 @@ object UpdateWatchSlotHelper {
         bucket: UpdateWatchRefreshHelper.PriorityBucket,
         now: Long,
         lastProcessedSlotAt: Long?,
-        zoneId: ZoneId = ZoneId.systemDefault()
+        zoneId: ZoneId = ZoneId.systemDefault(),
     ): Boolean {
         if (bucket == UpdateWatchRefreshHelper.PriorityBucket.NONE) return false
 
         val currentSlot = getCurrentSlot(bucket, now, zoneId)
 
-        val actualLastProcessed = if (lastProcessedSlotAt != null && lastProcessedSlotAt > 0) lastProcessedSlotAt else null
+        val actualLastProcessed = if (lastProcessedSlotAt != null &&
+            lastProcessedSlotAt > 0
+        ) {
+            lastProcessedSlotAt
+        } else {
+            null
+        }
         val enabledAt = if (lastProcessedSlotAt != null && lastProcessedSlotAt < 0) -lastProcessedSlotAt else 0L
 
         // 1. Never processed or a new slot has started since last real check?
@@ -77,7 +83,7 @@ object UpdateWatchSlotHelper {
     fun getNextWorkerTargetBase(
         buckets: Set<UpdateWatchRefreshHelper.PriorityBucket>,
         now: Long,
-        zoneId: ZoneId = ZoneId.systemDefault()
+        zoneId: ZoneId = ZoneId.systemDefault(),
     ): Long? {
         val validBuckets = buckets.filter { it != UpdateWatchRefreshHelper.PriorityBucket.NONE }
         if (validBuckets.isEmpty()) return null

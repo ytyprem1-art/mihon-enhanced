@@ -99,7 +99,9 @@ class SourceRepositoryImpl(
     }
 
     override fun getLatest(sourceId: Long, libraryOnly: Boolean): SourcePagingSource {
-        return SourceLatestPagingSource({ sourceManager.getOrStub(sourceId) }, networkToLocalManga, libraryOnly, mangaRepository)
+        return SourceLatestPagingSource({
+            sourceManager.getOrStub(sourceId)
+        }, networkToLocalManga, libraryOnly, mangaRepository)
     }
 
     private fun mapSourceToDomainSource(source: Source): DomainSource = DomainSource(

@@ -1,6 +1,5 @@
 package eu.kanade.tachiyomi.ui.mod.updatewatch.worker
 
-import eu.kanade.tachiyomi.ui.mod.util.dateUploadMillis
 import android.app.ActivityManager
 import android.app.Application
 import android.content.Context
@@ -12,6 +11,7 @@ import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.workDataOf
 import eu.kanade.tachiyomi.ui.mod.updatewatch.helper.UpdateWatchRefreshHelper
+import eu.kanade.tachiyomi.ui.mod.util.dateUploadMillis
 import eu.kanade.tachiyomi.util.system.workManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -105,16 +105,18 @@ object UpdateWatchRefreshScheduler {
                 append("\nWork state: ${existingWork.state}")
                 append("\nZone: ${zoneId.id}")
             }
-            UpdateWatchDiagnosticsManager.log(UpdateWatchSchedulerDiagnostic(
-                type = UpdateWatchSchedulerDiagnostic.RunType.SCHEDULER_EVENT,
-                eventName = logMsg,
-                scheduledAt = lastScheduled,
-                earliestNextEligibleAt = earliest,
-                wallClockBaseSlot = earliest,
-                nextWorkerTargetAt = lastScheduled,
-                safetyMarginMinutes = lastMargin,
-                timezone = zoneId.id
-            ))
+            UpdateWatchDiagnosticsManager.log(
+                UpdateWatchSchedulerDiagnostic(
+                    type = UpdateWatchSchedulerDiagnostic.RunType.SCHEDULER_EVENT,
+                    eventName = logMsg,
+                    scheduledAt = lastScheduled,
+                    earliestNextEligibleAt = earliest,
+                    wallClockBaseSlot = earliest,
+                    nextWorkerTargetAt = lastScheduled,
+                    safetyMarginMinutes = lastMargin,
+                    timezone = zoneId.id,
+                ),
+            )
             return@withContext lastScheduled
         }
 
@@ -138,17 +140,19 @@ object UpdateWatchRefreshScheduler {
             append("\nZone: ${zoneId.id}")
         }
 
-        UpdateWatchDiagnosticsManager.log(UpdateWatchSchedulerDiagnostic(
-            type = UpdateWatchSchedulerDiagnostic.RunType.SCHEDULER_EVENT,
-            eventName = logMsg,
-            scheduledAt = scheduledAt,
-            earliestNextEligibleAt = earliest,
-            wallClockBaseSlot = earliest,
-            nextWorkerTargetAt = scheduledAt,
-            isRecoveryRun = isRecovery,
-            safetyMarginMinutes = marginMin,
-            timezone = zoneId.id
-        ))
+        UpdateWatchDiagnosticsManager.log(
+            UpdateWatchSchedulerDiagnostic(
+                type = UpdateWatchSchedulerDiagnostic.RunType.SCHEDULER_EVENT,
+                eventName = logMsg,
+                scheduledAt = scheduledAt,
+                earliestNextEligibleAt = earliest,
+                wallClockBaseSlot = earliest,
+                nextWorkerTargetAt = scheduledAt,
+                isRecoveryRun = isRecovery,
+                safetyMarginMinutes = marginMin,
+                timezone = zoneId.id,
+            ),
+        )
 
         diagPrefs.lastEarliestEligibleAt.set(earliest)
         diagPrefs.lastScheduledAt.set(scheduledAt)
@@ -188,10 +192,12 @@ object UpdateWatchRefreshScheduler {
             .apply {
                 setInputData(workDataOf(KEY_RUN_ORIGIN to ORIGIN_SCHEDULED))
                 if (scheduledAt != null) {
-                    setInputData(workDataOf(
-                        KEY_SCHEDULED_AT to scheduledAt,
-                        KEY_RUN_ORIGIN to ORIGIN_SCHEDULED
-                    ))
+                    setInputData(
+                        workDataOf(
+                            KEY_SCHEDULED_AT to scheduledAt,
+                            KEY_RUN_ORIGIN to ORIGIN_SCHEDULED,
+                        ),
+                    )
                 }
             }
             .build()
@@ -206,10 +212,12 @@ object UpdateWatchRefreshScheduler {
     fun runNow(context: Context, simulationMode: Int = UpdateWatchRefreshWorker.SIM_NONE) {
         val request = OneTimeWorkRequestBuilder<UpdateWatchRefreshWorker>()
             .addTag(MANUAL_WORK_NAME)
-            .setInputData(workDataOf(
-                UpdateWatchRefreshWorker.KEY_SIMULATION_MODE to simulationMode,
-                KEY_RUN_ORIGIN to ORIGIN_MANUAL
-            ))
+            .setInputData(
+                workDataOf(
+                    UpdateWatchRefreshWorker.KEY_SIMULATION_MODE to simulationMode,
+                    KEY_RUN_ORIGIN to ORIGIN_MANUAL,
+                ),
+            )
             .build()
 
         context.workManager.enqueueUniqueWork(

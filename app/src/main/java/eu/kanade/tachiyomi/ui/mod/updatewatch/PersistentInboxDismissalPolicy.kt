@@ -22,15 +22,25 @@ class PersistentInboxDismissalPolicy(
         val warning = item.type == UpdateWatchInboxItem.TYPE_INACTIVITY_WARNING
         val ids = (item.chapterIds + item.latestChapterId).filter { it > 0 }.distinct()
         val covered = ids.mapNotNull { chapters.getChapterById(it) }
-        store.restore(listOf(UpdateWatchDismissal(
-            source = manga.source, url = manga.url,
-            chapterUrls = if (warning) emptyList() else covered.map { it.url },
-            throughChapterNumber = if (warning) 0.0 else maxOf(
-                item.latestChapterNumber, covered.maxOfOrNull { it.chapterNumber } ?: 0.0,
+        store.restore(
+            listOf(
+                UpdateWatchDismissal(
+                    source = manga.source,
+                    url = manga.url,
+                    chapterUrls = if (warning) emptyList() else covered.map { it.url },
+                    throughChapterNumber = if (warning) {
+                        0.0
+                    } else {
+                        maxOf(
+                            item.latestChapterNumber,
+                            covered.maxOfOrNull { it.chapterNumber } ?: 0.0,
+                        )
+                    },
+                    warningMilestone = if (warning) item.milestone else 0,
+                    warningFoundAt = if (warning) item.lastFoundAt else 0L,
+                ),
             ),
-            warningMilestone = if (warning) item.milestone else 0,
-            warningFoundAt = if (warning) item.lastFoundAt else 0L,
-        )))
+        )
     }
 
     override suspend fun filter(item: UpdateWatchInboxItem): UpdateWatchInboxItem? {
@@ -48,11 +58,13 @@ class PersistentInboxDismissalPolicy(
         val latest = accepted.firstOrNull { it.id == item.latestChapterId }
             ?: accepted.maxBy { it.chapterNumber }
         return item.copy(
-            chapterIds = accepted.map { it.id }, chapterCount = accepted.size,
+            chapterIds = accepted.map { it.id },
+            chapterCount = accepted.size,
             chapterRange = "Ch. " + accepted.sortedBy { it.chapterNumber }.joinToString(", ") {
                 if (it.chapterNumber % 1 == 0.0) it.chapterNumber.toLong().toString() else it.chapterNumber.toString()
             },
-            latestChapterId = latest.id, latestChapterNumber = latest.chapterNumber,
+            latestChapterId = latest.id,
+            latestChapterNumber = latest.chapterNumber,
             latestChapterUploadAt = latest.dateUpload?.toEpochMilliseconds() ?: 0L,
         )
     }

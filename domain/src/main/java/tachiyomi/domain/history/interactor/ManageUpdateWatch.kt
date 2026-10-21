@@ -41,7 +41,7 @@ class ManageUpdateWatch(
         mangaId: Long,
         enabled: Boolean,
         interval: Int,
-        profile: UpdateWatch.RefreshProfile
+        profile: UpdateWatch.RefreshProfile,
     ) {
         val existing = repository.getById(mangaId)
         val newlyEnabled = enabled && existing?.backgroundRefreshEnabled == false

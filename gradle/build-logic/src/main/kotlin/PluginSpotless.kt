@@ -15,10 +15,11 @@ class PluginSpotless : Plugin<Project> {
 
         // Configuration should be synced with [/gradle/build-logic/build.gradle.kts]
         val ktlintVersion = libs.ktlint.bom.get().version
+        val editorConfigFile = layout.settingsDirectory.file(".editorconfig").asFile
         spotless {
             kotlin {
                 target("src/**/*.kt")
-                ktlint(ktlintVersion)
+                ktlint(ktlintVersion).setEditorConfigPath(editorConfigFile)
                 trimTrailingWhitespace()
                 endWithNewline()
                 forbidRegex(
@@ -45,7 +46,7 @@ class PluginSpotless : Plugin<Project> {
 
             kotlinGradle {
                 target("*.kts")
-                ktlint(ktlintVersion)
+                ktlint(ktlintVersion).setEditorConfigPath(editorConfigFile)
                 trimTrailingWhitespace()
                 endWithNewline()
             }

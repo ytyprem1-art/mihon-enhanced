@@ -10,8 +10,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
-import okhttp3.Request
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+import okhttp3.Request
 import org.jsoup.Jsoup
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
@@ -19,8 +19,15 @@ import java.io.File
 import java.util.UUID
 
 object ModApkDownload {
-    suspend fun download(context: Context, release: ModRelease, progress: (Float?) -> Unit): File = withContext(Dispatchers.IO) {
-        context.cacheDir.listFiles()?.filter { it.name.startsWith("mod-update-") && it.extension == "apk" && System.currentTimeMillis() - it.lastModified() > 86_400_000L }?.forEach { it.delete() }
+    suspend fun download(
+        context: Context,
+        release: ModRelease,
+        progress: (Float?) -> Unit,
+    ): File = withContext(Dispatchers.IO) {
+        context.cacheDir.listFiles()?.filter {
+            it.name.startsWith("mod-update-") && it.extension == "apk" &&
+                System.currentTimeMillis() - it.lastModified() > 86_400_000L
+        }?.forEach { it.delete() }
         val file = File(context.cacheDir, "mod-update-${UUID.randomUUID()}.apk")
         try {
             // Public Drive links must not rely on the publisher's WebView login cookies.
@@ -30,7 +37,10 @@ object ModApkDownload {
                 .cookieJar(object : okhttp3.CookieJar {
                     override fun saveFromResponse(url: okhttp3.HttpUrl, received: List<okhttp3.Cookie>) {
                         received.forEach { cookie ->
-                            cookies.removeAll { it.name == cookie.name && it.domain == cookie.domain && it.path == cookie.path }
+                            cookies.removeAll {
+                                it.name == cookie.name && it.domain == cookie.domain &&
+                                    it.path == cookie.path
+                            }
                             cookies.add(cookie)
                         }
                     }
@@ -100,25 +110,38 @@ object ModApkDownload {
     @Suppress("DEPRECATION")
     fun validate(context: Context, file: File, release: ModRelease) {
         val manager = context.packageManager
-        val archive = requireNotNull(manager.getPackageArchiveInfo(file.absolutePath, PackageManager.GET_SIGNATURES)) { "Downloaded file is not a valid APK" }
+        val archive =
+            requireNotNull(manager.getPackageArchiveInfo(file.absolutePath, PackageManager.GET_SIGNATURES)) {
+                "Downloaded file is not a valid APK"
+            }
         val installed = manager.getPackageInfo(context.packageName, PackageManager.GET_SIGNATURES)
         require(archive.packageName == context.packageName) { "This APK is for a different app variant" }
         require(archive.versionCode > installed.versionCode) { "APK build number must be newer than the installed app" }
-        require(archive.versionName == "Mihon Enhanced ${release.version}") { "APK version does not match the published update" }
+        require(archive.versionName == "Mihon Enhanced ${release.version}") {
+            "APK version does not match the published update"
+        }
         val signers = archive.signatures?.toSet().orEmpty()
-        require(signers.isNotEmpty() && signers == installed.signatures?.toSet()) { "APK signing key does not match this app" }
+        require(signers.isNotEmpty() && signers == installed.signatures?.toSet()) {
+            "APK signing key does not match this app"
+        }
     }
 
     fun install(context: Context, file: File) {
         require(file.isFile) { "APK is no longer cached. Download it again." }
         if (!context.packageManager.canRequestPackageInstalls()) {
-            context.startActivity(Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
-                android.net.Uri.parse("package:${context.packageName}")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            context.startActivity(
+                Intent(
+                    android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                    android.net.Uri.parse("package:${context.packageName}"),
+                ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+            )
             return
         }
-        context.startActivity(Intent(Intent.ACTION_VIEW).apply {
-            setDataAndType(file.getUriCompat(context), "application/vnd.android.package-archive")
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION
-        })
+        context.startActivity(
+            Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(file.getUriCompat(context), "application/vnd.android.package-archive")
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION
+            },
+        )
     }
 }

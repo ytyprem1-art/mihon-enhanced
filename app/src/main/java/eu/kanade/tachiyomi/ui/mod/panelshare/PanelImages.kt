@@ -16,7 +16,9 @@ object PanelImages {
         var current = Bitmap.createScaledBitmap(crop, width, height, true)
         if (crop !== viewport && crop !== current) crop.recycle()
         try {
-            val format = if (Build.VERSION.SDK_INT >= 30) Bitmap.CompressFormat.WEBP_LOSSY else {
+            val format = if (Build.VERSION.SDK_INT >= 30) {
+                Bitmap.CompressFormat.WEBP_LOSSY
+            } else {
                 @Suppress("DEPRECATION")
                 Bitmap.CompressFormat.WEBP
             }

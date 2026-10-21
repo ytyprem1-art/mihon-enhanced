@@ -16,6 +16,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import logcat.LogPriority
 import mihon.domain.manga.model.toDomainManga
 import tachiyomi.core.common.util.system.logcat
@@ -24,15 +27,11 @@ import tachiyomi.domain.manga.repository.MangaRepository
 import tachiyomi.domain.source.service.SourceManager
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.decodeFromString
-import kotlinx.serialization.encodeToString
 import java.util.UUID
 
 class BookmarkImportViewModel : androidx.lifecycle.ViewModel() {
     private val mutableState = kotlinx.coroutines.flow.MutableStateFlow<BookmarkImportViewModel.State>(State())
     val state: kotlinx.coroutines.flow.StateFlow<BookmarkImportViewModel.State> = mutableState
-
 
     private val sourceManager: SourceManager = Injekt.get()
     private val mangaRepository: MangaRepository = Injekt.get()
@@ -83,12 +82,17 @@ class BookmarkImportViewModel : androidx.lifecycle.ViewModel() {
 
     init {
         viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-        val manganato = sourceManager.getOnlineSources().find { it.name == "Manganato" && it.lang == "en" }
-        if (manganato != null) {
-            mutableState.update { it.copy(resolvedSourceInfo = "Source: ${manganato.name} (ID: ${manganato.id}) [${manganato::class.java.name}]") }
-        } else {
-            mutableState.update { it.copy(resolvedSourceInfo = "Manganato (EN) source not found or disabled") }
-        }
+            val manganato = sourceManager.getOnlineSources().find { it.name == "Manganato" && it.lang == "en" }
+            if (manganato != null) {
+                mutableState.update {
+                    it.copy(
+                        resolvedSourceInfo = "Source: ${manganato.name} (ID: ${manganato.id}) " +
+                            "[${manganato::class.java.name}]",
+                    )
+                }
+            } else {
+                mutableState.update { it.copy(resolvedSourceInfo = "Manganato (EN) source not found or disabled") }
+            }
         }
         loadSession()
     }
@@ -128,7 +132,7 @@ class BookmarkImportViewModel : androidx.lifecycle.ViewModel() {
         val session = BookmarkImportSession(
             sessionId = currentState.fileName ?: "unknown",
             fileName = currentState.fileName ?: "unknown",
-            entries = currentState.entries
+            entries = currentState.entries,
         )
         preferences.importSession.set(json.encodeToString(session))
     }
@@ -144,7 +148,13 @@ class BookmarkImportViewModel : androidx.lifecycle.ViewModel() {
         if (state.value.isMatching || state.value.isImporting) return
 
         val entries = state.value.entries
-        val hasUnchecked = entries.any { it.isValid && (it.matchResult == ManganatoCsvParser.MatchResult.UNCHECKED || it.matchResult == ManganatoCsvParser.MatchResult.CANCELED) }
+        val hasUnchecked = entries.any {
+            it.isValid &&
+                (
+                    it.matchResult == ManganatoCsvParser.MatchResult.UNCHECKED ||
+                        it.matchResult == ManganatoCsvParser.MatchResult.CANCELED
+                    )
+        }
 
         if (hasUnchecked) {
             checkMatches()
@@ -161,7 +171,18 @@ class BookmarkImportViewModel : androidx.lifecycle.ViewModel() {
     fun processFile(context: Context, uri: Uri) {
         cancelMatching()
         cancelImport()
-        mutableState.update { it.copy(isParsing = true, error = null, fileName = null, rowCount = 0, isValid = false, entries = emptyList(), diagnosticResult = null, hasSession = false) }
+        mutableState.update {
+            it.copy(
+                isParsing = true,
+                error = null,
+                fileName = null,
+                rowCount = 0,
+                isValid = false,
+                entries = emptyList(),
+                diagnosticResult = null,
+                hasSession = false,
+            )
+        }
 
         viewModelScope.launch {
             try {
@@ -196,7 +217,7 @@ class BookmarkImportViewModel : androidx.lifecycle.ViewModel() {
                     it.copy(
                         error = e.message,
                         isParsing = false,
-                        isValid = false
+                        isValid = false,
                     )
                 }
             } catch (e: Exception) {
@@ -205,7 +226,7 @@ class BookmarkImportViewModel : androidx.lifecycle.ViewModel() {
                     it.copy(
                         error = "Failed to parse file: ${e.message}",
                         isParsing = false,
-                        isValid = false
+                        isValid = false,
                     )
                 }
             }
@@ -223,7 +244,9 @@ class BookmarkImportViewModel : androidx.lifecycle.ViewModel() {
                 val updatedEntries = state.value.entries.map {
                     if (it.isValid && it.matchResult == ManganatoCsvParser.MatchResult.UNCHECKED) {
                         it.copy(matchResult = ManganatoCsvParser.MatchResult.SOURCE_UNAVAILABLE)
-                    } else it
+                    } else {
+                        it
+                    }
                 }
                 updateEntriesAndSummary(updatedEntries)
                 mutableState.update { it.copy(isMatching = false) }
@@ -237,9 +260,11 @@ class BookmarkImportViewModel : androidx.lifecycle.ViewModel() {
                 entries.indices.filter { i ->
                     val res = entries[i].matchResult
                     if (retryFailedOnly) {
-                        res == ManganatoCsvParser.MatchResult.NETWORK_TIMEOUT || res == ManganatoCsvParser.MatchResult.SOURCE_ERROR
+                        res == ManganatoCsvParser.MatchResult.NETWORK_TIMEOUT ||
+                            res == ManganatoCsvParser.MatchResult.SOURCE_ERROR
                     } else {
-                        res == ManganatoCsvParser.MatchResult.UNCHECKED || res == ManganatoCsvParser.MatchResult.CANCELED
+                        res == ManganatoCsvParser.MatchResult.UNCHECKED ||
+                            res == ManganatoCsvParser.MatchResult.CANCELED
                     }
                 }
             }
@@ -281,13 +306,23 @@ class BookmarkImportViewModel : androidx.lifecycle.ViewModel() {
                             mutableState.update { it.copy(diagnosticResult = info) }
                         }
 
-                        Log.d("ExternalBookmarkImport", "Checking match for ${entry.title} at ${entry.mangaPath} (Attempt ${attempt + 1})")
+                        Log.d(
+                            "ExternalBookmarkImport",
+                            "Checking match for ${entry.title} at ${entry.mangaPath} " +
+                                "(Attempt ${attempt + 1})",
+                        )
 
                         val networkManga = withContext(Dispatchers.IO) {
-                            manganato.getMangaUpdate(sManga, emptyList(), fetchDetails = true, fetchChapters = false).manga
+                            manganato.getMangaUpdate(
+                                sManga,
+                                emptyList(),
+                                fetchDetails = true,
+                                fetchChapters = false,
+                            ).manga
                         }
 
-                        // Fix: SManga returned by getMangaUpdate might have uninitialized lateinit 'url' or different 'title'.
+                        // Fix: SManga returned by getMangaUpdate might have uninitialized lateinit 'url' or
+                        // different 'title'.
                         // We must ensure the original canonical source path is preserved.
                         networkManga.url = entry.mangaPath!!
                         networkManga.title = entry.title
@@ -299,7 +334,12 @@ class BookmarkImportViewModel : androidx.lifecycle.ViewModel() {
                         if (entry.title.contains("Mikoto and Rei", ignoreCase = true)) {
                             val successInfo = "MATCHED SUCCESS: ${resolvedManga.title} -> ${resolvedManga.url}"
                             Log.d("ExternalBookmarkImport", successInfo)
-                            mutableState.update { it.copy(diagnosticResult = (it.diagnosticResult ?: "") + "\n" + successInfo) }
+                            mutableState.update {
+                                it.copy(
+                                    diagnosticResult =
+                                    (it.diagnosticResult ?: "") + "\n" + successInfo,
+                                )
+                            }
                         }
                         break
                     } catch (e: java.net.SocketTimeoutException) {
@@ -307,7 +347,12 @@ class BookmarkImportViewModel : androidx.lifecycle.ViewModel() {
                         Log.w("ExternalBookmarkImport", "Timeout matching ${entry.title}", e)
                         if (attempt < 2) delay(1000L * (attempt + 1))
                     } catch (e: Exception) {
-                        Log.e("ExternalBookmarkImport", "Error matching ${entry.title} via ${manganato.name} (${manganato.id}): ${e::class.java.simpleName}", e)
+                        Log.e(
+                            "ExternalBookmarkImport",
+                            "Error matching ${entry.title} via ${manganato.name} " +
+                                "(${manganato.id}): ${e::class.java.simpleName}",
+                            e,
+                        )
 
                         if (entry.title.contains("Mikoto and Rei", ignoreCase = true)) {
                             val errorInfo = buildString {
@@ -316,7 +361,12 @@ class BookmarkImportViewModel : androidx.lifecycle.ViewModel() {
                                 appendLine("STACK TRACE:")
                                 appendLine(Log.getStackTraceString(e))
                             }
-                            mutableState.update { it.copy(diagnosticResult = (it.diagnosticResult ?: "") + "\n" + errorInfo) }
+                            mutableState.update {
+                                it.copy(
+                                    diagnosticResult =
+                                    (it.diagnosticResult ?: "") + "\n" + errorInfo,
+                                )
+                            }
                         }
 
                         val message = e.message ?: ""
@@ -334,7 +384,7 @@ class BookmarkImportViewModel : androidx.lifecycle.ViewModel() {
                 entries[i] = entry.copy(
                     matchResult = result,
                     resolvedManga = resolvedManga,
-                    resolvedSourceName = manganato.name
+                    resolvedSourceName = manganato.name,
                 )
 
                 updateEntriesAndSummary(entries.toList())
@@ -370,7 +420,8 @@ class BookmarkImportViewModel : androidx.lifecycle.ViewModel() {
             val indicesToImport = entries.indices.filter { i ->
                 val res = entries[i].matchResult
                 if (retryFailedOnly) {
-                    res == ManganatoCsvParser.MatchResult.IMPORT_FAILED || res == ManganatoCsvParser.MatchResult.CHAPTER_SYNC_FAILED
+                    res == ManganatoCsvParser.MatchResult.IMPORT_FAILED ||
+                        res == ManganatoCsvParser.MatchResult.CHAPTER_SYNC_FAILED
                 } else {
                     res == ManganatoCsvParser.MatchResult.MATCHED
                 }
@@ -382,7 +433,7 @@ class BookmarkImportViewModel : androidx.lifecycle.ViewModel() {
                 it.copy(
                     isImporting = true,
                     importCurrent = 0,
-                    importTotal = indicesToImport.size
+                    importTotal = indicesToImport.size,
                 )
             }
 
@@ -428,7 +479,11 @@ class BookmarkImportViewModel : androidx.lifecycle.ViewModel() {
                     if (entry.viewedChapter != null) {
                         val allChapters = getChaptersByMangaId.await(localManga.id)
 
-                        Log.d("ExternalBookmarkImport", "Applying progress for ${entry.title}: Viewed Chapter ${entry.viewedChapter}")
+                        Log.d(
+                            "ExternalBookmarkImport",
+                            "Applying progress for ${entry.title}: Viewed Chapter " +
+                                "${entry.viewedChapter}",
+                        )
 
                         val chaptersToMark = allChapters.filter { chapter ->
                             val effectiveNumber = if (chapter.chapterNumber >= 0) {
@@ -439,22 +494,41 @@ class BookmarkImportViewModel : androidx.lifecycle.ViewModel() {
 
                             val isMatch = effectiveNumber != null && effectiveNumber <= entry.viewedChapter
 
-                            Log.d("ExternalBookmarkImport", "  Chapter: ${chapter.name} | Num: ${chapter.chapterNumber} | Effective: $effectiveNumber | Match: $isMatch")
+                            Log.d(
+                                "ExternalBookmarkImport",
+                                "  Chapter: ${chapter.name} | Num: ${chapter.chapterNumber} " +
+                                    "| Effective: $effectiveNumber | Match: $isMatch",
+                            )
 
                             isMatch
                         }
 
-                        Log.d("ExternalBookmarkImport", "  Total chapters: ${allChapters.size} | Selected: ${chaptersToMark.size}")
+                        Log.d(
+                            "ExternalBookmarkImport",
+                            "  Total chapters: ${allChapters.size} | Selected: " +
+                                "${chaptersToMark.size}",
+                        )
 
                         if (chaptersToMark.isNotEmpty()) {
-                            val resultStatus = setReadStatus.await(read = true, chapters = chaptersToMark.toTypedArray())
+                            val resultStatus = setReadStatus.await(
+                                read = true,
+                                chapters =
+                                chaptersToMark.toTypedArray(),
+                            )
                             Log.d("ExternalBookmarkImport", "  SetReadStatus Result: $resultStatus")
                         }
-                        result = if (alreadyExisted) ManganatoCsvParser.MatchResult.ALREADY_IN_LIBRARY else ManganatoCsvParser.MatchResult.IMPORTED_WITH_PROGRESS
+                        result = if (alreadyExisted) {
+                            ManganatoCsvParser.MatchResult.ALREADY_IN_LIBRARY
+                        } else {
+                            ManganatoCsvParser.MatchResult.IMPORTED_WITH_PROGRESS
+                        }
                     } else {
-                        result = if (alreadyExisted) ManganatoCsvParser.MatchResult.ALREADY_IN_LIBRARY else ManganatoCsvParser.MatchResult.IMPORTED
+                        result = if (alreadyExisted) {
+                            ManganatoCsvParser.MatchResult.ALREADY_IN_LIBRARY
+                        } else {
+                            ManganatoCsvParser.MatchResult.IMPORTED
+                        }
                     }
-
                 } catch (e: Exception) {
                     logcat(LogPriority.ERROR, e) { "Failed to import ${entry.title}" }
                     result = ManganatoCsvParser.MatchResult.IMPORT_FAILED
@@ -477,7 +551,9 @@ class BookmarkImportViewModel : androidx.lifecycle.ViewModel() {
             val updatedEntries = state.value.entries.map {
                 if (it.isValid && it.matchResult == ManganatoCsvParser.MatchResult.UNCHECKED) {
                     it.copy(matchResult = ManganatoCsvParser.MatchResult.CANCELED)
-                } else it
+                } else {
+                    it
+                }
             }
             updateEntriesAndSummary(updatedEntries)
             mutableState.update { it.copy(isMatching = false) }
@@ -498,7 +574,10 @@ class BookmarkImportViewModel : androidx.lifecycle.ViewModel() {
         val matched = entries.count { it.matchResult == ManganatoCsvParser.MatchResult.MATCHED }
         val notFound = entries.count { it.matchResult == ManganatoCsvParser.MatchResult.NOT_FOUND }
         val timeout = entries.count { it.matchResult == ManganatoCsvParser.MatchResult.NETWORK_TIMEOUT }
-        val failed = entries.count { it.matchResult == ManganatoCsvParser.MatchResult.SOURCE_ERROR || it.matchResult == ManganatoCsvParser.MatchResult.SOURCE_UNAVAILABLE }
+        val failed = entries.count {
+            it.matchResult == ManganatoCsvParser.MatchResult.SOURCE_ERROR ||
+                it.matchResult == ManganatoCsvParser.MatchResult.SOURCE_UNAVAILABLE
+        }
 
         mutableState.update {
             it.copy(
@@ -512,10 +591,16 @@ class BookmarkImportViewModel : androidx.lifecycle.ViewModel() {
     }
 
     private fun updateImportSummary(entries: List<ManganatoCsvParser.BookmarkEntry>) {
-        val imported = entries.count { it.matchResult == ManganatoCsvParser.MatchResult.IMPORTED || it.matchResult == ManganatoCsvParser.MatchResult.IMPORTED_WITH_PROGRESS }
+        val imported = entries.count {
+            it.matchResult == ManganatoCsvParser.MatchResult.IMPORTED ||
+                it.matchResult == ManganatoCsvParser.MatchResult.IMPORTED_WITH_PROGRESS
+        }
         val existed = entries.count { it.matchResult == ManganatoCsvParser.MatchResult.ALREADY_IN_LIBRARY }
         val progress = entries.count { it.matchResult == ManganatoCsvParser.MatchResult.IMPORTED_WITH_PROGRESS }
-        val failed = entries.count { it.matchResult == ManganatoCsvParser.MatchResult.IMPORT_FAILED || it.matchResult == ManganatoCsvParser.MatchResult.CHAPTER_SYNC_FAILED }
+        val failed = entries.count {
+            it.matchResult == ManganatoCsvParser.MatchResult.IMPORT_FAILED ||
+                it.matchResult == ManganatoCsvParser.MatchResult.CHAPTER_SYNC_FAILED
+        }
 
         mutableState.update {
             it.copy(

@@ -19,29 +19,29 @@ class UpdateWatchSlotTest {
         val t0130 = LocalDateTime.of(2024, 5, 8, 1, 30).atZone(zoneId).toInstant().toEpochMilli()
         assertEquals(
             LocalDateTime.of(2024, 5, 8, 0, 0).atZone(zoneId).toInstant().toEpochMilli(),
-            UpdateWatchSlotHelper.getCurrentSlot(UpdateWatchRefreshHelper.PriorityBucket.HOT, t0130, zoneId)
+            UpdateWatchSlotHelper.getCurrentSlot(UpdateWatchRefreshHelper.PriorityBucket.HOT, t0130, zoneId),
         )
         assertEquals(
             LocalDateTime.of(2024, 5, 8, 2, 0).atZone(zoneId).toInstant().toEpochMilli(),
-            UpdateWatchSlotHelper.getNextSlot(UpdateWatchRefreshHelper.PriorityBucket.HOT, t0130, zoneId)
+            UpdateWatchSlotHelper.getNextSlot(UpdateWatchRefreshHelper.PriorityBucket.HOT, t0130, zoneId),
         )
 
         // at exactly 02:00, current slot = 02:00 and next slot = 04:00
         val t0200 = LocalDateTime.of(2024, 5, 8, 2, 0).atZone(zoneId).toInstant().toEpochMilli()
         assertEquals(
             t0200,
-            UpdateWatchSlotHelper.getCurrentSlot(UpdateWatchRefreshHelper.PriorityBucket.HOT, t0200, zoneId)
+            UpdateWatchSlotHelper.getCurrentSlot(UpdateWatchRefreshHelper.PriorityBucket.HOT, t0200, zoneId),
         )
         assertEquals(
             LocalDateTime.of(2024, 5, 8, 4, 0).atZone(zoneId).toInstant().toEpochMilli(),
-            UpdateWatchSlotHelper.getNextSlot(UpdateWatchRefreshHelper.PriorityBucket.HOT, t0200, zoneId)
+            UpdateWatchSlotHelper.getNextSlot(UpdateWatchRefreshHelper.PriorityBucket.HOT, t0200, zoneId),
         )
 
         // at 23:30, next slot = next day 00:00
         val t2330 = LocalDateTime.of(2024, 5, 8, 23, 30).atZone(zoneId).toInstant().toEpochMilli()
         assertEquals(
             LocalDateTime.of(2024, 5, 9, 0, 0).atZone(zoneId).toInstant().toEpochMilli(),
-            UpdateWatchSlotHelper.getNextSlot(UpdateWatchRefreshHelper.PriorityBucket.HOT, t2330, zoneId)
+            UpdateWatchSlotHelper.getNextSlot(UpdateWatchRefreshHelper.PriorityBucket.HOT, t2330, zoneId),
         )
     }
 
@@ -51,11 +51,11 @@ class UpdateWatchSlotTest {
         val t0500 = LocalDateTime.of(2024, 5, 8, 5, 0).atZone(zoneId).toInstant().toEpochMilli()
         assertEquals(
             LocalDateTime.of(2024, 5, 8, 4, 0).atZone(zoneId).toInstant().toEpochMilli(),
-            UpdateWatchSlotHelper.getCurrentSlot(UpdateWatchRefreshHelper.PriorityBucket.WARM, t0500, zoneId)
+            UpdateWatchSlotHelper.getCurrentSlot(UpdateWatchRefreshHelper.PriorityBucket.WARM, t0500, zoneId),
         )
         assertEquals(
             LocalDateTime.of(2024, 5, 8, 8, 0).atZone(zoneId).toInstant().toEpochMilli(),
-            UpdateWatchSlotHelper.getNextSlot(UpdateWatchRefreshHelper.PriorityBucket.WARM, t0500, zoneId)
+            UpdateWatchSlotHelper.getNextSlot(UpdateWatchRefreshHelper.PriorityBucket.WARM, t0500, zoneId),
         )
     }
 
@@ -65,22 +65,22 @@ class UpdateWatchSlotTest {
         val t0900 = LocalDateTime.of(2024, 5, 8, 9, 0).atZone(zoneId).toInstant().toEpochMilli()
         assertEquals(
             LocalDateTime.of(2024, 5, 8, 0, 0).atZone(zoneId).toInstant().toEpochMilli(),
-            UpdateWatchSlotHelper.getCurrentSlot(UpdateWatchRefreshHelper.PriorityBucket.COLD, t0900, zoneId)
+            UpdateWatchSlotHelper.getCurrentSlot(UpdateWatchRefreshHelper.PriorityBucket.COLD, t0900, zoneId),
         )
         assertEquals(
             LocalDateTime.of(2024, 5, 8, 12, 0).atZone(zoneId).toInstant().toEpochMilli(),
-            UpdateWatchSlotHelper.getNextSlot(UpdateWatchRefreshHelper.PriorityBucket.COLD, t0900, zoneId)
+            UpdateWatchSlotHelper.getNextSlot(UpdateWatchRefreshHelper.PriorityBucket.COLD, t0900, zoneId),
         )
 
         // at 17:00, current slot = 12:00 and next slot = next day 00:00
         val t1700 = LocalDateTime.of(2024, 5, 8, 17, 0).atZone(zoneId).toInstant().toEpochMilli()
         assertEquals(
             LocalDateTime.of(2024, 5, 8, 12, 0).atZone(zoneId).toInstant().toEpochMilli(),
-            UpdateWatchSlotHelper.getCurrentSlot(UpdateWatchRefreshHelper.PriorityBucket.COLD, t1700, zoneId)
+            UpdateWatchSlotHelper.getCurrentSlot(UpdateWatchRefreshHelper.PriorityBucket.COLD, t1700, zoneId),
         )
         assertEquals(
             LocalDateTime.of(2024, 5, 9, 0, 0).atZone(zoneId).toInstant().toEpochMilli(),
-            UpdateWatchSlotHelper.getNextSlot(UpdateWatchRefreshHelper.PriorityBucket.COLD, t1700, zoneId)
+            UpdateWatchSlotHelper.getNextSlot(UpdateWatchRefreshHelper.PriorityBucket.COLD, t1700, zoneId),
         )
     }
 
@@ -90,11 +90,11 @@ class UpdateWatchSlotTest {
         val t1000 = LocalDateTime.of(2024, 5, 8, 10, 0).atZone(zoneId).toInstant().toEpochMilli()
         assertEquals(
             LocalDateTime.of(2024, 5, 8, 0, 0).atZone(zoneId).toInstant().toEpochMilli(),
-            UpdateWatchSlotHelper.getCurrentSlot(UpdateWatchRefreshHelper.PriorityBucket.STALE, t1000, zoneId)
+            UpdateWatchSlotHelper.getCurrentSlot(UpdateWatchRefreshHelper.PriorityBucket.STALE, t1000, zoneId),
         )
         assertEquals(
             LocalDateTime.of(2024, 5, 9, 0, 0).atZone(zoneId).toInstant().toEpochMilli(),
-            UpdateWatchSlotHelper.getNextSlot(UpdateWatchRefreshHelper.PriorityBucket.STALE, t1000, zoneId)
+            UpdateWatchSlotHelper.getNextSlot(UpdateWatchRefreshHelper.PriorityBucket.STALE, t1000, zoneId),
         )
     }
 
@@ -114,7 +114,7 @@ class UpdateWatchSlotTest {
         // Next slot should be 08:00
         assertEquals(
             LocalDateTime.of(2024, 5, 8, 8, 0).atZone(zoneId).toInstant().toEpochMilli(),
-            UpdateWatchSlotHelper.getNextSlot(UpdateWatchRefreshHelper.PriorityBucket.HOT, t0730, zoneId)
+            UpdateWatchSlotHelper.getNextSlot(UpdateWatchRefreshHelper.PriorityBucket.HOT, t0730, zoneId),
         )
     }
 
@@ -128,7 +128,7 @@ class UpdateWatchSlotTest {
         // Earliest: 06:00
         assertEquals(
             LocalDateTime.of(2024, 5, 8, 6, 0).atZone(zoneId).toInstant().toEpochMilli(),
-            UpdateWatchSlotHelper.getNextWorkerTargetBase(buckets, t0500, zoneId)
+            UpdateWatchSlotHelper.getNextWorkerTargetBase(buckets, t0500, zoneId),
         )
     }
 }

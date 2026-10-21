@@ -1,7 +1,5 @@
 package eu.kanade.tachiyomi.ui.reader
 
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import android.annotation.SuppressLint
 import android.app.assist.AssistContent
 import android.content.ClipData
@@ -66,15 +64,15 @@ import eu.kanade.tachiyomi.data.notification.NotificationReceiver
 import eu.kanade.tachiyomi.data.notification.Notifications
 import eu.kanade.tachiyomi.databinding.ReaderActivityBinding
 import eu.kanade.tachiyomi.source.online.HttpSource
+import eu.kanade.tachiyomi.ui.base.activity.BaseActivity
 import eu.kanade.tachiyomi.ui.chat.PresenceManager
 import eu.kanade.tachiyomi.ui.chat.PresenceStatus
-import eu.kanade.tachiyomi.ui.base.activity.BaseActivity
 import eu.kanade.tachiyomi.ui.main.MainActivity
-import eu.kanade.tachiyomi.ui.mod.panelshare.startReader
-import eu.kanade.tachiyomi.ui.mod.panelshare.PanelShareController
-import eu.kanade.tachiyomi.ui.mod.panelshare.PanelShareHost
 import eu.kanade.tachiyomi.ui.mod.chaptercomments.ChapterCommentsController
 import eu.kanade.tachiyomi.ui.mod.chaptercomments.ChapterCommentsHost
+import eu.kanade.tachiyomi.ui.mod.panelshare.PanelShareController
+import eu.kanade.tachiyomi.ui.mod.panelshare.PanelShareHost
+import eu.kanade.tachiyomi.ui.mod.panelshare.startReader
 import eu.kanade.tachiyomi.ui.reader.ReaderViewModel.SetAsCoverResult.AddToLibraryFirst
 import eu.kanade.tachiyomi.ui.reader.ReaderViewModel.SetAsCoverResult.Error
 import eu.kanade.tachiyomi.ui.reader.ReaderViewModel.SetAsCoverResult.Success
@@ -111,6 +109,8 @@ import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.util.collectAsState
+import uy.kohesive.injekt.Injekt
+import uy.kohesive.injekt.api.get
 import java.io.ByteArrayOutputStream
 import kotlin.time.Duration.Companion.seconds
 

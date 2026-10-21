@@ -1,11 +1,12 @@
 package eu.kanade.tachiyomi.ui.mod.updatewatch.worker
 
-import eu.kanade.tachiyomi.ui.mod.util.dateUploadMillis
 import android.content.Context
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
 import eu.kanade.tachiyomi.ui.mod.updatewatch.helper.UpdateWatchRefreshHelper
+import eu.kanade.tachiyomi.ui.mod.util.dateUploadMillis
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -17,7 +18,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
-import kotlinx.coroutines.CancellationException
 import logcat.LogPriority
 import mihon.domain.source.interactor.UpdateMangaFromRemote
 import tachiyomi.core.common.util.system.logcat
@@ -89,7 +89,8 @@ object UpdateWatchForegroundBurst : DefaultLifecycleObserver {
 
                     val manga = getManga.await(tracking.mangaId) ?: continue
                     val chapters = chapterRepository.getChapterByMangaId(manga.id)
-                    val latestChapter = chapters.filter { it.dateUploadMillis > 0 }.maxByOrNull { it.dateUploadMillis } ?: continue
+                    val latestChapter =
+                        chapters.filter { it.dateUploadMillis > 0 }.maxByOrNull { it.dateUploadMillis } ?: continue
 
                     val eligibility = UpdateWatchRefreshHelper.getEligibility(
                         enabled = true,
@@ -101,14 +102,16 @@ object UpdateWatchForegroundBurst : DefaultLifecycleObserver {
                     )
 
                     if (eligibility.bucket == UpdateWatchRefreshHelper.PriorityBucket.HOT && eligibility.isDue) {
-                        dueHotCandidates.add(RefreshCandidate(
-                            mangaId = manga.id,
-                            title = manga.title,
-                            sourceId = manga.source,
-                            expectedIntervalDays = tracking.expectedIntervalDays,
-                            refreshProfile = tracking.refreshProfile.name,
-                            lastCheckAt = tracking.lastBackgroundCheckAt ?: 0L
-                        ))
+                        dueHotCandidates.add(
+                            RefreshCandidate(
+                                mangaId = manga.id,
+                                title = manga.title,
+                                sourceId = manga.source,
+                                expectedIntervalDays = tracking.expectedIntervalDays,
+                                refreshProfile = tracking.refreshProfile.name,
+                                lastCheckAt = tracking.lastBackgroundCheckAt ?: 0L,
+                            ),
+                        )
                     }
                 }
 
@@ -131,7 +134,10 @@ object UpdateWatchForegroundBurst : DefaultLifecycleObserver {
                             var burstCounter = 0
                             for (i in sourceQueue.indices) {
                                 if (!isAppInForeground.get()) {
-                                    logcat(LogPriority.INFO) { "Foreground HOT burst stopped for source $sourceId: app left foreground." }
+                                    logcat(LogPriority.INFO) {
+                                        "Foreground HOT burst stopped for source $sourceId: " +
+                                            "app left foreground."
+                                    }
                                     break
                                 }
 
@@ -151,7 +157,11 @@ object UpdateWatchForegroundBurst : DefaultLifecycleObserver {
                                         break
                                     }
 
-                                    val result = processCandidate(candidate, mangaDiagnosticDetails, newlyFoundInboxItems)
+                                    val result = processCandidate(
+                                        candidate,
+                                        mangaDiagnosticDetails,
+                                        newlyFoundInboxItems,
+                                    )
                                     processedCount.incrementAndGet()
                                     burstCounter++
 
@@ -175,7 +185,15 @@ object UpdateWatchForegroundBurst : DefaultLifecycleObserver {
 
                 UpdateWatchPostRefreshHandler.showNotificationIfEnabled(context, newlyFoundInboxItems)
 
-                recordDiagnostics(startTime, dueHotCandidates.size, processedCount.get(), updatedCount.get(), failedCount.get(), candidatesBySource.size, mangaDiagnosticDetails)
+                recordDiagnostics(
+                    startTime,
+                    dueHotCandidates.size,
+                    processedCount.get(),
+                    updatedCount.get(),
+                    failedCount.get(),
+                    candidatesBySource.size,
+                    mangaDiagnosticDetails,
+                )
 
                 UpdateWatchRefreshScheduler.setupTaskSuspend(context, skipRunCheck = true)
             } catch (e: Exception) {
@@ -191,7 +209,7 @@ object UpdateWatchForegroundBurst : DefaultLifecycleObserver {
     private suspend fun processCandidate(
         candidate: RefreshCandidate,
         mangaDiagnosticDetails: MutableList<MangaDiagnosticDetail>,
-        newlyFoundInboxItems: MutableList<UpdateWatchInboxItem>
+        newlyFoundInboxItems: MutableList<UpdateWatchInboxItem>,
     ): RefreshStatus {
         val getManga = Injekt.get<GetManga>()
         val sourceManager = Injekt.get<SourceManager>()
@@ -223,12 +241,26 @@ object UpdateWatchForegroundBurst : DefaultLifecycleObserver {
                     newChapters = newChapters,
                     currentLatestChapter = newLatest,
                     startTime = startTime,
-                    onInboxItemCreated = { synchronized(newlyFoundInboxItems) { newlyFoundInboxItems.add(it) } }
+                    onInboxItemCreated = { synchronized(newlyFoundInboxItems) { newlyFoundInboxItems.add(it) } },
                 )
 
                 recordHistory(candidate, true, newChapters.size, UpdateWatchHistory.FailureCategory.NONE, null)
-                val finalStatus = if (newChapters.isNotEmpty() || (newLatest != null && newLatest.id != oldLatest?.id)) RefreshStatus.UPDATED else RefreshStatus.SUCCESS
-                recordMangaDiagnostic(candidate, source.name, if (finalStatus == RefreshStatus.UPDATED) "Update found" else "No update", null, mangaDiagnosticDetails)
+                val finalStatus = if (newChapters.isNotEmpty() || (
+                        newLatest != null &&
+                            newLatest.id != oldLatest?.id
+                        )
+                ) {
+                    RefreshStatus.UPDATED
+                } else {
+                    RefreshStatus.SUCCESS
+                }
+                recordMangaDiagnostic(
+                    candidate,
+                    source.name,
+                    if (finalStatus == RefreshStatus.UPDATED) "Update found" else "No update",
+                    null,
+                    mangaDiagnosticDetails,
+                )
                 finalStatus
             } else {
                 val exception = refreshResult.exceptionOrNull()
@@ -256,7 +288,7 @@ object UpdateWatchForegroundBurst : DefaultLifecycleObserver {
         sourceName: String,
         result: String,
         error: String?,
-        mangaDiagnosticDetails: MutableList<MangaDiagnosticDetail>
+        mangaDiagnosticDetails: MutableList<MangaDiagnosticDetail>,
     ) {
         val chapterRepository = Injekt.get<ChapterRepository>()
         val releaseDate = chapterRepository.getChapterByMangaId(candidate.mangaId)
@@ -267,28 +299,45 @@ object UpdateWatchForegroundBurst : DefaultLifecycleObserver {
             expectedIntervalDays = candidate.expectedIntervalDays,
             refreshProfile = UpdateWatch.RefreshProfile.valueOf(candidate.refreshProfile),
             latestChapterUploadDate = releaseDate,
-            lastCheckAt = System.currentTimeMillis()
+            lastCheckAt = System.currentTimeMillis(),
         )
 
         synchronized(mangaDiagnosticDetails) {
-            mangaDiagnosticDetails.add(MangaDiagnosticDetail(
-                mangaId = candidate.mangaId,
-                title = candidate.title,
-                sourceName = sourceName,
-                result = result,
-                errorReason = error?.take(100),
-                checkedAt = System.currentTimeMillis(),
-                lastCheckAt = candidate.lastCheckAt,
-                nextEligibleAt = eligibility.nextEligibleAt
-            ))
+            mangaDiagnosticDetails.add(
+                MangaDiagnosticDetail(
+                    mangaId = candidate.mangaId,
+                    title = candidate.title,
+                    sourceName = sourceName,
+                    result = result,
+                    errorReason = error?.take(100),
+                    checkedAt = System.currentTimeMillis(),
+                    lastCheckAt = candidate.lastCheckAt,
+                    nextEligibleAt = eligibility.nextEligibleAt,
+                ),
+            )
         }
     }
 
-    private fun recordHistory(candidate: RefreshCandidate, success: Boolean, newChapters: Int, category: UpdateWatchHistory.FailureCategory, detail: String?) {
+    private fun recordHistory(
+        candidate: RefreshCandidate,
+        success: Boolean,
+        newChapters: Int,
+        category: UpdateWatchHistory.FailureCategory,
+        detail: String?,
+    ) {
         val manageUpdateWatchHistory = Injekt.get<ManageUpdateWatchHistory>()
         scope.launch {
             try {
-                manageUpdateWatchHistory.insert(UpdateWatchHistory(candidate.mangaId, System.currentTimeMillis(), success, newChapters, category, detail?.take(150)))
+                manageUpdateWatchHistory.insert(
+                    UpdateWatchHistory(
+                        candidate.mangaId,
+                        System.currentTimeMillis(),
+                        success,
+                        newChapters,
+                        category,
+                        detail?.take(150),
+                    ),
+                )
             } catch (e: Exception) {
                 logcat(LogPriority.ERROR, e)
             }
@@ -300,8 +349,14 @@ object UpdateWatchForegroundBurst : DefaultLifecycleObserver {
         val sourceName = sourceManager.getOrStub(sourceId).name
         val title = "Auto Refresh paused for $sourceName"
         val body = when (status) {
-            RefreshStatus.FAILED_BLOCKED -> "Fast refresh was stopped because $sourceName returned a Cloudflare challenge. Remaining manga will use the normal background queue."
-            RefreshStatus.FAILED_RATE_LIMITED -> "Fast refresh was stopped because $sourceName temporarily rate-limited requests. Remaining manga will use the normal background queue."
+            RefreshStatus.FAILED_BLOCKED ->
+                "Fast refresh was stopped because $sourceName returned " +
+                    "a Cloudflare challenge. Remaining manga will use " +
+                    "the normal background queue."
+            RefreshStatus.FAILED_RATE_LIMITED ->
+                "Fast refresh was stopped because $sourceName temporarily " +
+                    "rate-limited requests. Remaining manga will use " +
+                    "the normal background queue."
             else -> "Fast refresh was stopped due to repeated errors from $sourceName."
         }
         logcat(LogPriority.WARN) { "NOTIFICATION: $title - $body" }
@@ -314,22 +369,24 @@ object UpdateWatchForegroundBurst : DefaultLifecycleObserver {
         updatedCount: Int,
         failedCount: Int,
         sourceCount: Int,
-        mangaDetails: List<MangaDiagnosticDetail>
+        mangaDetails: List<MangaDiagnosticDetail>,
     ) {
         val completionTime = System.currentTimeMillis()
-        UpdateWatchDiagnosticsManager.log(UpdateWatchSchedulerDiagnostic(
-            type = UpdateWatchSchedulerDiagnostic.RunType.FOREGROUND_HOT_BURST,
-            startedAt = startTime,
-            completedAt = completionTime,
-            eligibleCount = eligibleCount,
-            selectedCount = processedCount,
-            refreshedCount = processedCount,
-            updatedCount = updatedCount,
-            noUpdateCount = processedCount - updatedCount - failedCount,
-            failedCount = failedCount,
-            sourceCount = sourceCount,
-            mangaDetails = mangaDetails
-        ))
+        UpdateWatchDiagnosticsManager.log(
+            UpdateWatchSchedulerDiagnostic(
+                type = UpdateWatchSchedulerDiagnostic.RunType.FOREGROUND_HOT_BURST,
+                startedAt = startTime,
+                completedAt = completionTime,
+                eligibleCount = eligibleCount,
+                selectedCount = processedCount,
+                refreshedCount = processedCount,
+                updatedCount = updatedCount,
+                noUpdateCount = processedCount - updatedCount - failedCount,
+                failedCount = failedCount,
+                sourceCount = sourceCount,
+                mangaDetails = mangaDetails,
+            ),
+        )
     }
 
     private fun classifyFailure(e: Throwable?): FailureType {
@@ -343,12 +400,29 @@ object UpdateWatchForegroundBurst : DefaultLifecycleObserver {
             }
         }
         val message = e.message ?: ""
-        if (message.contains("Cloudflare", ignoreCase = true) || message.contains("Access denied", ignoreCase = true)) return FailureType.BLOCKED
-        if (e is java.net.SocketTimeoutException || e is java.net.ConnectException || e is java.net.UnknownHostException || e is java.io.InterruptedIOException) return FailureType.TRANSIENT
+        if (message.contains("Cloudflare", ignoreCase = true) || message.contains(
+                "Access denied",
+                ignoreCase = true,
+            )
+        ) {
+            return FailureType.BLOCKED
+        }
+        if (e is java.net.SocketTimeoutException || e is java.net.ConnectException ||
+            e is java.net.UnknownHostException || e is java.io.InterruptedIOException
+        ) {
+            return FailureType.TRANSIENT
+        }
         return FailureType.ORDINARY
     }
 
     private enum class RefreshStatus { SUCCESS, UPDATED, FAILED_ORDINARY, FAILED_RATE_LIMITED, FAILED_BLOCKED, SKIPPED }
     private enum class FailureType { RATE_LIMITED, BLOCKED, TRANSIENT, ORDINARY }
-    private data class RefreshCandidate(val mangaId: Long, val title: String, val sourceId: Long, val expectedIntervalDays: Int, val refreshProfile: String, val lastCheckAt: Long)
+    private data class RefreshCandidate(
+        val mangaId: Long,
+        val title: String,
+        val sourceId: Long,
+        val expectedIntervalDays: Int,
+        val refreshProfile: String,
+        val lastCheckAt: Long,
+    )
 }

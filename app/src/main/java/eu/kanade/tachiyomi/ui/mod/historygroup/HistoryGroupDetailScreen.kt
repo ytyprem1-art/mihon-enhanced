@@ -75,7 +75,11 @@ class HistoryGroupDetailScreen(private val groupId: Long) : Screen() {
             AlertDialog(
                 onDismissRequest = { showRemoveConfirmation = false },
                 title = { Text("Remove from group") },
-                text = { Text("Remove ${state.selected.size} members from this group? They will return to the normal History list.") },
+                text = {
+                    Text(
+                        "Remove ${state.selected.size} members from this group? They will return to the normal History list.",
+                    )
+                },
                 confirmButton = {
                     TextButton(
                         onClick = {
@@ -134,7 +138,7 @@ private fun HistoryGroupDetailScreen(
                                     onClick = onClickRemove,
                                     enabled = selected.isNotEmpty(),
                                 ),
-                            )
+                            ),
                         )
                     },
                     isActionMode = true,

@@ -1,7 +1,7 @@
 package eu.kanade.tachiyomi.data.backup.create.creators
 
-import dev.zacsweers.metro.Inject
 import app.cash.sqldelight.async.coroutines.awaitAsList
+import dev.zacsweers.metro.Inject
 import eu.kanade.tachiyomi.data.backup.create.BackupOptions
 import eu.kanade.tachiyomi.data.backup.models.BackupHistory
 import eu.kanade.tachiyomi.data.backup.models.BackupManga
@@ -82,7 +82,8 @@ class MangaBackupCreator(
             }
         }
 
-        mangaObject.historyCategory = if (options.modHistoryCategories) manageHistoryCategory.getMangaCategory(manga.id) ?: 0L else 0L
+        mangaObject.historyCategory =
+            if (options.modHistoryCategories) manageHistoryCategory.getMangaCategory(manga.id) ?: 0L else 0L
 
         mangaObject.mergedMangaReferences = database.mergedQueries
             .selectByMergeId(manga.id, backupMergedMangaReferenceMapper)

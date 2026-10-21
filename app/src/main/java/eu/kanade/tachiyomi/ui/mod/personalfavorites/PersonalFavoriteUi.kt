@@ -2,10 +2,10 @@ package eu.kanade.tachiyomi.ui.mod.personalfavorites
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.RowScope
-import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
@@ -25,8 +25,8 @@ import eu.kanade.presentation.components.AppBar
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.manga.model.MangaCover
 import tachiyomi.i18n.MR
-import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.components.BadgeGroup
+import tachiyomi.presentation.core.i18n.stringResource
 import kotlin.math.cos
 import kotlin.math.sin
 
@@ -110,7 +110,9 @@ fun PersonalFavoriteGridBadges(
 fun personalFavoriteAction(manga: Manga): AppBar.OverflowAction {
     val marked = isPersonalFavorite(manga)
     return AppBar.OverflowAction(
-        title = stringResource(if (marked) MR.strings.mod_personal_favorite_remove else MR.strings.mod_personal_favorite_add),
+        title = stringResource(
+            if (marked) MR.strings.mod_personal_favorite_remove else MR.strings.mod_personal_favorite_add,
+        ),
         onClick = { PersonalFavorites.store.toggle(manga.personalFavoriteIdentity()) },
     )
 }

@@ -1,16 +1,16 @@
 package eu.kanade.tachiyomi.ui.mod.updatewatch.worker
 
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import logcat.LogPriority
 import tachiyomi.core.common.preference.Preference
 import tachiyomi.core.common.preference.PreferenceStore
-import java.util.UUID
-import logcat.LogPriority
 import tachiyomi.core.common.util.system.logcat
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
+import java.util.UUID
 
 @Serializable
 data class UpdateWatchSchedulerDiagnostic(
@@ -39,7 +39,7 @@ data class UpdateWatchSchedulerDiagnostic(
     val safetyMarginMinutes: Int = 0,
     val runOrigin: String? = null,
     val timezone: String? = null,
-    val mangaDetails: List<MangaDiagnosticDetail> = emptyList()
+    val mangaDetails: List<MangaDiagnosticDetail> = emptyList(),
 ) {
     enum class RunType { WORKER_RUN, SCHEDULER_EVENT, FOREGROUND_HOT_BURST }
 }
@@ -53,7 +53,7 @@ data class MangaDiagnosticDetail(
     val errorReason: String? = null,
     val checkedAt: Long,
     val lastCheckAt: Long?,
-    val nextEligibleAt: Long?
+    val nextEligibleAt: Long?,
 )
 
 @dev.zacsweers.metro.Inject
@@ -61,19 +61,19 @@ data class MangaDiagnosticDetail(
 class UpdateWatchDiagnosticsPreferences(val preferenceStore: PreferenceStore) {
     val diagnosticsJson: Preference<String> = preferenceStore.getString(
         Preference.appStateKey("update_watch_scheduler_diagnostics"),
-        "[]"
+        "[]",
     )
     val lastEarliestEligibleAt: Preference<Long> = preferenceStore.getLong(
         Preference.appStateKey("update_watch_last_earliest_eligible"),
-        0L
+        0L,
     )
     val lastScheduledAt: Preference<Long> = preferenceStore.getLong(
         Preference.appStateKey("update_watch_last_scheduled_at"),
-        0L
+        0L,
     )
     val lastMarginMinutes: Preference<Int> = preferenceStore.getInt(
         Preference.appStateKey("update_watch_last_margin_min"),
-        0
+        0,
     )
 }
 
@@ -93,17 +93,21 @@ object UpdateWatchDiagnosticsManager {
     }
 
     fun logEvent(eventName: String, scheduledAt: Long? = null) {
-        log(UpdateWatchSchedulerDiagnostic(
-            type = UpdateWatchSchedulerDiagnostic.RunType.SCHEDULER_EVENT,
-            eventName = eventName,
-            scheduledAt = scheduledAt
-        ))
+        log(
+            UpdateWatchSchedulerDiagnostic(
+                type = UpdateWatchSchedulerDiagnostic.RunType.SCHEDULER_EVENT,
+                eventName = eventName,
+                scheduledAt = scheduledAt,
+            ),
+        )
         logcat(LogPriority.INFO) { "[UpdateWatchScheduler] Event: $eventName" }
     }
 
     fun logRun(run: UpdateWatchSchedulerDiagnostic) {
         log(run)
-        logcat(LogPriority.INFO) { "[UpdateWatchScheduler] Worker Run: ${run.refreshedCount} refreshed, ${run.updatedCount} updates" }
+        logcat(LogPriority.INFO) {
+            "[UpdateWatchScheduler] Worker Run: ${run.refreshedCount} refreshed, ${run.updatedCount} updates"
+        }
     }
 
     fun log(entry: UpdateWatchSchedulerDiagnostic) {

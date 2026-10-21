@@ -1,34 +1,34 @@
 package eu.kanade.tachiyomi.ui.mod.updatewatch
 
-import eu.kanade.tachiyomi.ui.mod.util.dateUploadMillis
-import kotlinx.coroutines.launch
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.viewModelScope
 import eu.kanade.tachiyomi.ui.mod.updatewatch.helper.UpdateWatchRefreshHelper
 import eu.kanade.tachiyomi.ui.mod.updatewatch.worker.UpdateWatchRefreshScheduler
 import eu.kanade.tachiyomi.ui.mod.updatewatch.worker.UpdateWatchRefreshState
+import eu.kanade.tachiyomi.ui.mod.util.dateUploadMillis
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
-import tachiyomi.domain.chapter.interactor.GetChaptersByMangaId
-import tachiyomi.core.common.util.system.logcat
+import kotlinx.coroutines.launch
 import logcat.LogPriority
+import tachiyomi.core.common.util.system.logcat
+import tachiyomi.domain.chapter.interactor.GetChaptersByMangaId
 import tachiyomi.domain.chapter.model.Chapter
 import tachiyomi.domain.chapter.repository.ChapterRepository
-import tachiyomi.domain.history.interactor.ManageUpdateWatch
 import tachiyomi.domain.history.interactor.GetUpdateWatchInbox
+import tachiyomi.domain.history.interactor.ManageUpdateWatch
 import tachiyomi.domain.history.interactor.ManageUpdateWatchInbox
 import tachiyomi.domain.history.model.UpdateWatch
+import tachiyomi.domain.history.model.UpdateWatchHistory
 import tachiyomi.domain.history.model.UpdateWatchInboxItem
 import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.domain.manga.interactor.GetManga
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.source.linked.interactor.ManageLinkedSourceGroup
 import tachiyomi.domain.source.linked.model.LinkedSourceGroup
-import tachiyomi.domain.history.model.UpdateWatchHistory
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import java.time.LocalDate
@@ -46,7 +46,6 @@ class UpdateWatchViewModel(
 ) : androidx.lifecycle.ViewModel() {
     private val mutableState = kotlinx.coroutines.flow.MutableStateFlow<UpdateWatchViewModel.State>(State())
     val state: kotlinx.coroutines.flow.StateFlow<UpdateWatchViewModel.State> = mutableState
-
 
     init {
         viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
@@ -103,7 +102,9 @@ class UpdateWatchViewModel(
                         // If some chapters are missing from DB, we treat them as "not unread".
                         if (trackedChapters.isNotEmpty() && trackedChapters.all { it.read }) {
                             manageUpdateWatchInbox.delete(mangaId)
-                        } else if (trackedChapters.isEmpty() && allChapters.isNotEmpty() && allChapters.all { it.read }) {
+                        } else if (trackedChapters.isEmpty() && allChapters.isNotEmpty() &&
+                            allChapters.all { it.read }
+                        ) {
                             // Fallback if tracked chapters are gone from DB but everything else is read
                             manageUpdateWatchInbox.delete(mangaId)
                         }
@@ -213,7 +214,7 @@ class UpdateWatchViewModel(
                         mangaId,
                         enabled = false,
                         interval = tracking.expectedIntervalDays,
-                        profile = tracking.refreshProfile
+                        profile = tracking.refreshProfile,
                     )
                     UpdateWatchRefreshScheduler.setupTask(Injekt.get<android.app.Application>())
                 }

@@ -1,7 +1,7 @@
 package eu.kanade.tachiyomi.ui.mod.sync
 
-import app.cash.sqldelight.async.coroutines.awaitAsOne
 import app.cash.sqldelight.async.coroutines.awaitAsList
+import app.cash.sqldelight.async.coroutines.awaitAsOne
 import dev.zacsweers.metro.Inject
 import eu.kanade.tachiyomi.data.backup.models.BackupManga
 import tachiyomi.data.Database
@@ -44,7 +44,8 @@ class EnhancedSyncVersions(
                 backup.chapters.forEach { backupChapter ->
                     val chapter = checkNotNull(restoredChapters[backupChapter.url])
                     database.enhanced_syncQueries.setChapterVersion(
-                        chapter.id, maxOf(oldChapters[chapter.url] ?: 0L, backupChapter.version),
+                        chapter.id,
+                        maxOf(oldChapters[chapter.url] ?: 0L, backupChapter.version),
                     )
                 }
             }
