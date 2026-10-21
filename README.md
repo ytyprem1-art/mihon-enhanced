@@ -23,9 +23,9 @@
 
 ## 📖 About
 
-Mihon Enhanced is an independently hosted, unofficial fork of [Mihon](https://github.com/mihonapp/mihon), based on **Mihon 0.21.2**. It started as **Mihon History Category Mod**, a personal project for organizing reading history, and grew to include source management, reader tools, chapter comments, optional Firebase chat, and an independent updater.
+Mihon Enhanced is an unofficial fork of [Mihon](https://github.com/mihonapp/mihon), based on **Mihon 0.21.2**. It started as **Mihon History Category Mod**, a personal project for organizing reading history, and grew to include source management, reader tools, chapter comments, optional Firebase chat, and an independent updater.
 
-The [older History Category repository](https://github.com/ytyprem1-art/mihonHistory-category) remains the original project checkpoint. This standalone GitHub repository continues its development; it still derives from Mihon even without GitHub's “forked from” label.
+This repository continues the original History Category fork and retains its GitHub fork relationship with Mihon. The [original History Category branch](https://github.com/ytyprem1-art/mihon-enhanced/tree/fitur-history-category) is kept as a checkpoint. A separate [Enhanced backup repository](https://github.com/ytyprem1-art/mihon-enhanced-backup) preserves the previous standalone repository.
 
 > [!NOTE]
 > This is an **unofficial Mihon fork**. Report Enhanced-specific issues here rather than to the original Mihon team.
@@ -171,6 +171,12 @@ For library sync, supply your own installed-app OAuth JSON in the ignored `app/s
 
 </details>
 
+## 📸 Screenshots
+
+Feature screenshots are being prepared. The gallery will group images by feature, so you can see how History categories, reader tools, comments, chat, and profiles work before building.
+
+Screenshots belong in [`.github/screenshots/`](.github/screenshots/README.md). Use demo content for chat/profile examples and hide personal details, credentials, and private conversations.
+
 ## 🧪 Technical notes & validation
 
 <details>
@@ -207,7 +213,7 @@ Feel free to reuse the implementation in your own experiments and forks under th
 - ChatGPT (OpenAI) and Gemini (Google) for development assistance.
 - Friends who tested the mod and reported bugs.
 
-Previous project: [Mihon History Category Mod](https://github.com/ytyprem1-art/mihonHistory-category). This project is not affiliated with content providers and does not bundle manga chapters or extension repositories.
+Previous project: [Mihon History Category Mod](https://github.com/ytyprem1-art/mihon-enhanced/tree/fitur-history-category). This project is not affiliated with content providers and does not bundle manga chapters or extension repositories.
 
 Licensed under [Apache License 2.0](LICENSE). Retain inherited copyright/license notices, including the Tachiyomi and Mihon projects.
 
@@ -217,6 +223,6 @@ Licensed under [Apache License 2.0](LICENSE). Retain inherited copyright/license
 
 **From a small History mod to a shared reading project.** 🍻
 
-[The original History Category Mod](https://github.com/ytyprem1-art/mihonHistory-category) · [Mihon upstream](https://github.com/mihonapp/mihon)
+[The original History Category Mod](https://github.com/ytyprem1-art/mihon-enhanced/tree/fitur-history-category) · [Mihon upstream](https://github.com/mihonapp/mihon)
 
 </div>
