@@ -53,7 +53,11 @@ class LinkedSourceRepositoryImpl(
     }
 
     override fun getGroupForManga(mangaId: Long, sourceId: Long): Flow<LinkedSourceGroup?> {
-        return database.linked_sourcesQueries.getGroupForManga(mangaId, sourceId) { gId: Long, name: String, memberCount: Long ->
+        return database.linked_sourcesQueries.getGroupForManga(mangaId, sourceId) {
+                gId: Long,
+                name: String,
+                memberCount: Long,
+            ->
             LinkedSourceGroup(gId, name, memberCount)
         }.subscribeToOneOrNull()
     }
@@ -87,10 +91,11 @@ class LinkedSourceRepositoryImpl(
     override suspend fun createAndLink(name: String, mangaId: Long) {
         database.transaction {
             // Remove from any existing group first (including legacy source_id links if they exist)
-            // But createAndLink is called from MangaScreenModel where we don't have sourceId easily available for this repo call
+            // createAndLink is called from MangaScreenModel, where sourceId is not readily available.
             // Actually, we can just use mangaId for the cleanup here as a safety.
             // Wait, createAndLink is for a NEW group.
-            database.linked_sourcesQueries.removeMangaFromGroups(mangaId, mangaId) // Use mangaId twice for safety if sourceId is unknown
+            // Use mangaId twice for safety if sourceId is unknown.
+            database.linked_sourcesQueries.removeMangaFromGroups(mangaId, mangaId)
             val groupId = database.linked_sourcesQueries.insertGroup(name).awaitAsOne()
             database.linked_sourcesQueries.insertMember(groupId, mangaId)
         }

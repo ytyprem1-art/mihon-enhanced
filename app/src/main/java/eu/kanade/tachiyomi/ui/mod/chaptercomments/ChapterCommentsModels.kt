@@ -43,9 +43,22 @@ interface ChapterCommentsProvider {
 
 interface CommentsTransport {
     suspend fun get(url: String, referer: String? = null): String
-    suspend fun getWithHeaders(url: String, referer: String? = null, headers: Map<String, String>): String = get(url, referer)
-    suspend fun write(method: String, url: String, json: String, referer: String? = null): String = error("Vote tidak tersedia.")
-    suspend fun postReactionForm(url: String, values: Map<String, String>, referer: String): String = error("Reaksi formulir tidak tersedia.")
+    suspend fun getWithHeaders(
+        url: String,
+        referer: String? = null,
+        headers: Map<String, String>,
+    ): String = get(url, referer)
+    suspend fun write(
+        method: String,
+        url: String,
+        json: String,
+        referer: String? = null,
+    ): String = error("Vote tidak tersedia.")
+    suspend fun postReactionForm(
+        url: String,
+        values: Map<String, String>,
+        referer: String,
+    ): String = error("Reaksi formulir tidak tersedia.")
 }
 
 /** Implemented only when the site's public client exposes an anonymous chapter upvote. */
@@ -54,7 +67,12 @@ interface ChapterUpvoteProvider {
     suspend fun setChapterUpvote(enabled: Boolean)
 }
 
-data class ChapterReactionOption(val key: String, val emoji: String, val countLabel: String, val imageUrl: String? = null)
+data class ChapterReactionOption(
+    val key: String,
+    val emoji: String,
+    val countLabel: String,
+    val imageUrl: String? = null,
+)
 
 interface ChapterReactionsProvider : ChapterUpvoteProvider {
     val reactionOptions: List<ChapterReactionOption>

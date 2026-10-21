@@ -28,7 +28,10 @@ class QqCommentsProvider(
             val document = Jsoup.parse(initialHtml ?: transport.get(target.url, target.url), target.url)
             val wrapper = document.selectFirst("#comment-wrapper[data-model][data-id]")
                 ?: error("Identitas komentar QQ tidak ditemukan")
-            check(document.selectFirst("#comment-root") != null && document.selectFirst("#comments-list-template") != null) {
+            check(
+                document.selectFirst("#comment-root") != null &&
+                    document.selectFirst("#comments-list-template") != null,
+            ) {
                 "Template komentar QQ tidak dikenali"
             }
             val model = wrapper.attr("data-model").trim()
@@ -70,7 +73,11 @@ class QqCommentsProvider(
 
     private fun parseComment(element: JsonElement, parentId: String? = null): ChapterComment? {
         val comment = element as? JsonObject ?: return null
-        if ((comment["is_hidden"] as? JsonPrimitive)?.booleanOrNull == true || comment.text("deleted_at") != null) return null
+        if ((comment["is_hidden"] as? JsonPrimitive)?.booleanOrNull == true ||
+            comment.text("deleted_at") != null
+        ) {
+            return null
+        }
         val id = comment.text("id")?.takeIf { it.toLongOrNull()?.let { number -> number > 0 } == true } ?: return null
         val commenter = comment["commenter"] as? JsonObject
         val body = comment.text("content").orEmpty()

@@ -29,7 +29,8 @@ fun browseLibraryAppearanceSettings(): Preference.PreferenceGroup {
                 entries = linkedMapOf(0 to "Default icon", 1 to "In Library text"),
             ),
             Preference.PreferenceItem.InfoPreference(
-                title = "Applies to source Browse, including Popular, Latest, and Latest Library. Personal favorite stars appear below the badge.",
+                title = "Applies to source Browse, including Popular, Latest, and Latest Library. " +
+                    "Personal favorite stars appear below the badge.",
             ),
         ),
     )

@@ -1,3 +1,6 @@
+// Raw HTML fixtures intentionally preserve their original single-line payloads.
+@file:Suppress("ktlint:standard:max-line-length")
+
 package eu.kanade.tachiyomi.ui.mod.chaptercomments
 
 import kotlinx.coroutines.async
@@ -14,7 +17,7 @@ class KiryuuCommentsProviderTest {
     private val chapter = """<div hx-get="$endpoint?chapter_id=814435&amp;utm_cid=0&amp;action=get_comments"></div>"""
 
     @Test
-    fun `template reads share initial load and parse nested replies and reactions without executing actions`() = runTest {
+    fun `template shares initial reads and parses nested replies and reactions`() = runTest {
         val fake = FakeTransport { fullComments() }
         val provider = KiryuuCommentsProvider(target, fake, chapter)
         assertTrue(fake.urls.isEmpty())
@@ -41,7 +44,10 @@ class KiryuuCommentsProviderTest {
         val fake = FakeTransport { url ->
             when {
                 "action=get_comments_order_page" in url -> comment("336371", "Last page")
-                "action=get_comments_order" in url -> "<div id='comment-area'>${comment("335327", "Newest")}${more("newest")}</div>"
+                "action=get_comments_order" in url -> "<div id='comment-area'>${comment(
+                    "335327",
+                    "Newest",
+                )}${more("newest")}</div>"
                 else -> fullComments()
             }
         }
@@ -88,7 +94,11 @@ class KiryuuCommentsProviderTest {
     private fun fullComments(): String = """
         <div id="full-comments"><div id="response-data"><div hx-post="$endpoint?action=set_my_reaction"><img alt="Upvote"><span>11</span><span>Upvote</span></div></div>
         <div id="comment-area"><span hx-get="$endpoint?order=newest&amp;id=814435&amp;action=get_comments_order">Newest</span>
-        <div id="comments-section">${comment("334804", "A public comment", comment("334821", "A reply", comment("335314", "A nested reply")))}</div>${more("best")}</div></div>
+        <div id="comments-section">${comment(
+        "334804",
+        "A public comment",
+        comment("334821", "A reply", comment("335314", "A nested reply")),
+    )}</div>${more("best")}</div></div>
     """.trimIndent()
 
     private inner class FakeTransport(val response: (String) -> String) : CommentsTransport {

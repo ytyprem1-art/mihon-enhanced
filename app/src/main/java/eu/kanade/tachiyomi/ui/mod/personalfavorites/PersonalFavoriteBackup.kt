@@ -13,7 +13,11 @@ object PersonalFavoriteBackup {
     fun snapshot(enabled: Boolean, store: PersonalFavoriteStore = PersonalFavorites.store): List<PersonalFavorite> =
         if (enabled) store.snapshot().sortedWith(compareBy({ it.source }, { it.url })) else emptyList()
 
-    fun restore(favorites: List<PersonalFavorite>, enabled: Boolean, store: PersonalFavoriteStore = PersonalFavorites.store) {
+    fun restore(
+        favorites: List<PersonalFavorite>,
+        enabled: Boolean,
+        store: PersonalFavoriteStore = PersonalFavorites.store,
+    ) {
         if (enabled && favorites.isNotEmpty()) store.restore(favorites)
     }
 }

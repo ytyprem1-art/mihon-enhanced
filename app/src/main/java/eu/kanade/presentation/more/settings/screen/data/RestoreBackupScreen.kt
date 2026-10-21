@@ -103,7 +103,14 @@ class RestoreBackupScreen(
                     }
 
                     val results = state.results
-                    if (results != null && (results.hasModHistoryCategories || results.hasModHistoryGroups || results.hasModLinkedSources || results.hasModUpdateWatch || results.hasModPersonalFavorites || results.hasModUpdatesCategories)) {
+                    if (
+                        results != null &&
+                        (
+                            results.hasModHistoryCategories || results.hasModHistoryGroups ||
+                                results.hasModLinkedSources || results.hasModUpdateWatch ||
+                                results.hasModPersonalFavorites || results.hasModUpdatesCategories
+                            )
+                    ) {
                         item {
                             SectionCard(MR.strings.mod_data) {
                                 if (results.hasModHistoryCategories) {
