@@ -77,6 +77,13 @@ Each publication archives its notes. For installed 2.1 → latest 2.5, the clien
 
 ## Tests
 
+GitHub Actions generates a dummy `google-services.json` using
+`.github/scripts/prepare-ci-firebase.py` solely for compilation and unit tests.
+It does not use the maintainer's Firebase configuration or connect to a live chat/update backend.
+CI APK artifacts are explicitly named `ci-only-dummy-firebase`; they are not configured releases
+and do not validate live Firebase behavior. For an APK you intend to use, supply your own Firebase
+configuration as described above. The CI helper refuses to overwrite an existing configuration.
+
 Use a separate development project or Firebase emulator. Rules tests use `demo-mihon-panels` on localhost port 8094, not production. Install Node.js, the declared npm dependencies, and JDK 21+:
 
 ```sh
