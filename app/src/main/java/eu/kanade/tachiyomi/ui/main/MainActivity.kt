@@ -322,6 +322,7 @@ class MainActivity : BaseActivity() {
                     ShowOnboarding()
                     ShowDonationCampaign()
                     ShowWelcome()
+                    eu.kanade.tachiyomi.ui.mod.appupdate.ModUpdateHost()
                 }
             }
         }

@@ -49,6 +49,7 @@ class PanelShareSession(val document: OriginalCropDocument, val context: PanelCo
     var originalPreview: Bitmap? = null
     var panel by mutableStateOf<CompressedPanel?>(null)
     var caption by mutableStateOf("")
+    var isSpoiler by mutableStateOf(false)
     var savedImage by mutableStateOf<android.net.Uri?>(null)
     var savedMimeType = "image/png"
     var upscaleResult by mutableStateOf<ImgUpscaleResult?>(null)
@@ -246,6 +247,7 @@ class PanelShareController {
                     "senderName" to username,
                     "senderUid" to uid,
                     "text" to current.caption.take(200),
+                    "isSpoiler" to current.isSpoiler,
                     "timestamp" to FieldValue.serverTimestamp(),
                     "readBy" to mapOf(uid to System.currentTimeMillis()),
                     "isMangaShare" to true,

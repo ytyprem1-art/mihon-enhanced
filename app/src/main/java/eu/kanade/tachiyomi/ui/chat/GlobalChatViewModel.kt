@@ -113,6 +113,8 @@ class GlobalChatViewModel : androidx.lifecycle.ViewModel() {
                             isOnline = doc.getBoolean("isOnline") ?: false,
                             isTyping = doc.getBoolean("isTyping") ?: false,
                             lastSeen = doc.getLong("lastSeen") ?: 0L,
+                            appVersion = doc.getString("appVersion"),
+                            avatarBase64 = doc.getString("avatarBase64"),
                         )
                     }
                     mutableState.update { state ->
@@ -248,6 +250,8 @@ data class ChatUser(
     val isOnline: Boolean,
     val isTyping: Boolean,
     val lastSeen: Long,
+    val appVersion: String? = null,
+    val avatarBase64: String? = null,
 )
 
 data class ChatMessage(
@@ -270,4 +274,5 @@ data class ChatMessage(
     val chapterUrl: String? = null,
     val readBy: Map<String, Long> = emptyMap(),
     val hasPanel: Boolean = false,
+    val isSpoiler: Boolean = false,
 )

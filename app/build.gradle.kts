@@ -38,8 +38,8 @@ android {
     defaultConfig {
         applicationId = "dev.vishkel.mihon"
 
-        versionCode = 52
-        versionName = "Mihon 0.21.2 - Mod 2.0"
+        versionCode = 53
+        versionName = "Mihon Enhanced 2.1"
 
         buildConfigField("boolean", "TELEMETRY_INCLUDED", "false")
         buildConfigField("boolean", "UPDATER_ENABLED", "false")

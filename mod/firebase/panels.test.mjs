@@ -8,6 +8,47 @@ import {
 } from 'firebase/firestore';
 
 let env;
+// Local-only updater fixtures; no test writes are made to the live project.
+test('publishing requires a fresh private password proof and never exposes credentials', async () => {
+  const pinHash = 'a'.repeat(64);
+  await env.withSecurityRulesDisabled(async ctx => {
+    await setDoc(doc(ctx.firestore(), 'mod_update_config', 'admin'), { pinHash });
+  });
+  const owner = env.authenticatedContext('release-owner').firestore();
+  const friend = env.authenticatedContext('release-friend').firestore();
+  const anonymous = env.unauthenticatedContext().firestore();
+  const release = { version: '2.2', fileId: 'abcdefghijk123456', notes: 'Update', releaseNumber: 2002000, publishedAt: serverTimestamp() };
+  const publish = (db, hash, data = release) => {
+    const batch = writeBatch(db);
+    batch.set(doc(db, 'mod_update_proofs', 'release-owner'), { ...data, pinHash: hash, at: serverTimestamp() });
+    batch.set(doc(db, 'mod_updates', 'stable'), data);
+    batch.set(doc(db, 'mod_update_releases', data.version), data);
+    return batch.commit();
+  };
+  await assertFails(setDoc(doc(friend, 'mod_update_config', 'admin'), { pinHash }));
+  await assertFails(getDoc(doc(friend, 'mod_update_config', 'admin')));
+  await assertFails(setDoc(doc(friend, 'mod_updates', 'stable'), release));
+  await assertFails(setDoc(doc(anonymous, 'mod_updates', 'stable'), release));
+  await assertFails(publish(owner, 'wrong-password'));
+  await assertFails(publish(friend, pinHash));
+  await assertSucceeds(publish(owner, pinHash));
+  const other = env.authenticatedContext('other-device').firestore();
+  const otherBatch = writeBatch(other);
+  otherBatch.set(doc(other, 'mod_update_proofs', 'other-device'), { ...release, pinHash, at: serverTimestamp() });
+  otherBatch.set(doc(other, 'mod_updates', 'stable'), release);
+  otherBatch.set(doc(other, 'mod_update_releases', release.version), release);
+  await assertSucceeds(otherBatch.commit()); // Same password works from another device, no admin account.
+  assert.equal((await assertSucceeds(getDoc(doc(anonymous, 'mod_updates', 'stable')))).get('version'), '2.2');
+  await assertFails(publish(owner, pinHash, { ...release, releaseNumber: 2001000 }));
+  await assertFails(publish(owner, pinHash, { ...release, fileId: '../invalid' }));
+  await assertFails(setDoc(doc(owner, 'mod_updates', 'stable'), release)); // Cannot replay an old proof.
+  await assertFails(getDoc(doc(owner, 'mod_update_proofs', 'release-owner')));
+  await assertFails(getDoc(doc(friend, 'mod_update_proofs', 'release-owner')));
+  await assertSucceeds(publish(owner, pinHash, { ...release, version: '2.3', releaseNumber: 2003000, notes: 'New in 2.3' }));
+  assert.equal((await getDoc(doc(anonymous, 'mod_update_releases', '2.2'))).get('notes'), 'Update');
+  assert.equal((await getDoc(doc(anonymous, 'mod_update_releases', '2.3'))).get('notes'), 'New in 2.3');
+  await assertFails(setDoc(doc(friend, 'mod_update_releases', '2.2'), { ...release, notes: 'forged' }));
+});
 before(async () => {
   env = await initializeTestEnvironment({
     projectId: 'demo-mihon-panels',

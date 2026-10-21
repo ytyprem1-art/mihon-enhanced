@@ -73,5 +73,54 @@ service cloud.firestore {
       allow create, update: if isOwner(userId);
       allow delete: if false;
     }
+
+    // The shared password verifier is provisioned through Console/Admin SDK only.
+    // Neither it nor password proofs are readable by Android clients.
+    match /mod_update_config/{document} {
+      allow read, write: if false;
+    }
+    match /mod_update_proofs/{userId} {
+      allow read, delete: if false;
+      allow create, update: if isOwner(userId)
+        && request.resource.data.keys().hasOnly(['pinHash', 'at', 'version', 'fileId', 'notes', 'releaseNumber', 'publishedAt'])
+        && request.resource.data.at == request.time
+        && request.resource.data.pinHash is string
+        && request.resource.data.pinHash == get(/databases/$(database)/documents/mod_update_config/admin).data.pinHash;
+    }
+
+    match /mod_updates/{channel} {
+      allow get: if channel == 'stable';
+      allow list, delete: if false;
+      allow create, update: if channel == 'stable' && isAuthenticated()
+        && getAfter(/databases/$(database)/documents/mod_update_proofs/$(request.auth.uid)).data.pinHash
+            == get(/databases/$(database)/documents/mod_update_config/admin).data.pinHash
+        && getAfter(/databases/$(database)/documents/mod_update_proofs/$(request.auth.uid)).data.at == request.time
+        && getAfter(/databases/$(database)/documents/mod_update_proofs/$(request.auth.uid)).data.version == request.resource.data.version
+        && getAfter(/databases/$(database)/documents/mod_update_proofs/$(request.auth.uid)).data.fileId == request.resource.data.fileId
+        && getAfter(/databases/$(database)/documents/mod_update_proofs/$(request.auth.uid)).data.notes == request.resource.data.notes
+        && getAfter(/databases/$(database)/documents/mod_update_proofs/$(request.auth.uid)).data.releaseNumber == request.resource.data.releaseNumber
+        && request.resource.data.keys().hasOnly(['version', 'fileId', 'notes', 'releaseNumber', 'publishedAt'])
+        && request.resource.data.version is string
+        && request.resource.data.version.matches('[0-9]{1,3}[.][0-9]{1,3}([.][0-9]{1,3})?')
+        && request.resource.data.fileId is string
+        && request.resource.data.fileId.matches('[A-Za-z0-9_-]{10,150}')
+        && request.resource.data.notes is string && request.resource.data.notes.size() <= 4000
+        && request.resource.data.releaseNumber is int && request.resource.data.releaseNumber > 0
+        && request.resource.data.publishedAt == request.time
+        && getAfter(/databases/$(database)/documents/mod_update_releases/$(request.resource.data.version)).data == request.resource.data
+        && (!exists(/databases/$(database)/documents/mod_updates/$(channel))
+            || request.resource.data.releaseNumber >= resource.data.releaseNumber);
+    }
+    match /mod_update_releases/{version} {
+      allow read: if true;
+      allow delete: if false;
+      allow create, update: if isAuthenticated()
+        && version == request.resource.data.version
+        && request.resource.data.publishedAt == request.time
+        && getAfter(/databases/$(database)/documents/mod_updates/stable).data == request.resource.data
+        && getAfter(/databases/$(database)/documents/mod_update_proofs/$(request.auth.uid)).data.at == request.time
+        && getAfter(/databases/$(database)/documents/mod_update_proofs/$(request.auth.uid)).data.pinHash
+          == get(/databases/$(database)/documents/mod_update_config/admin).data.pinHash;
+    }
   }
 }

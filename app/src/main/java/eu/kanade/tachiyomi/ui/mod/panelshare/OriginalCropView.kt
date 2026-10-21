@@ -67,32 +67,32 @@ class OriginalCropView(context: Context) : View(context) {
 
     fun update(doc: OriginalCropDocument, crop: DocumentCrop, mode: CropTemplate, deviceRatio: Double) {
         document = doc
-        if (!initialized && doc.height > 0 && width > 0 && height > 0) {
-            initialized = true
-            selection = crop.clamped(doc.height)
-            top = (selection.top - .1).coerceAtLeast(0.0)
-            constrain()
-        }
         val changed = template != mode || templateRatio != (mode.ratio ?: deviceRatio)
         template = mode
         templateRatio = mode.ratio ?: deviceRatio
-        if (changed && mode != CropTemplate.Custom) {
-            val centerX = (selection.left + selection.right) / 2
-            val centerY = (selection.top + selection.bottom) / 2
-            zoom = minimumZoom()
-            horizontal = frame().centerX() - centerX * pixelsPerUnit
-            top = centerY - frame().centerY() / pixelsPerUnit
-            constrain()
-            updateTemplateSelection()
-        } else if (mode == CropTemplate.Custom) {
-            selection = crop
-            if (changed && width > 0 && doc.height > 0) {
+        selection = if (doc.height > 0) crop.clamped(doc.height) else crop
+        // AndroidView.update can run before layout, especially when reopening Adjust crop.
+        // A zero-width viewport would divide by zero and publish a NaN crop to Compose.
+        if (width <= 0 || height <= 0 || doc.height <= 0) {
+            invalidate()
+            return
+        }
+        if (!initialized || changed) {
+            initialized = true
+            if (mode == CropTemplate.Custom) {
                 val position = customCropViewport(selection, height.toDouble() / width, doc.height)
                 zoom = position.zoom
                 horizontal = position.horizontal
                 top = position.top
-                constrain()
+            } else {
+                val centerX = (selection.left + selection.right) / 2
+                val centerY = (selection.top + selection.bottom) / 2
+                zoom = minimumZoom()
+                horizontal = frame().centerX() - centerX * pixelsPerUnit
+                top = centerY - frame().centerY() / pixelsPerUnit
             }
+            constrain()
+            updateTemplateSelection()
         }
         invalidate()
     }
@@ -144,6 +144,7 @@ class OriginalCropView(context: Context) : View(context) {
     }
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        document?.let { update(it, selection, template, templateRatio) }
         zoom = max(zoom, minimumZoom())
         constrain()
         updateTemplateSelection()

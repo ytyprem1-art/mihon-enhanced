@@ -97,6 +97,7 @@ class ChatManager {
                             chapterUrl = doc.getString("chapterUrl"),
                             readBy = readBy,
                             hasPanel = doc.getBoolean("hasPanel") ?: false,
+                            isSpoiler = doc.getBoolean("isSpoiler") ?: false,
                         )
                     }.reversed() // Ascending order for UI
 

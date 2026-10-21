@@ -254,24 +254,16 @@ private fun PresenceHeader(
 @Composable
 private fun OnlineUserItem(user: ChatUser) {
     val color = remember(user.username) { getUserColor(user.username) }
+    var showProfile by remember(user.uid) { mutableStateOf(false) }
+    if (showProfile) {
+        eu.kanade.tachiyomi.ui.mod.chatprofile.ChatUserProfile(user.username, user.appVersion, user.uid, user.avatarBase64) { showProfile = false }
+    }
     Column(
+        modifier = Modifier.clickable(onClickLabel = "Open profile") { showProfile = true },
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Box {
-            Surface(
-                modifier = Modifier.size(32.dp),
-                shape = CircleShape,
-                color = color.copy(alpha = 0.2f),
-                border = androidx.compose.foundation.BorderStroke(1.dp, color)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Text(
-                        text = user.username.take(1).uppercase(),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = color
-                    )
-                }
-            }
+            eu.kanade.tachiyomi.ui.mod.chatprofile.ChatAvatar(user.username, user.avatarBase64, color = color.copy(alpha = 0.2f))
 
             if (user.isOnline) {
                 Box(
@@ -398,6 +390,7 @@ private fun ColumnScope.ChatRoomContent(
         ) {
             items(
                 items = displayItems,
+                key = { it.key },
             ) { item ->
                 when (item) {
                     is ChatDisplayItem.Message -> {
@@ -682,6 +675,11 @@ private fun ChatBubble(
     }
 
     var showReadReceipts by remember { mutableStateOf(false) }
+    var showProfile by remember(message.senderUid) { mutableStateOf(false) }
+    if (showProfile) {
+        val user = allUsers.firstOrNull { message.senderUid.isNotBlank() && it.uid == message.senderUid }
+        eu.kanade.tachiyomi.ui.mod.chatprofile.ChatUserProfile(user?.username ?: message.sender, user?.appVersion, message.senderUid, user?.avatarBase64) { showProfile = false }
+    }
 
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -712,6 +710,7 @@ private fun ChatBubble(
                         if (!isMe) {
                             Text(
                                 text = message.sender,
+                                modifier = Modifier.clickable(onClickLabel = "Open profile") { showProfile = true },
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,
                                 color = labelColor,
@@ -769,13 +768,13 @@ private fun ChatBubble(
 
                 if (message.isMangaShare) {
                     if (message.hasPanel) {
-                        eu.kanade.tachiyomi.ui.mod.panelshare.ChatPanelCard(message, onMangaClick)
+                        eu.kanade.tachiyomi.ui.mod.panelshare.ChatPanelCard(message, onMangaClick, textColor)
                     } else {
                         MangaShareCard(message, onMangaClick)
                     }
 
                     // Render custom caption UNDER the card if present and not the default fallback
-                    if (message.text.isNotBlank() && !message.text.startsWith("Shared a manga:")) {
+                    if (!message.hasPanel && message.text.isNotBlank() && !message.text.startsWith("Shared a manga:")) {
                         Text(
                             text = message.text,
                             style = MaterialTheme.typography.bodyMedium,

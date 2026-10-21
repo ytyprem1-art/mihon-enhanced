@@ -106,7 +106,7 @@ object SettingsMainScreen : Screen() {
                     items.indexOfFirst { it.screen::class == navigator.items.first()::class }
                         .also {
                             LaunchedEffect(Unit) {
-                                state.animateScrollToItem(it)
+                                if (it >= 0) state.animateScrollToItem(it)
                                 if (it > 0) {
                                     // Lift scroll
                                     topBarState.contentOffset = topBarState.heightOffsetLimit
@@ -152,6 +152,13 @@ object SettingsMainScreen : Screen() {
                                 onPreferenceClick = { navigator.navigate(item.screen, twoPane) },
                             )
                         }
+                    }
+                    item {
+                        TextPreferenceWidget(
+                            title = "Kelola update",
+                            subtitle = "Cek versi baru dan terbitkan update sebagai admin",
+                            onPreferenceClick = { navigator.navigate(eu.kanade.tachiyomi.ui.mod.appupdate.ModUpdateSettingsScreen, twoPane) },
+                        )
                     }
                 }
             },

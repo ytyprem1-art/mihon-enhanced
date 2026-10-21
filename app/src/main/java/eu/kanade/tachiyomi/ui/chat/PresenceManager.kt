@@ -40,6 +40,7 @@ class PresenceManager(private val context: android.content.Context) {
 
         val presenceData = mutableMapOf<String, Any?>(
             "username" to username,
+            "appVersion" to eu.kanade.tachiyomi.BuildConfig.VERSION_NAME,
             "isOnline" to isOnline,
             "lastSeen" to System.currentTimeMillis(),
 
