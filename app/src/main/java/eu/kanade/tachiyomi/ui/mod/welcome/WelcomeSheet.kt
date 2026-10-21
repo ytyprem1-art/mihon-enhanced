@@ -142,6 +142,10 @@ fun WelcomeSheet(
                     desc = stringResource(MR.strings.mod_welcome_feature_chat_desc),
                 )
                 FeatureItem(
+                    title = stringResource(MR.strings.mod_welcome_feature_mod_update_title),
+                    desc = stringResource(MR.strings.mod_welcome_feature_mod_update_desc),
+                )
+                FeatureItem(
                     title = stringResource(MR.strings.mod_welcome_feature_merge_title),
                     desc = stringResource(MR.strings.mod_welcome_feature_merge_desc),
                 )

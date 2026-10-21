@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { initializeTestEnvironment, assertFails, assertSucceeds } from '@firebase/rules-unit-testing';
 import {
   Bytes, Timestamp, collection, doc, getDoc, getDocs, limit, orderBy,
-  query, serverTimestamp, setDoc, startAfter, updateDoc, writeBatch,
+  query, serverTimestamp, setDoc, startAfter, updateDoc, writeBatch, deleteField,
 } from 'firebase/firestore';
 
 let env;
@@ -56,6 +56,110 @@ before(async () => {
   });
 });
 after(async () => { await env?.cleanup(); });
+
+const hdVersion1 = '11111111-1111-4111-8111-111111111111';
+const hdVersion2 = '22222222-2222-4222-8222-222222222222';
+function profilePhotoBatch(db, uid, version, size = 1000) {
+  const batch = writeBatch(db);
+  batch.set(doc(db, 'presence', uid), { username: uid, avatarBase64: 'small-avatar', avatarPhotoVersion: version }, { merge: true });
+  batch.set(doc(db, 'chat_profile_photos', uid), {
+    senderUid: uid, version, width: 768, height: 768, data: Bytes.fromUint8Array(new Uint8Array(size)),
+  });
+  return batch;
+}
+
+test('HD profile photos are owner written, bounded and visible only to authenticated chat clients', async () => {
+  const alice = env.authenticatedContext('photo-alice').firestore();
+  const bob = env.authenticatedContext('photo-bob').firestore();
+  const anonymous = env.unauthenticatedContext().firestore();
+  await assertSucceeds(profilePhotoBatch(alice, 'photo-alice', hdVersion1, 204800).commit());
+  assert.equal((await assertSucceeds(getDoc(doc(bob, 'chat_profile_photos', 'photo-alice')))).get('data').toUint8Array().length, 204800);
+  await assertFails(getDoc(doc(anonymous, 'chat_profile_photos', 'photo-alice')));
+  await assertFails(profilePhotoBatch(bob, 'photo-alice', hdVersion2).commit());
+  await assertFails(profilePhotoBatch(alice, 'photo-alice', hdVersion2, 204801).commit());
+  assert.equal((await getDoc(doc(alice, 'chat_profile_photos', 'photo-alice'))).get('version'), hdVersion1);
+  await assertFails(setDoc(doc(alice, 'chat_profile_photos', 'photo-alice'), {
+    senderUid: 'photo-alice', version: hdVersion2, width: 768, height: 768, data: Bytes.fromUint8Array(new Uint8Array(100)),
+  }));
+});
+
+test('replacing a profile photo overwrites the same document rather than retaining old photos', async () => {
+  const db = env.authenticatedContext('photo-replace').firestore();
+  await assertSucceeds(profilePhotoBatch(db, 'photo-replace', hdVersion1, 10).commit());
+  await assertSucceeds(profilePhotoBatch(db, 'photo-replace', hdVersion2, 20).commit());
+  const photo = await getDoc(doc(db, 'chat_profile_photos', 'photo-replace'));
+  assert.equal(photo.get('version'), hdVersion2);
+  assert.equal(photo.get('data').toUint8Array().length, 20);
+  assert.equal((await getDoc(doc(db, 'presence', 'photo-replace'))).get('avatarPhotoVersion'), hdVersion2);
+});
+
+test('removing a profile photo clears HD and thumbnail metadata in the same batch', async () => {
+  const db = env.authenticatedContext('photo-remove').firestore();
+  await assertSucceeds(profilePhotoBatch(db, 'photo-remove', hdVersion1).commit());
+  const alone = writeBatch(db); alone.delete(doc(db, 'chat_profile_photos', 'photo-remove'));
+  await assertFails(alone.commit());
+  const batch = writeBatch(db);
+  batch.update(doc(db, 'presence', 'photo-remove'), { avatarBase64: deleteField(), avatarPhotoVersion: deleteField() });
+  batch.delete(doc(db, 'chat_profile_photos', 'photo-remove'));
+  await assertSucceeds(batch.commit());
+  assert.equal((await getDoc(doc(db, 'chat_profile_photos', 'photo-remove'))).exists(), false);
+  assert.equal((await getDoc(doc(db, 'presence', 'photo-remove'))).get('avatarPhotoVersion'), undefined);
+});
+
+function gifBatch(db, id, { size = 100, url, uid = 'alice' } = {}) {
+  const batch = writeBatch(db);
+  batch.set(doc(db, 'global_chat', id), {
+    ...message(uid), hasGif: true, gifWidth: 120, gifHeight: 100,
+    ...(url ? { gifUrl: url } : {}),
+  });
+  if (!url) batch.set(doc(db, 'global_chat_gifs', id), { senderUid: uid, data: Bytes.fromUint8Array(new Uint8Array(size)) });
+  return batch;
+}
+
+test('GIF upload is atomic, bounded, owner checked and readable by chat members', async () => {
+  const alice = env.authenticatedContext('alice').firestore();
+  const bob = env.authenticatedContext('bob').firestore();
+  const anonymous = env.unauthenticatedContext().firestore();
+  await assertSucceeds(gifBatch(alice, 'gif-boundary', { size: 1000000 }).commit());
+  assert.equal((await assertSucceeds(getDoc(doc(bob, 'global_chat_gifs', 'gif-boundary')))).get('data').toUint8Array().length, 1000000);
+  await assertFails(getDoc(doc(anonymous, 'global_chat_gifs', 'gif-boundary')));
+  await assertFails(gifBatch(alice, 'gif-too-big', { size: 1000001 }).commit());
+  assert.equal((await getDoc(doc(alice, 'global_chat', 'gif-too-big'))).exists(), false);
+  await assertFails(gifBatch(alice, 'gif-forged', { uid: 'bob' }).commit());
+  await assertFails(setDoc(doc(alice, 'global_chat_gifs', 'gif-orphan'), { senderUid: 'alice', data: Bytes.fromUint8Array(new Uint8Array(10)) }));
+  await assertFails(setDoc(doc(alice, 'global_chat', 'gif-missing'), { ...message('alice'), hasGif: true, gifWidth: 20, gifHeight: 20 }));
+});
+
+test('public GIF links need no blob and reject unsafe or non-media URLs', async () => {
+  const db = env.authenticatedContext('alice').firestore();
+  await assertSucceeds(gifBatch(db, 'gif-link', { url: 'https://media.tenor.com/example/hello.gif' }).commit());
+  await assertFails(gifBatch(db, 'gif-link-bad', { url: 'https://media.tenor.com.evil.test/a.gif' }).commit());
+  await assertFails(gifBatch(db, 'gif-local-link', { url: 'content://keyboard/a.gif' }).commit());
+  const remove = writeBatch(db);
+  remove.delete(doc(db, 'global_chat', 'gif-link'));
+  await assertSucceeds(remove.commit());
+});
+
+test('GIF cleanup removes message and file together and fits ten-message batch limit', async () => {
+  const db = env.authenticatedContext('alice').firestore();
+  await assertSucceeds(gifBatch(db, 'gif-delete').commit());
+  const messageOnly = writeBatch(db); messageOnly.delete(doc(db, 'global_chat', 'gif-delete'));
+  await assertFails(messageOnly.commit());
+  const gifOnly = writeBatch(db); gifOnly.delete(doc(db, 'global_chat_gifs', 'gif-delete'));
+  await assertFails(gifOnly.commit());
+  const paired = writeBatch(db); paired.delete(doc(db, 'global_chat', 'gif-delete')); paired.delete(doc(db, 'global_chat_gifs', 'gif-delete'));
+  await assertSucceeds(paired.commit());
+  for (let i = 0; i < 10; i++) await assertSucceeds(gifBatch(db, `gif-clean-${i}`).commit());
+  const batch = writeBatch(db);
+  for (let i = 0; i < 10; i++) {
+    batch.delete(doc(db, 'global_chat', `gif-clean-${i}`));
+    batch.delete(doc(db, 'global_chat_gifs', `gif-clean-${i}`));
+  }
+  await assertSucceeds(batch.commit());
+  await env.withSecurityRulesDisabled(async ctx => {
+    for (let i = 0; i < 10; i++) assert.equal((await getDoc(doc(ctx.firestore(), 'global_chat_gifs', `gif-clean-${i}`))).exists(), false);
+  });
+});
 
 function message(uid, panel = false) {
   return {
@@ -164,4 +268,47 @@ test('ten paired deletions fit the Rules access-call limit', async () => {
     batch.delete(doc(db, 'global_chat_panels', `batch-${i}`));
   }
   await assertSucceeds(batch.commit());
+});
+
+test('timestamp retention keeps 200 mixed messages and deletes expired GIF and panel blobs', async () => {
+  await env.clearFirestore();
+  await env.withSecurityRulesDisabled(async ctx => {
+    const db = ctx.firestore();
+    for (let start = 1; start <= 205; start += 100) {
+      const batch = writeBatch(db);
+      for (let i = start; i <= Math.min(start + 99, 205); i++) {
+        const id = `mixed-${String(i).padStart(4, '0')}`;
+        const data = { ...message('alice', i % 3 === 2), timestamp: Timestamp.fromMillis(i * 1000) };
+        if (i % 3 === 1) {
+          Object.assign(data, { hasGif: true, gifWidth: 20, gifHeight: 20 });
+          batch.set(doc(db, 'global_chat_gifs', id), { senderUid: 'alice', data: Bytes.fromUint8Array(new Uint8Array(10)) });
+        } else if (i % 3 === 2) {
+          batch.set(doc(db, 'global_chat_panels', id), { senderUid: 'alice', data: Bytes.fromUint8Array(new Uint8Array(10)) });
+        }
+        batch.set(doc(db, 'global_chat', id), data);
+      }
+      await batch.commit();
+    }
+  });
+  const db = env.authenticatedContext('alice').firestore();
+  const ordered = query(collection(db, 'global_chat'), orderBy('timestamp', 'desc'));
+  const newest = await getDocs(query(ordered, limit(200)));
+  const old = await getDocs(query(ordered, startAfter(newest.docs.at(-1)), limit(10)));
+  assert.deepEqual(old.docs.map(d => d.id), ['mixed-0005', 'mixed-0004', 'mixed-0003', 'mixed-0002', 'mixed-0001']);
+  const batch = writeBatch(db);
+  for (const item of old.docs) {
+    batch.delete(item.ref);
+    if (item.get('hasPanel')) batch.delete(doc(db, 'global_chat_panels', item.id));
+    if (item.get('hasGif') && !item.get('gifUrl')) batch.delete(doc(db, 'global_chat_gifs', item.id));
+  }
+  await assertSucceeds(batch.commit());
+  assert.equal((await getDocs(ordered)).size, 200);
+  await env.withSecurityRulesDisabled(async ctx => {
+    const db = ctx.firestore();
+    assert.equal((await getDoc(doc(db, 'global_chat_gifs', 'mixed-0001'))).exists(), false);
+    assert.equal((await getDoc(doc(db, 'global_chat_panels', 'mixed-0002'))).exists(), false);
+    for (const media of ['global_chat_gifs', 'global_chat_panels']) {
+      for (const item of (await getDocs(collection(db, media))).docs) assert.equal((await getDoc(doc(db, 'global_chat', item.id))).exists(), true);
+    }
+  });
 });

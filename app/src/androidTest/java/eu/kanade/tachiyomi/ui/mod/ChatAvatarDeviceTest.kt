@@ -21,6 +21,78 @@ import java.io.File
 import java.util.UUID
 
 class ChatAvatarDeviceTest {
+    @Test fun hdPhotoAndSmallAvatarKeepTheSameCropWithinSeparateLimits() {
+        val square = Bitmap.createBitmap(ChatAvatarPhoto.HD_SIDE, ChatAvatarPhoto.HD_SIDE, Bitmap.Config.ARGB_8888)
+        try {
+            Canvas(square).apply {
+                drawColor(android.graphics.Color.RED)
+                drawRect(0f, 384f, 768f, 768f, Paint().apply { color = android.graphics.Color.BLUE })
+            }
+            val upload = ChatAvatarPhoto.prepareUpload(square)
+            assertTrue(upload.photo.size in 1..ChatAvatarPhoto.MAX_HD_BYTES)
+            assertTrue(upload.thumbnail.length <= ChatAvatarPhoto.MAX_ENCODED)
+            val hd = ChatAvatarPhoto.decodeHd(upload.photo)
+            val thumbnail = requireNotNull(ChatAvatarPhoto.decode(upload.thumbnail))
+            try {
+                assertEquals(768, hd.width)
+                assertEquals(768, hd.height)
+                assertEquals(96, thumbnail.width)
+                assertTrue(android.graphics.Color.red(hd.getPixel(384, 100)) > 240)
+                assertTrue(android.graphics.Color.blue(hd.getPixel(384, 650)) > 240)
+                assertTrue(android.graphics.Color.red(thumbnail.getPixel(48, 12)) > 240)
+                assertTrue(android.graphics.Color.blue(thumbnail.getPixel(48, 82)) > 240)
+            } finally { hd.recycle(); thumbnail.recycle() }
+            assertThrows(IllegalArgumentException::class.java) { ChatAvatarPhoto.decodeHd(ByteArray(ChatAvatarPhoto.MAX_HD_BYTES + 1)) }
+            assertThrows(IllegalArgumentException::class.java) { ChatAvatarPhoto.decodeHd("invalid photo".toByteArray()) }
+            val pixels = IntArray(768 * 768)
+            val random = java.util.Random(4)
+            for (index in pixels.indices) pixels[index] = random.nextInt() or 0xff000000.toInt()
+            square.setPixels(pixels, 0, 768, 0, 0, 768, 768)
+            val detailed = ChatAvatarPhoto.prepareUpload(square)
+            assertTrue(detailed.photo.size <= ChatAvatarPhoto.MAX_HD_BYTES)
+            assertNotEquals(upload.version, detailed.version)
+        } finally { square.recycle() }
+    }
+    @Test fun suppliedProblemPhotoCanBeDecodedAndCropped(): Unit = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val file = File(context.cacheDir, "avatar-regression-input.jpg")
+        org.junit.Assume.assumeTrue("Optional user-supplied photo is only copied to the test device", file.exists())
+        val preview = ChatAvatarPhoto.loadForCrop(context, Uri.fromFile(file))
+        try {
+            assertTrue(preview.width in 1..1024 && preview.height in 1..1024)
+            val cropped = withContext(Dispatchers.Main) {
+                PhotoView(context).let { view ->
+                    view.scaleType = ImageView.ScaleType.CENTER_CROP
+                    view.setImageBitmap(preview)
+                    view.layout(0, 0, 320, 320)
+                    captureAvatar(view).also { view.setImageDrawable(null) }
+                }
+            }
+            try { assertNotNull(ChatAvatarPhoto.decode(ChatAvatarPhoto.encodeSquare(cropped))) }
+            finally { cropped.recycle() }
+        } finally { preview.recycle() }
+    }
+    @Test fun largePhotoUsesBoundedPreviewAndCorruptPhotoReturnsError(): Unit = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val file = File(context.cacheDir, "avatar-large-${UUID.randomUUID()}.png")
+        try {
+            val large = Bitmap.createBitmap(4096, 3072, Bitmap.Config.ARGB_8888)
+            try {
+                large.eraseColor(android.graphics.Color.MAGENTA)
+                file.outputStream().use { assertTrue(large.compress(Bitmap.CompressFormat.PNG, 100, it)) }
+            } finally { large.recycle() }
+            val preview = ChatAvatarPhoto.loadForCrop(context, Uri.fromFile(file))
+            assertTrue(preview.width in 1..1024 && preview.height in 1..1024)
+            assertEquals(android.graphics.Color.MAGENTA, preview.getPixel(preview.width / 2, preview.height / 2))
+            preview.recycle()
+            file.writeText("this is not a photo")
+            var rejected = false
+            try { ChatAvatarPhoto.loadForCrop(context, Uri.fromFile(file)) }
+            catch (_: IllegalArgumentException) { rejected = true }
+            assertTrue("Corrupt photo must return a recoverable error", rejected)
+            assertFalse(context.cacheDir.listFiles().orEmpty().any { it.name.startsWith("chat-avatar-") })
+        } finally { file.delete() }
+    }
     @Test fun pickerImageBecomesBoundedSquareAndInvalidRemotePhotosFallBack(): Unit = runBlocking {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val file = File(context.cacheDir, "avatar-test-${UUID.randomUUID()}.png")

@@ -98,6 +98,8 @@ class ChatManager {
                             readBy = readBy,
                             hasPanel = doc.getBoolean("hasPanel") ?: false,
                             isSpoiler = doc.getBoolean("isSpoiler") ?: false,
+                            hasGif = doc.getBoolean("hasGif") ?: false,
+                            gifUrl = doc.getString("gifUrl"),
                         )
                     }.reversed() // Ascending order for UI
 

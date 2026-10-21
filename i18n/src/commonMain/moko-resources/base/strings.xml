@@ -1114,7 +1114,7 @@
     <string name="pref_grid_columns_3">3 columns</string>
     <string name="pref_grid_columns_4">4 columns</string>
 
-    <string name="mod_welcome_title">Mihon Enhanced v2.0</string>
+    <string name="mod_welcome_title">Mihon Enhanced v2.3</string>
     <string name="mod_welcome_subtitle">Based on Mihon 0.21.2</string>
     <string name="mod_welcome_intro">Mihon Enhanced adds quality-of-life tools and additional manga management features while keeping the core Mihon experience familiar.</string>
     <string name="mod_welcome_section_features">What\'s in this mod</string>
@@ -1151,7 +1151,9 @@
     <string name="mod_welcome_feature_upscale_title">ImgUpscale 2× / 4×</string>
     <string name="mod_welcome_feature_upscale_desc">Upscale a cropped image on demand before saving or sharing, with a preview of the result.</string>
     <string name="mod_welcome_feature_chat_title">Global Chat</string>
-    <string name="mod_welcome_feature_chat_desc">Chat with friends, share comics and cropped panels, and see unread messages and presence.</string>
+    <string name="mod_welcome_feature_chat_desc">Chat with friends, share comics, cropped panels and keyboard GIFs, and see unread messages and presence. Includes panel spoilers, full-screen image previews, sharper profile photos with adjustable cropping and full-screen zoom, and app versions on profiles. Keeps the latest 200 messages and removes their uploaded media together.</string>
+    <string name="mod_welcome_feature_mod_update_title">In-App Updates</string>
+    <string name="mod_welcome_feature_mod_update_desc">Check for Enhanced updates, read release notes including skipped versions, and download signed APKs from Google Drive. New versions appear when opening the app. Publish releases through the password-protected update menu in Settings.</string>
     <string name="mod_welcome_feature_merge_title">Merge Chapters</string>
     <string name="mod_welcome_feature_merge_desc">Combine chapter lists from multiple sources, with per-source chapter and download settings.</string>
     <string name="mod_welcome_feature_drive_sync_title">Google Drive Sync</string>

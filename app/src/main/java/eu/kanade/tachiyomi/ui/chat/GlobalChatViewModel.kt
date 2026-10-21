@@ -115,6 +115,7 @@ class GlobalChatViewModel : androidx.lifecycle.ViewModel() {
                             lastSeen = doc.getLong("lastSeen") ?: 0L,
                             appVersion = doc.getString("appVersion"),
                             avatarBase64 = doc.getString("avatarBase64"),
+                            avatarPhotoVersion = doc.getString("avatarPhotoVersion"),
                         )
                     }
                     mutableState.update { state ->
@@ -252,6 +253,7 @@ data class ChatUser(
     val lastSeen: Long,
     val appVersion: String? = null,
     val avatarBase64: String? = null,
+    val avatarPhotoVersion: String? = null,
 )
 
 data class ChatMessage(
@@ -275,4 +277,6 @@ data class ChatMessage(
     val readBy: Map<String, Long> = emptyMap(),
     val hasPanel: Boolean = false,
     val isSpoiler: Boolean = false,
+    val hasGif: Boolean = false,
+    val gifUrl: String? = null,
 )

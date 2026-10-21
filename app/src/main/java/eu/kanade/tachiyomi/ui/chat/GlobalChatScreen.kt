@@ -256,7 +256,7 @@ private fun OnlineUserItem(user: ChatUser) {
     val color = remember(user.username) { getUserColor(user.username) }
     var showProfile by remember(user.uid) { mutableStateOf(false) }
     if (showProfile) {
-        eu.kanade.tachiyomi.ui.mod.chatprofile.ChatUserProfile(user.username, user.appVersion, user.uid, user.avatarBase64) { showProfile = false }
+        eu.kanade.tachiyomi.ui.mod.chatprofile.ChatUserProfile(user.username, user.appVersion, user.uid, user.avatarBase64, user.avatarPhotoVersion) { showProfile = false }
     }
     Column(
         modifier = Modifier.clickable(onClickLabel = "Open profile") { showProfile = true },
@@ -338,6 +338,7 @@ private fun ColumnScope.ChatRoomContent(
     sessionFirstUnreadId: String?,
 ) {
     val listState = rememberLazyListState()
+    eu.kanade.tachiyomi.ui.mod.chatprofile.KeepChatAtBottom(listState, state.messages.lastOrNull()?.id)
     val scope = rememberCoroutineScope()
     var inputText by remember { mutableStateOf("") }
 
@@ -488,14 +489,21 @@ private fun ColumnScope.ChatRoomContent(
             state.replyingTo?.let { reply ->
                 ReplyPreview(message = reply, onCancelReply = onCancelReply)
             }
-            ChatInput(
+            eu.kanade.tachiyomi.ui.mod.chatgif.ChatGifComposer(
+                room = state,
                 text = inputText,
                 onTextChange = { inputText = it },
                 onSendMessage = {
+                    scope.launch { listState.scrollToItem(0) }
                     onSendMessage(it)
                     inputText = ""
                 },
                 onTyping = onTyping,
+                onGifSent = {
+                    onCancelReply()
+                    scope.launch { listState.scrollToItem(0) }
+                },
+                onInputFocused = { scope.launch { listState.scrollToItem(0) } },
             )
         }
     }
@@ -678,7 +686,7 @@ private fun ChatBubble(
     var showProfile by remember(message.senderUid) { mutableStateOf(false) }
     if (showProfile) {
         val user = allUsers.firstOrNull { message.senderUid.isNotBlank() && it.uid == message.senderUid }
-        eu.kanade.tachiyomi.ui.mod.chatprofile.ChatUserProfile(user?.username ?: message.sender, user?.appVersion, message.senderUid, user?.avatarBase64) { showProfile = false }
+        eu.kanade.tachiyomi.ui.mod.chatprofile.ChatUserProfile(user?.username ?: message.sender, user?.appVersion, message.senderUid, user?.avatarBase64, user?.avatarPhotoVersion) { showProfile = false }
     }
 
     Column(
@@ -766,7 +774,9 @@ private fun ChatBubble(
                     }
                 }
 
-                if (message.isMangaShare) {
+                if (message.hasGif) {
+                    eu.kanade.tachiyomi.ui.mod.chatgif.ChatGifBubble(message)
+                } else if (message.isMangaShare) {
                     if (message.hasPanel) {
                         eu.kanade.tachiyomi.ui.mod.panelshare.ChatPanelCard(message, onMangaClick, textColor)
                     } else {

@@ -21,33 +21,19 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FieldValue
-import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.SetOptions
-import eu.kanade.tachiyomi.BuildConfig
-import eu.kanade.tachiyomi.ui.mod.panelshare.awaitPanelTask
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 /** Displays the existing presence snapshot; opening a profile makes no network request. */
 @Composable
-fun ChatUserProfile(username: String, appVersion: String?, userId: String = "", avatarBase64: String? = null, onDismiss: () -> Unit) {
+fun ChatUserProfile(username: String, appVersion: String?, userId: String = "", avatarBase64: String? = null, avatarPhotoVersion: String? = null, onDismiss: () -> Unit) {
     val scope = rememberCoroutineScope()
     val ownProfile = userId.isNotBlank() && FirebaseAuth.getInstance().currentUser?.uid == userId
     var busy by remember(userId) { mutableStateOf(false) }
     var error by remember(userId) { mutableStateOf<String?>(null) }
     var cropUri by remember(userId) { mutableStateOf<android.net.Uri?>(null) }
-    suspend fun changePhoto(photo: String?) {
-        check(FirebaseAuth.getInstance().currentUser?.uid == userId) { "Please sign in again" }
-        FirebaseFirestore.getInstance().collection("presence").document(userId).set(
-            mapOf(
-                "username" to username,
-                "appVersion" to BuildConfig.VERSION_NAME,
-                "avatarBase64" to (photo ?: FieldValue.delete()),
-            ),
-            SetOptions.merge(),
-        ).awaitPanelTask()
-    }
+    var photoPreview by remember(userId, avatarBase64, avatarPhotoVersion) { mutableStateOf<android.graphics.Bitmap?>(null) }
+    suspend fun changePhoto(photo: ChatAvatarUpload?) = ChatProfilePhotoStore.change(userId, username, photo)
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null && !busy) cropUri = uri
     }
@@ -72,13 +58,16 @@ fun ChatUserProfile(username: String, appVersion: String?, userId: String = "", 
         title = { Text("Chat profile") },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                ChatAvatar(username, avatarBase64, size = 72.dp)
+                ChatAvatar(username, avatarBase64, size = 72.dp, onPhotoClick = { photoPreview = it })
                 Text(username, style = MaterialTheme.typography.titleMedium)
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text("App version", style = MaterialTheme.typography.labelMedium)
                     Text(appVersion?.takeIf { it.isNotBlank() } ?: "Version unavailable")
                 }
                 if (ownProfile) {
+                    if (avatarBase64 != null && avatarPhotoVersion == null) Text(
+                        "Choose your photo again for a sharper preview.", style = MaterialTheme.typography.bodySmall,
+                    )
                     TextButton(enabled = !busy, onClick = { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }) {
                         Text("Change photo")
                     }
@@ -104,4 +93,7 @@ fun ChatUserProfile(username: String, appVersion: String?, userId: String = "", 
         },
         confirmButton = { TextButton(onClick = onDismiss, enabled = !busy) { Text("Close") } },
     )
+    photoPreview?.let { bitmap ->
+        ChatProfilePhotoPreview(userId, avatarPhotoVersion, bitmap) { photoPreview = null }
+    }
 }

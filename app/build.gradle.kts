@@ -38,8 +38,8 @@ android {
     defaultConfig {
         applicationId = "dev.vishkel.mihon"
 
-        versionCode = 53
-        versionName = "Mihon Enhanced 2.1"
+        versionCode = 55
+        versionName = "Mihon Enhanced 2.3"
 
         buildConfigField("boolean", "TELEMETRY_INCLUDED", "false")
         buildConfigField("boolean", "UPDATER_ENABLED", "false")
@@ -331,6 +331,8 @@ dependencies {
     // Tests
     androidTestImplementation(libs.androidx.test.junit)
     androidTestImplementation("androidx.test:runner:1.7.0")
+    androidTestImplementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     testImplementation(libs.bundles.test)
     testRuntimeOnly(libs.junit.platform.launcher)
 

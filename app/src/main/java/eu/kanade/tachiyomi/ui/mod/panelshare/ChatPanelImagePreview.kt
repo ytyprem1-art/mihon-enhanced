@@ -28,20 +28,26 @@ fun ChatPanelImagePreview(bitmap: Bitmap, onDismiss: () -> Unit) {
         properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
     ) {
         Box(Modifier.fillMaxSize().background(Color.Black)) {
-            AndroidView(
-                factory = { context ->
-                    PhotoView(context).apply {
-                        setBackgroundColor(android.graphics.Color.BLACK)
-                        setScaleLevels(1f, 3f, 10f)
-                        setImageBitmap(bitmap)
-                    }
-                },
-                modifier = Modifier.fillMaxSize(),
-                onRelease = { it.setImageDrawable(null) },
-            )
+            ZoomableChatImage(bitmap, Modifier.fillMaxSize())
             IconButton(onClick = onDismiss, modifier = Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(4.dp)) {
                 Icon(Icons.Outlined.Close, "Close image", tint = Color.White)
             }
         }
     }
+}
+
+/** The same image surface can remain inside a dialog while an HD photo finishes loading. */
+@Composable
+fun ZoomableChatImage(bitmap: Bitmap, modifier: Modifier = Modifier) {
+    AndroidView(
+        factory = { context ->
+            PhotoView(context).apply {
+                setBackgroundColor(android.graphics.Color.BLACK)
+                setScaleLevels(1f, 3f, 10f)
+                setImageBitmap(bitmap)
+            }
+        },
+        modifier = modifier,
+        onRelease = { it.setImageDrawable(null) },
+    )
 }

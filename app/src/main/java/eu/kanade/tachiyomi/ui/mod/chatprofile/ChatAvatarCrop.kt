@@ -24,7 +24,7 @@ import kotlinx.coroutines.withContext
 
 /** Fixed square viewport: pan/zoom changes the photo, never the crop dimensions. */
 @Composable
-fun ChatAvatarCrop(uri: Uri, onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
+fun ChatAvatarCrop(uri: Uri, onDismiss: () -> Unit, onConfirm: (ChatAvatarUpload) -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val view = remember(uri) { PhotoView(context).apply { scaleType = ImageView.ScaleType.CENTER_CROP; setScaleLevels(1f, 3f, 8f) } }
@@ -37,6 +37,7 @@ fun ChatAvatarCrop(uri: Uri, onDismiss: () -> Unit, onConfirm: (String) -> Unit)
             view.setImageBitmap(image)
             loaded = true
         } catch (e: CancellationException) { throw e }
+        catch (e: OutOfMemoryError) { error = "Memori tidak cukup. Coba foto yang lebih kecil." }
         catch (e: Exception) { error = e.message ?: "Gambar tidak bisa dibuka." }
     }
     DisposableEffect(view) { onDispose { view.setImageDrawable(null) } }
@@ -59,11 +60,12 @@ fun ChatAvatarCrop(uri: Uri, onDismiss: () -> Unit, onConfirm: (String) -> Unit)
                 scope.launch {
                     busy = true; error = null
                     try {
-                        val bitmap = captureAvatar(view)
-                        val encoded = try { withContext(Dispatchers.Default) { ChatAvatarPhoto.encodeSquare(bitmap) } }
+                        val bitmap = captureAvatar(view, ChatAvatarPhoto.HD_SIDE)
+                        val encoded = try { withContext(Dispatchers.Default) { ChatAvatarPhoto.prepareUpload(bitmap) } }
                         finally { bitmap.recycle() }
                         onConfirm(encoded)
                     } catch (e: CancellationException) { throw e }
+                    catch (e: OutOfMemoryError) { error = "Memori tidak cukup. Coba foto yang lebih kecil." }
                     catch (e: Exception) { error = e.message ?: "Foto tidak bisa diproses." }
                     finally { busy = false }
                 }
@@ -73,12 +75,13 @@ fun ChatAvatarCrop(uri: Uri, onDismiss: () -> Unit, onConfirm: (String) -> Unit)
     )
 }
 
-internal fun captureAvatar(view: PhotoView): Bitmap {
+internal fun captureAvatar(view: PhotoView, side: Int = ChatAvatarPhoto.SIDE): Bitmap {
+    require(side in 1..ChatAvatarPhoto.HD_SIDE)
     require(view.width > 0 && view.height > 0 && view.drawable != null) { "Gambar belum siap." }
-    return Bitmap.createBitmap(ChatAvatarPhoto.SIDE, ChatAvatarPhoto.SIDE, Bitmap.Config.ARGB_8888).also { bitmap ->
+    return Bitmap.createBitmap(side, side, Bitmap.Config.ARGB_8888).also { bitmap ->
         Canvas(bitmap).apply {
             drawColor(android.graphics.Color.WHITE)
-            scale(ChatAvatarPhoto.SIDE.toFloat() / view.width, ChatAvatarPhoto.SIDE.toFloat() / view.height)
+            scale(side.toFloat() / view.width, side.toFloat() / view.height)
             view.draw(this)
         }
     }

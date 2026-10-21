@@ -14,6 +14,13 @@ service cloud.firestore {
       return 'hasPanel' in data && data.hasPanel == true;
     }
 
+    function hasGif(data) {
+      return 'hasGif' in data && data.hasGif == true;
+    }
+    function gifLink(data) {
+      return 'gifUrl' in data;
+    }
+
     match /global_chat/{messageId} {
       allow read: if isAuthenticated();
 
@@ -23,6 +30,17 @@ service cloud.firestore {
         && request.resource.data.text is string
         && request.resource.data.isMangaShare is bool
         && request.resource.data.timestamp == request.time
+        && (!hasGif(request.resource.data) || (
+          !hasPanel(request.resource.data)
+          && request.resource.data.isMangaShare == false
+          && request.resource.data.text.size() <= 200
+          && request.resource.data.gifWidth is int && request.resource.data.gifWidth > 0 && request.resource.data.gifWidth <= 1200
+          && request.resource.data.gifHeight is int && request.resource.data.gifHeight > 0 && request.resource.data.gifHeight <= 1200
+          && (gifLink(request.resource.data)
+            ? (request.resource.data.gifUrl is string && request.resource.data.gifUrl.size() <= 2000
+              && request.resource.data.gifUrl.matches('https://(media[.]tenor[.]com|media[0-9]*[.]giphy[.]com|i[.]giphy[.]com)/[^?#]*[.][gG][iI][fF]([?].*)?'))
+            : getAfter(/databases/$(database)/documents/global_chat_gifs/$(messageId)).data.senderUid == request.auth.uid)
+        ))
         && (!hasPanel(request.resource.data) || (
           request.resource.data.isMangaShare == true
           && request.resource.data.text.size() <= 200
@@ -46,6 +64,8 @@ service cloud.firestore {
       // Clients retain the newest 200 messages. Rules cannot count an ordered query.
       // Only authenticated chat clients may delete, and a panel must be deleted in the same batch.
       allow delete: if isAuthenticated()
+        && (!hasGif(resource.data) || gifLink(resource.data)
+          || !existsAfter(/databases/$(database)/documents/global_chat_gifs/$(messageId)))
         && (!hasPanel(resource.data)
           || !existsAfter(/databases/$(database)/documents/global_chat_panels/$(messageId)));
     }
@@ -68,10 +88,43 @@ service cloud.firestore {
         && !existsAfter(/databases/$(database)/documents/global_chat/$(messageId));
     }
 
+    match /global_chat_gifs/{messageId} {
+      allow read: if isAuthenticated()
+        && hasGif(get(/databases/$(database)/documents/global_chat/$(messageId)).data)
+        && !gifLink(get(/databases/$(database)/documents/global_chat/$(messageId)).data);
+      allow create: if isAuthenticated()
+        && request.resource.data.keys().hasOnly(['senderUid', 'data'])
+        && request.resource.data.senderUid == request.auth.uid
+        && request.resource.data.data is bytes
+        && request.resource.data.data.size() > 0 && request.resource.data.data.size() <= 1000000
+        && hasGif(getAfter(/databases/$(database)/documents/global_chat/$(messageId)).data)
+        && !gifLink(getAfter(/databases/$(database)/documents/global_chat/$(messageId)).data)
+        && getAfter(/databases/$(database)/documents/global_chat/$(messageId)).data.senderUid == request.auth.uid;
+      allow update: if false;
+      allow delete: if isAuthenticated()
+        && !existsAfter(/databases/$(database)/documents/global_chat/$(messageId));
+    }
+
     match /presence/{userId} {
       allow read: if isAuthenticated();
       allow create, update: if isOwner(userId);
       allow delete: if false;
+    }
+
+    // The tiny avatar stays in presence; the larger photo is fetched only when opened.
+    match /chat_profile_photos/{userId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isOwner(userId)
+        && request.resource.data.keys().hasOnly(['senderUid', 'version', 'width', 'height', 'data'])
+        && request.resource.data.senderUid == userId
+        && request.resource.data.version is string
+        && request.resource.data.version.matches('[0-9a-f-]{36}')
+        && request.resource.data.width == 768 && request.resource.data.height == 768
+        && request.resource.data.data is bytes
+        && request.resource.data.data.size() > 0 && request.resource.data.data.size() <= 204800
+        && getAfter(/databases/$(database)/documents/presence/$(userId)).data.avatarPhotoVersion == request.resource.data.version;
+      allow delete: if isOwner(userId)
+        && !('avatarPhotoVersion' in getAfter(/databases/$(database)/documents/presence/$(userId)).data);
     }
 
     // The shared password verifier is provisioned through Console/Admin SDK only.

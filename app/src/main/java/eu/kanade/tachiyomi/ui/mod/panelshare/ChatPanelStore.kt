@@ -88,6 +88,9 @@ object ChatPanelStore {
                 messages.forEach { doc ->
                     batch.delete(doc.reference)
                     if (doc.getBoolean("hasPanel") == true) batch.delete(db.collection(PANELS).document(doc.id))
+                    if (doc.getBoolean("hasGif") == true && doc.getString("gifUrl") == null) {
+                        batch.delete(db.collection(eu.kanade.tachiyomi.ui.mod.chatgif.ChatGifStore.COLLECTION).document(doc.id))
+                    }
                 }
                 // Message + blob deletion is atomic; an interruption cannot leave orphaned panels.
                 batch.commit().awaitPanelTask()
