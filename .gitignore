@@ -15,3 +15,16 @@ local.properties
 
 # macOS specific files
 .DS_Store
+
+# Private backend/signing configuration
+app/google-services.json
+app/src/**/google-services.json
+app/src/main/assets/client_secrets.local.json
+*.jks
+*.keystore
+*.p12
+*service-account*.json
+*serviceAccount*.json
+.env
+.env.*
+!.env.example

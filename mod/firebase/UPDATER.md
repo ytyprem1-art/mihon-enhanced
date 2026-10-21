@@ -8,7 +8,7 @@ so this fork never offers an official Mihon APK over the enhanced app.
 
 1. Build a signed **release universal APK** with the same application ID and signing key.
    Increment both the mod version and Android versionCode for each actual app release.
-   The current baseline is **Mihon Enhanced 2.1**, versionCode **53**. The next release would
+   The original updater baseline was **Mihon Enhanced 2.1**, versionCode **53**. Its next release would
    normally be 2.2 / 54. Debug APKs carry a separate application ID/key and cannot replace release APKs.
 2. Upload the universal APK to Google Drive and enable access for anyone with the link.
 3. Open **Settings > Kelola update**, enter the admin password, fill version (e.g. `2.2`), Drive file
@@ -79,6 +79,4 @@ Final validation: **194 JVM tests passed**, including **5** updater tests. The u
 rules tests passed**, now also verifying that 2.2 notes remain readable after publishing 2.3 and that
 unauthorized history edits are rejected. Latest debug APK installed successfully on LDPlayer only.
 
-Not yet exercised: real public Drive download of the next signed universal APK, installation, update
-notification/pop-up, and the next-launch reminder on a release build. These need the actual next APK;
-do not publish a fake higher version to the live group just for testing.
+Subsequent maintainer testing confirmed signed 2.2 and its auto-update notification/update flow work. Current development source is 2.3 / code 55; no 2.3 release has been announced. See [setup for forks](SETUP.md) before configuring a separate backend.
