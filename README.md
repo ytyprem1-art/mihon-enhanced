@@ -12,7 +12,7 @@
 
 **A familiar reader. More room to make it yours.**
 
-[🛠️ Build the latest](#build) &nbsp; · &nbsp; [📦 Legacy releases](https://github.com/ytyprem1-art/mihon-enhanced/releases) &nbsp; · &nbsp; [✨ Features](#features) &nbsp; · &nbsp; [🔥 Firebase setup](mod/firebase/SETUP.md) &nbsp; · &nbsp; [🐛 Report an issue](https://github.com/ytyprem1-art/mihon-enhanced/issues)
+[🛠️ Build the latest](#build) &nbsp; · &nbsp; [📦 Legacy releases](https://github.com/ytyprem1-art/mihon-enhanced/releases) &nbsp; · &nbsp; [✨ Features](#features) &nbsp; · &nbsp; [📸 Screenshots](#screenshots) &nbsp; · &nbsp; [🔥 Firebase setup](mod/firebase/SETUP.md) &nbsp; · &nbsp; [🐛 Report an issue](https://github.com/ytyprem1-art/mihon-enhanced/issues)
 
 </div>
 
@@ -38,10 +38,90 @@ This repository continues the original History Category fork and retains its Git
 | :---: | :--- |
 | 🗂️ | **A tidier library** — History categories, source-linked Updates tabs, personal stars, and custom cover grids. |
 | 🔀 | **More flexible sources** — linked entries, quick switching, merged chapters, and Update Watch. |
-| ✂️ | **Keep the best panels** — adjustable cropping, wallpaper ratios, image filters, and 2× / 4× enhancement. |
+| ✂️ | **Keep the best panels** — adjustable cropping, wallpaper ratios, image filters, and 2× / 4× upscaling. |
 | 💬 | **Read the discussion** — chapter comments, persistent replies, images, and supported website reactions. |
 | 🫶 | **Share with friends** — Global Chat, panel spoilers, keyboard GIFs, profiles, and photo zoom. |
 | ☁️ | **Keep your setup** — extended backups, Drive sync, and a separate in-app updater. |
+
+<a id="screenshots"></a>
+
+## 📸 See it in action
+
+Real captures from the development build running in an Android emulator. Tap an image for the full-size view; expand a group to explore more features.
+
+**Chat display names and message text were replaced locally with English demo content for privacy.** Profile photos and shared panels remain visible. These edits affect the published screenshots only, not the real chat. Screenshots show development UI and do not announce a public APK release.
+
+<table>
+<tr>
+<td align="center" valign="top"><b>Browse your way</b><br><br><a href=".github/screenshots/browse-library.webp"><img src=".github/screenshots/browse-library.webp" alt="Browse your way" width="250"></a><br><sub>Four-column covers with a clear In Library outline.</sub></td>
+<td align="center" valign="top"><b>Crop the best panels</b><br><br><a href=".github/screenshots/panel-crop.webp"><img src=".github/screenshots/panel-crop.webp" alt="Crop the best panels" width="250"></a><br><sub>Adjust the selection and choose a wallpaper ratio.</sub></td>
+<td align="center" valign="top"><b>Share with friends</b><br><br><a href=".github/screenshots/global-chat.webp"><img src=".github/screenshots/global-chat.webp" alt="Share with friends" width="250"></a><br><sub>Cropped panels, replies, and a shared conversation.</sub></td>
+</tr>
+</table>
+
+<details>
+<summary><b>🗂️ Organization — categories, favorites & backups</b></summary>
+
+<table>
+<tr>
+<td align="center" valign="top"><b>History Categories</b><br><br><a href=".github/screenshots/history-categories.webp"><img src=".github/screenshots/history-categories.webp" alt="History Categories" width="185"></a><br><sub>Keep reading history in separate tabs.</sub></td>
+<td align="center" valign="top"><b>Updates Categories</b><br><br><a href=".github/screenshots/updates-source-categories.webp"><img src=".github/screenshots/updates-source-categories.webp" alt="Updates Categories" width="185"></a><br><sub>Automatically separate updates by source.</sub></td>
+<td align="center" valign="top"><b>Personal Favorites</b><br><br><a href=".github/screenshots/personal-favorites.webp"><img src=".github/screenshots/personal-favorites.webp" alt="Personal Favorites" width="185"></a><br><sub>Recognize your favorites by their gold star.</sub></td>
+<td align="center" valign="top"><b>Extended Backups</b><br><br><a href=".github/screenshots/backup-restore.webp"><img src=".github/screenshots/backup-restore.webp" alt="Extended Backups" width="185"></a><br><sub>Include supported Enhanced data in backups.</sub></td>
+</tr>
+</table>
+
+</details>
+
+<details>
+<summary><b>🔀 Sources & Update Watch</b></summary>
+
+<table>
+<tr>
+<td align="center" valign="top"><b>Linked Sources</b><br><br><a href=".github/screenshots/linked-sources.webp"><img src=".github/screenshots/linked-sources.webp" alt="Linked Sources" width="250"></a><br><sub>Keep equivalent entries and their progress together.</sub></td>
+<td align="center" valign="top"><b>Update Watch</b><br><br><a href=".github/screenshots/update-watch.webp"><img src=".github/screenshots/update-watch.webp" alt="Update Watch" width="250"></a><br><sub>Upcoming, due, and overdue releases in one place.</sub></td>
+</tr>
+</table>
+
+</details>
+
+<details>
+<summary><b>📖 Reader — comments, replies & image viewing</b></summary>
+
+<table>
+<tr>
+<td align="center" valign="top"><b>Chapter Comments</b><br><br><a href=".github/screenshots/chapter-comments.webp"><img src=".github/screenshots/chapter-comments.webp" alt="Chapter Comments" width="250"></a><br><sub>Reactions, total counts, images, and expanded replies.</sub></td>
+<td align="center" valign="top"><b>Full-screen Images</b><br><br><a href=".github/screenshots/panel-viewer.webp"><img src=".github/screenshots/panel-viewer.webp" alt="Full-screen Images" width="250"></a><br><sub>Open shared panels in the zoom viewer.</sub></td>
+</tr>
+</table>
+
+</details>
+
+<details>
+<summary><b>💬 Chat — GIFs, spoilers & profiles</b></summary>
+
+<table>
+<tr>
+<td align="center" valign="top"><b>Keyboard GIFs</b><br><br><a href=".github/screenshots/chat-gif.webp"><img src=".github/screenshots/chat-gif.webp" alt="Keyboard GIFs" width="250"></a><br><sub>Preview and share supported keyboard GIFs.</sub></td>
+<td align="center" valign="top"><b>Panel Spoilers</b><br><br><a href=".github/screenshots/chat-spoiler.webp"><img src=".github/screenshots/chat-spoiler.webp" alt="Panel Spoilers" width="250"></a><br><sub>Tap to reveal the shared image and message.</sub></td>
+<td align="center" valign="top"><b>Chat Profiles</b><br><br><a href=".github/screenshots/chat-profile.webp"><img src=".github/screenshots/chat-profile.webp" alt="Chat Profiles" width="250"></a><br><sub>Profile photos and the installed app version.</sub></td>
+</tr>
+</table>
+
+</details>
+
+<details>
+<summary><b>🔔 Independent app updater</b></summary>
+
+<table>
+<tr>
+<td align="center" valign="top"><b>Update Management</b><br><br><a href=".github/screenshots/app-updater.webp"><img src=".github/screenshots/app-updater.webp" alt="Update Management" width="250"></a><br><sub>Check for updates and unlock publishing with your own backend password.</sub></td>
+</tr>
+</table>
+
+</details>
+
+---
 
 <details>
 <summary><b>🔎 Explore the complete feature list</b></summary>
@@ -69,7 +149,7 @@ This repository continues the original History Category fork and retains its Git
 ### ✂️ Reader & images
 
 - **Panel Crop & Share:** adjustable crop handles, wallpaper ratios, local image filters, PNG saving, and cropped-panel sharing.
-- **ImgUpscale 2× / 4×:** on-demand enhancement of a cropped image with a result preview. This online feature depends on its external service.
+- **Image Upscaling 2× / 4×:** on-demand enhancement of a cropped image with a result preview. This online feature depends on its external service.
 - **Chapter Comments & Reactions:** a shared reader UI with source-specific handlers, replies, available comment totals, image previews, and chapter reactions where supported. Expanded replies stay open while scrolling. Comments load only when opened.
 - Handlers include Asura, Shinigami, Komiku, Komiku Asia, Ikiru, Kiryuu, Voratoon, Doujindesu, MangaDex, and supported HTML/forum backends. Availability, totals, login requirements, and voting depend on the website; not every source exposes every action.
 
@@ -176,12 +256,6 @@ Public Drive APK downloads do not need a Drive account login or library-sync OAu
 For library sync, supply your own installed-app OAuth JSON in the ignored `app/src/main/assets/client_secrets.local.json`. Set the AppAuth redirect scheme in `app/src/main/AndroidManifest.xml` to match your OAuth client: `com.googleusercontent.apps.<client-id-without-.apps.googleusercontent.com>`. The checked-in `client_secrets.json` is a placeholder; without your own credentials, sync reports that it is not configured. Keep account tokens and private credentials out of Git.
 
 </details>
-
-## 📸 Screenshots
-
-Feature screenshots are being prepared. The gallery will group images by feature, so you can see how History categories, reader tools, comments, chat, and profiles work before building.
-
-Screenshots belong in [`.github/screenshots/`](.github/screenshots/README.md). Use demo content for chat/profile examples and hide personal details, credentials, and private conversations.
 
 ## 🧪 Technical notes & validation
 
