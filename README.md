@@ -17,7 +17,7 @@
 </div>
 
 > [!IMPORTANT]
-> **Want the latest features? Build from source.** The APKs on the Releases page are older builds from **before Global Chat** and do not include the full feature set described below. There is currently **no public prebuilt APK for the latest source**. Configure **your own Firebase project** for chat and the updater, then compile your own APK. The maintainer's personal chat server and private-group builds are not provided as a public service. Start with [the build instructions](#build) and [Firebase setup](mod/firebase/SETUP.md).
+> **Want the latest features? Build from source.** The APKs on the Releases page are older builds from **before Global Chat** and do not include the full feature set described below. There is currently **no public prebuilt release APK for the latest source**. Configure **your own Firebase project** for chat and the updater, then compile your own APK. The maintainer's personal chat server and private-group builds are not provided as a public service. Start with [the build instructions](#build) and [Firebase setup](mod/firebase/SETUP.md).
 
 ---
 
@@ -184,7 +184,7 @@ Real captures from the development build running in an Android emulator. Tap an 
 | Version / channel | What is available? |
 | :--- | :--- |
 | 📦 [Legacy public releases](https://github.com/ytyprem1-art/mihon-enhanced/releases) | Older APKs from before Global Chat. They do **not** contain all the features listed in this README. |
-| 🛠️ Latest source (`main`) | Current development source: **Mihon Enhanced 2.3**, Android version code **55**. **Compile it yourself** with your own Firebase configuration. No current public prebuilt APK is provided. |
+| 🛠️ Latest source (`main`) | Current development source: **Mihon Enhanced 2.3**, Android version code **55**. **Compile it yourself** with your own Firebase configuration. No current public prebuilt release APK is provided. |
 
 The maintainer has tested signed 2.2 privately with friends, including update notifications and the update flow. That private build is **not a public GitHub release**. The next 2.3 profile improvements have been tested in debug; no public 2.3 APK is announced here.
 
@@ -200,6 +200,9 @@ Enhanced uses a different package name from official Mihon, allowing installatio
 
 > [!IMPORTANT]
 > **Bring your own Firebase project.** Chat and the update feed belong to the backend you configure. A fork does not inherit a private chat server or publishing credentials.
+
+> [!NOTE]
+> **GitHub Actions builds are for CI testing.** The [Build & Test workflow](https://github.com/ytyprem1-art/mihon-enhanced/actions/workflows/build.yml) checks formatting, runs unit tests, verifies database migrations, and builds an APK using a generated **dummy Firebase configuration**. Artifacts named `ci-only-dummy-firebase-...` are not configured releases: Global Chat and the in-app updater are not connected to a live backend. Your own builds still need the Firebase setup below.
 
 <details>
 <summary><b>🚀 Build instructions & local configuration</b></summary>
